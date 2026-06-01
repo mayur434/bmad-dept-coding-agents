@@ -2012,3 +2012,1140 @@ USER appuser
 4. var/generated/pub/static/pub/media: 775 (group writable)
 5. app/etc/env.php: 640 (no other access)
 6. Set proper ownership: `chown -R <deploy-user>:<web-group> .`
+
+---
+
+## Exception Handling Rules
+
+---
+
+### COMM-EXC-001: Generic Exception Handling
+
+- **Severity**: High
+- **Description**: Catching base `\Exception` hides specific error types and makes debugging extremely difficult. Empty catch blocks silently swallow errors. Throwing generic exceptions prevents callers from handling errors appropriately.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+!app/code/**/Test/**
+!app/code/**/registration.php
+```
+
+#### Detect — Bad Pattern
+```regex
+catch\s*\(\s*\\?Exception\s+\$
+catch\s*\([^)]+\)\s*\{\s*\}
+throw\s+new\s+\\?Exception\s*\(
+```
+
+#### Detect — Good Pattern
+- Catching specific exceptions: `catch (NoSuchEntityException $e)`, `catch (LocalizedException $e)`
+- Non-empty catch blocks with logging or rethrow
+- Throwing specific exception types: `throw new InputException(__('...'))`
+
+#### Bad Example
+```php
+class OrderProcessor
+{
+    public function process($orderId)
+    {
+        try {
+            $order = $this->orderRepository->get($orderId);
+            $this->paymentProcessor->capture($order);
+            $this->inventoryService->deduct($order);
+        } catch (\Exception $e) {
+            // Silently swallowed — did payment succeed? Is inventory deducted?
+        }
+    }
+}
+```
+
+#### Good Example
+```php
+class OrderProcessor
+{
+    public function process($orderId)
+    {
+        try {
+            $order = $this->orderRepository->get($orderId);
+        } catch (NoSuchEntityException $e) {
+            throw new InputException(__('Order %1 not found', $orderId), $e);
+        }
+
+        try {
+            $this->paymentProcessor->capture($order);
+        } catch (PaymentException $e) {
+            $this->logger->critical('Payment failed for order ' . $orderId, ['exception' => $e]);
+            throw $e;
+        }
+
+        $this->inventoryService->deduct($order);
+    }
+}
+```
+
+#### False Positives
+- Top-level exception handlers in controllers (catch-all for user-facing error messages is acceptable)
+- CLI commands may catch `\Exception` at the outermost boundary to format console output
+- Framework bootstrapping code
+
+#### LLM Deep Analysis
+- Is the caught exception in a critical path (payment, inventory, order state machine)?
+- Does the empty catch block mask partial state changes?
+- Could a specific exception have been caught that allows recovery?
+- Is there a `finally` block that handles cleanup?
+
+---
+
+### COMM-EXC-002: Excessive Try-Catch Nesting
+
+- **Severity**: Medium
+- **Description**: More than 3 try-catch blocks in a single method/file indicates defensive programming or poor error flow architecture. Exceptions should propagate to appropriate boundary layers.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+!app/code/**/Test/**
+```
+
+#### Detect — Bad Pattern
+```regex
+# 4+ try blocks in a single file
+(try\s*\{.*?){4,}
+```
+
+#### Detect — Good Pattern
+- Single try block at service boundary
+- Exception propagation to caller
+- Custom exception hierarchy for domain errors
+
+#### LLM Deep Analysis
+- Are the try-catch blocks at appropriate boundaries or scattered defensively?
+- Could the method be decomposed into smaller methods each with their own error contract?
+- Is there a service layer missing that should handle error aggregation?
+
+---
+
+## Caching Rules
+
+---
+
+### COMM-CACHE-001: Missing Cache on Data Providers
+
+- **Severity**: Medium
+- **Description**: Services, helpers, and data providers that load from DB or API without caching cause unnecessary load and latency on every request.
+
+#### Detect — Files to Scan
+```
+app/code/**/Helper/**/*.php
+app/code/**/Service/**/*.php
+app/code/**/Provider/**/*.php
+app/code/**/DataProvider/**/*.php
+```
+
+#### Detect — Bad Pattern
+```regex
+# DB load without any caching mechanism nearby
+getCollection\(\)(?!.*cache|Cache|loadedData|registry)
+fetchAll\s*\((?!.*cache|Cache)
+```
+
+#### Detect — Good Pattern
+```php
+$cacheKey = 'my_module_' . $storeId . '_' . $entityId;
+$data = $this->cache->load($cacheKey);
+if ($data === false) {
+    $data = $this->repository->getList($criteria);
+    $this->cache->save($serializer->serialize($data), $cacheKey, [Product::CACHE_TAG], $ttl);
+}
+```
+
+#### Bad Example
+```php
+class CategoryDataProvider
+{
+    public function getCategoriesForMenu(int $storeId): array
+    {
+        // Called on EVERY page load — no caching
+        $collection = $this->categoryCollectionFactory->create();
+        $collection->addAttributeToSelect('*')
+            ->setStoreId($storeId)
+            ->addIsActiveFilter();
+        return $collection->getItems();
+    }
+}
+```
+
+#### Good Example
+```php
+class CategoryDataProvider
+{
+    private const CACHE_TTL = 3600;
+
+    public function getCategoriesForMenu(int $storeId): array
+    {
+        $cacheKey = 'nav_categories_store_' . $storeId;
+        $cached = $this->cache->load($cacheKey);
+        if ($cached !== false) {
+            return $this->serializer->unserialize($cached);
+        }
+
+        $collection = $this->categoryCollectionFactory->create();
+        $collection->addAttributeToSelect(['name', 'url_key', 'is_active'])
+            ->setStoreId($storeId)
+            ->addIsActiveFilter();
+
+        $items = $collection->getItems();
+        $this->cache->save(
+            $this->serializer->serialize($items),
+            $cacheKey,
+            [Category::CACHE_TAG, 'store_' . $storeId],
+            self::CACHE_TTL
+        );
+        return $items;
+    }
+}
+```
+
+#### False Positives
+- Repository methods that are themselves cached by the application framework
+- One-time setup scripts or CLI commands where caching is unnecessary
+- Admin-only endpoints with low traffic
+
+#### LLM Deep Analysis
+- Is this provider called on every page load (via layout XML block)?
+- What's the data volatility — does it change often enough to warrant short TTL?
+- Are proper cache tags set so invalidation works when data changes?
+
+---
+
+### COMM-CACHE-002: Cache Save Without Tags
+
+- **Severity**: Medium
+- **Description**: Cache entries saved without tags cannot be invalidated selectively when underlying data changes, leading to stale data or requiring full cache flush.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+```
+
+#### Detect — Bad Pattern
+```regex
+->save\s*\([^,]+,\s*['"][^'"]+['"]\s*\)
+# cache save with key but no tags array
+```
+
+#### Detect — Good Pattern
+```php
+$this->cache->save($data, $key, [\Magento\Catalog\Model\Product::CACHE_TAG], 3600);
+```
+
+#### LLM Deep Analysis
+- What entity does this cache relate to? It should use that entity's CACHE_TAG constant
+- Will the cache become stale when products/categories/CMS are updated?
+- Is the TTL appropriate or should it rely solely on tag-based invalidation?
+
+---
+
+## Code Metrics Rules
+
+---
+
+### COMM-METRICS-001: God Class (Excessive File Size)
+
+- **Severity**: High
+- **Description**: Classes exceeding 500 lines violate the Single Responsibility Principle. They become difficult to test, review, and maintain. They often accumulate unrelated logic over time.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+!app/code/**/Test/**
+!app/code/**/Setup/**
+```
+
+#### Detect — Bad Pattern
+- PHP file > 500 lines (excluding comments/blank lines)
+- Single class with > 20 public methods
+- Class implementing > 4 interfaces
+
+#### Detect — Good Pattern
+- Classes < 300 lines focused on single responsibility
+- Use of composition over inheritance
+- Service classes extracted for distinct operations
+
+#### LLM Deep Analysis
+- What distinct responsibilities does this class hold? Can they be separated?
+- Is this a "Manager" or "Helper" that's become a dumping ground?
+- Which methods are cohesive (use same properties) vs. unrelated?
+- Would the Extract Class refactoring help here?
+
+---
+
+### COMM-METRICS-002: Fat Constructor (Excessive Dependencies)
+
+- **Severity**: High
+- **Description**: Constructors with more than 10 injected dependencies indicate the class has too many responsibilities. This makes testing difficult and creates tight coupling.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+!app/code/**/Test/**
+```
+
+#### Detect — Bad Pattern
+```regex
+function\s+__construct\s*\(([^)]*,){10,}[^)]*\)
+```
+
+#### Detect — Good Pattern
+- Constructor with ≤ 6 dependencies
+- Use of aggregate services/facades to reduce direct dependencies
+- Command/Query separation patterns
+
+#### Bad Example
+```php
+public function __construct(
+    ProductRepositoryInterface $productRepo,
+    CategoryRepositoryInterface $categoryRepo,
+    StockRegistryInterface $stockRegistry,
+    PriceCurrencyInterface $priceCurrency,
+    StoreManagerInterface $storeManager,
+    ScopeConfigInterface $scopeConfig,
+    LoggerInterface $logger,
+    CacheInterface $cache,
+    Session $customerSession,
+    CartRepositoryInterface $cartRepo,
+    SearchCriteriaBuilder $searchCriteriaBuilder,
+    FilterBuilder $filterBuilder,
+    SortOrderBuilder $sortOrderBuilder,
+    CollectionFactory $collectionFactory,
+    TimezoneInterface $timezone
+) { /* ... */ }
+```
+
+#### LLM Deep Analysis
+- Group the dependencies by concern — how many distinct responsibilities are visible?
+- Can some be combined into a domain-specific service?
+- Are any dependencies unused or only used in one method (extract to separate class)?
+
+---
+
+## Deprecated API Rules
+
+---
+
+### COMM-DEP-001: Deprecated Magento API Usage
+
+- **Severity**: Medium–Critical
+- **Description**: Usage of deprecated APIs (Registry, AbstractHelper, Magento 1 patterns, deprecated payment/shipping methods) creates upgrade risk and technical debt.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+app/code/**/*.xml
+```
+
+#### Detect — Bad Pattern
+```regex
+Mage::
+\$this->_registry
+\$registry->register
+extends\s+\\?Magento\\Framework\\App\\Helper\\AbstractHelper
+Zend_(?!Db_Select)
+\\Zend\\
+->getLayout\(\)->createBlock\(
+```
+
+#### Detect — Good Pattern
+- ViewModel pattern for templates instead of Helper
+- Service contracts instead of direct model access
+- Current Magento 2 APIs and patterns
+
+#### LLM Deep Analysis
+- Is this deprecated API on the removal timeline for the next Magento version?
+- What's the migration path — is a 1:1 replacement available?
+- Does this deprecated usage cascade to other parts of the code?
+- Is it blocking a version upgrade?
+
+---
+
+## Logging Rules
+
+---
+
+### COMM-LOG-001: Debug Output in Production Code
+
+- **Severity**: High
+- **Description**: `var_dump()`, `print_r()`, `debug_print_backtrace()` left in production code exposes internal data structure to users and causes display issues.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+!app/code/**/Test/**
+```
+
+#### Detect — Bad Pattern
+```regex
+\b(?:var_dump|print_r|debug_print_backtrace|var_export)\s*\(
+\becho\s+['"]debug
+\berror_log\s*\(
+```
+
+#### Detect — Good Pattern
+```php
+$this->logger->debug('Processing order', ['order_id' => $orderId]);
+$this->logger->info('Order placed successfully', ['order_id' => $orderId]);
+```
+
+#### LLM Deep Analysis
+- Is this behind a debug flag/config check, or always active?
+- Could this leak sensitive data (customer info, payment tokens)?
+- Is the proper PSR-3 logger injected and available in this class?
+
+---
+
+### COMM-LOG-002: Excessive Custom Log Handlers
+
+- **Severity**: Low
+- **Description**: Multiple custom log file handlers (`addWriter`, `pushHandler`) create separate log files that may not be in logrotate, fill disk, and fragment debugging across many files.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+app/code/**/etc/di.xml
+```
+
+#### Detect — Bad Pattern
+```regex
+addWriter\s*\(
+pushHandler\s*\(
+new\s+StreamHandler\s*\(
+```
+
+#### LLM Deep Analysis
+- How many custom log files does this project create?
+- Are they in logrotate.d?
+- Could structured JSON logging with context replace multiple handlers?
+
+---
+
+## File Storage Rules
+
+---
+
+### COMM-FS-001: Unmanaged File Operations
+
+- **Severity**: High
+- **Description**: Direct `file_put_contents()`, `fwrite()`, and `mkdir()` without cleanup mechanisms cause disk space growth. Temp files must be cleaned by cron or lifecycle management.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+!app/code/**/Test/**
+!app/code/**/Setup/**
+```
+
+#### Detect — Bad Pattern
+```regex
+\bfile_put_contents\s*\(
+\bfwrite\s*\(
+\bmkdir\s*\(
+\bfputcsv\s*\(
+\btempnam\s*\(
+```
+
+#### Detect — Good Pattern
+```php
+// Write to var/tmp with TTL-based cleanup
+$tmpFile = $this->filesystem->getDirectoryWrite(DirectoryList::TMP)->getAbsolutePath('export_' . time() . '.csv');
+// ... write file ...
+// Cron cleans up files older than TTL from .env
+```
+
+#### LLM Deep Analysis
+- Does the file write have a corresponding cleanup (unlink, cron, lifecycle policy)?
+- Is it writing to an appropriate directory (var/tmp, var/export) vs. project root?
+- On cloud environments (Adobe Commerce Cloud), is the directory in a writable mount?
+
+---
+
+## Test Coverage Rules
+
+---
+
+### COMM-TEST-001: Zero Test Coverage
+
+- **Severity**: Critical
+- **Description**: Modules with no tests (unit, integration, or MFTF) have no regression safety net. Changes to payment, inventory, or pricing logic without tests are high risk.
+
+#### Detect — Files to Scan
+```
+app/code/*/
+```
+
+#### Detect — Bad Pattern
+- Module directory exists without `Test/` or `Tests/` subdirectory
+- No `*Test.php` or `*TestCase.php` files anywhere in the module
+
+#### Detect — Good Pattern
+```
+Module/
+├── Test/
+│   ├── Unit/
+│   │   └── Model/
+│   ├── Integration/
+│   └── Mftf/
+│       └── Test/
+```
+
+#### LLM Deep Analysis
+- Is this module touching critical flows (payment, checkout, inventory)?
+- Does it override/plugin core behavior (higher risk without tests)?
+- What would be the minimum test set to cover the happy path?
+- Are there dependent modules that also lack tests (cascading risk)?
+
+---
+
+## Cron Job Rules
+
+---
+
+### COMM-CRON-001: Cron Job Without Execution Safeguards
+
+- **Severity**: High
+- **Description**: Cron jobs without lock mechanisms, memory limits, or execution time boundaries can overlap, consume all server resources, or run indefinitely.
+
+#### Detect — Files to Scan
+```
+app/code/**/etc/crontab.xml
+app/code/**/Cron/**/*.php
+```
+
+#### Detect — Bad Pattern
+```regex
+# In crontab.xml: schedule without group
+<job\s+[^>]*instance=.*>(?!.*group=)
+# In cron PHP: no lock check
+class\s+\w+Cron(?!.*lock|Lock|mutex|Mutex)
+```
+
+#### Detect — Good Pattern
+```php
+class CleanupCron
+{
+    public function execute(): void
+    {
+        if (!$this->lockManager->lock('my_module_cleanup', 0)) {
+            return; // Another instance is running
+        }
+        try {
+            // Process with batch limits
+            $this->processItems($this->getBatchSize());
+        } finally {
+            $this->lockManager->unlock('my_module_cleanup');
+        }
+    }
+}
+```
+
+#### LLM Deep Analysis
+- What's the cron schedule frequency vs. expected execution time?
+- Does it process unbounded data (no LIMIT/batch)?
+- Can two cron runs overlap and corrupt data?
+- Is there monitoring/alerting if cron fails silently?
+
+---
+
+## Queue Processing Rules
+
+---
+
+### COMM-QUEUE-001: Queue Consumer Without Limits
+
+- **Severity**: Medium
+- **Description**: Queue consumers without `--max-messages` or `--max-idle-time` limits run indefinitely, hold database connections open, and prevent deployments from completing cleanly.
+
+#### Detect — Files to Scan
+```
+app/code/**/etc/queue_consumer.xml
+app/code/**/etc/queue.xml
+app/etc/env.php
+```
+
+#### Detect — Bad Pattern
+```xml
+<!-- Consumer without maxMessages -->
+<consumer name="my.consumer" queue="my.queue" handler="..." />
+```
+
+#### Detect — Good Pattern
+```xml
+<consumer name="my.consumer" queue="my.queue" handler="..."
+          maxMessages="1000" maxIdleTime="60" />
+```
+
+#### LLM Deep Analysis
+- How many messages per hour does this queue receive?
+- Is the consumer running via supervisor or cron — does it auto-restart?
+- Can message processing fail and leave the message in an unrecoverable state?
+- Is there a dead-letter queue for poison messages?
+
+---
+
+## XML Configuration Rules
+
+---
+
+### COMM-XML-001: XML Configuration Errors
+
+- **Severity**: High
+- **Description**: Invalid or misconfigured XML files (di.xml, events.xml, webapi.xml) cause silent failures where plugins/observers/APIs don't register, producing bugs that are extremely hard to trace.
+
+#### Detect — Files to Scan
+```
+app/code/**/etc/**/*.xml
+```
+
+#### Detect — Bad Pattern
+```regex
+# Plugin on non-existent class/method
+<type name="NonExistent\\Class">
+# Duplicate observer name
+<observer\s+name="([^"]+)".*\n.*<observer\s+name="\1"
+# Missing method in observer
+<observer.*instance=".*"(?!.*method=)
+```
+
+#### Detect — Good Pattern
+- All referenced classes exist and are autoloadable
+- Plugin methods match interceptable signatures (before/after/around + method name)
+- Event observer classes implement `ObserverInterface`
+
+#### LLM Deep Analysis
+- Does the referenced class in di.xml actually exist in the codebase?
+- Does the plugin method signature match what Magento expects (first param = subject)?
+- Are there conflicting preferences for the same interface?
+- Is the XML validated against the appropriate XSD schema?
+
+---
+
+## Infrastructure Rules
+
+---
+
+### COMM-INFRA-001: Cloud Deployment Misconfigurations
+
+- **Severity**: High
+- **Description**: Missing or misconfigured `.magento.env.yaml`, `app/etc/config.php`, environment variables, or services configurations cause deployment failures or performance issues on Adobe Commerce Cloud.
+
+#### Detect — Files to Scan
+```
+.magento.env.yaml
+.magento.app.yaml
+app/etc/config.php
+app/etc/env.php.sample
+```
+
+#### Detect — Bad Pattern
+```regex
+# SCD in deploy phase (should be build)
+SCD_STRATEGY.*deploy
+# Missing Redis configuration
+session:.*files
+cache:.*(?!redis|Redis)
+# Static content in default mode
+MAGE_MODE.*default
+```
+
+#### Detect — Good Pattern
+```yaml
+stage:
+  build:
+    SCD_STRATEGY: compact
+    SCD_THREADS: 4
+  deploy:
+    REDIS_BACKEND: Cm_Cache_Backend_Redis
+    SESSION_CONFIGURATION: {"save": "redis"}
+```
+
+#### LLM Deep Analysis
+- Is SCD happening in build phase (correct) or deploy phase (causes downtime)?
+- Are Redis/Elasticsearch/RabbitMQ properly configured for the cloud tier?
+- Is `config.php` committed with correct module enable/disable states?
+- Are there env-specific values that should be in variables, not config files?
+
+---
+
+## PHP Deep Analysis Rules
+
+---
+
+### COMM-PHP-001: Type Safety and Null Handling
+
+- **Severity**: Medium
+- **Description**: Missing return type declarations, inconsistent null checks, and type coercion issues cause runtime errors that are difficult to trace, especially after PHP 8.x upgrades.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+!app/code/**/Test/**
+```
+
+#### Detect — Bad Pattern
+```regex
+# Missing return type
+public function \w+\([^)]*\)\s*\{
+# Unsafe null access
+->get\w+\(\)->get\w+\(
+# Type coercion in comparison
+==\s*(null|true|false|0|'')
+```
+
+#### Detect — Good Pattern
+```php
+public function getProduct(int $id): ?ProductInterface
+{
+    try {
+        return $this->productRepository->getById($id);
+    } catch (NoSuchEntityException $e) {
+        return null;
+    }
+}
+```
+
+#### LLM Deep Analysis
+- Are return types declared on all public methods?
+- Is `declare(strict_types=1)` used consistently?
+- Are there null dereference risks (`->method()` on potentially null values)?
+- After PHP 8.1+, are there deprecation risks (implicit null for typed params)?
+
+---
+
+## Backward Compatibility Rules
+
+---
+
+### COMM-COMPAT-001: Breaking Interface Changes
+
+- **Severity**: Critical
+- **Description**: Modifying public API interfaces, removing methods, or changing method signatures without `@api` annotation versioning breaks third-party integrations and violates Magento's semantic versioning contract.
+
+#### Detect — Files to Scan
+```
+app/code/**/Api/**/*.php
+app/code/**/Api/Data/**/*.php
+```
+
+#### Detect — Bad Pattern
+- Removing methods from `@api` interfaces
+- Changing parameter types on interface methods
+- Adding required parameters to existing interface methods
+
+#### Detect — Good Pattern
+- Adding new interface extending the old one
+- Using optional parameters (with defaults) for new functionality
+- Marking deprecated with `@deprecated` and `@see` replacement
+
+#### LLM Deep Analysis
+- Is this interface marked `@api`? If yes, any change is a major version bump
+- Are there plugins or preferences on this interface in other modules?
+- Could the change break existing REST/GraphQL API consumers?
+
+---
+
+## Configuration Scope Rules
+
+---
+
+### COMM-CONFIG-001: Incorrect Configuration Scope
+
+- **Severity**: Medium
+- **Description**: System configuration defined at wrong scope (global vs. website vs. store) causes values to not respect multi-store setup, leading to incorrect behavior per store view.
+
+#### Detect — Files to Scan
+```
+app/code/**/etc/adminhtml/system.xml
+app/code/**/Helper/Config.php
+app/code/**/Model/Config*.php
+```
+
+#### Detect — Bad Pattern
+```regex
+# Reading config without scope
+getValue\s*\([^,)]+\)(?!\s*,)
+# Wrong scope in system.xml
+<field.*showInDefault="1".*showInWebsite="0".*showInStore="0"
+```
+
+#### Detect — Good Pattern
+```php
+// Always pass scope for store-specific config
+$this->scopeConfig->getValue(
+    'section/group/field',
+    ScopeInterface::SCOPE_STORE,
+    $storeId
+);
+```
+
+#### LLM Deep Analysis
+- Is this config value supposed to vary per store/website?
+- Does the code reading it pass the correct scope parameters?
+- Is there a mismatch between system.xml scope visibility and code scope reading?
+
+---
+
+## Layout & UI Component Rules
+
+---
+
+### COMM-LAYOUT-001: Layout XML Anti-Patterns
+
+- **Severity**: Medium
+- **Description**: Misuse of layout XML (removing core blocks unsafely, using deprecated directives, referencing non-existent containers) causes frontend rendering issues that are hard to debug.
+
+#### Detect — Files to Scan
+```
+app/code/**/view/**/layout/**/*.xml
+app/design/**/layout/**/*.xml
+```
+
+#### Detect — Bad Pattern
+```regex
+# Removing core blocks without safety check
+<referenceBlock\s+name=".*"\s+remove="true"
+# Using deprecated layout directives
+<action\s+method=
+# Template override without fallback
+<block.*template=".*".*(?!ifconfig)
+```
+
+#### Detect — Good Pattern
+```xml
+<!-- Use display="false" instead of remove for safer hiding -->
+<referenceBlock name="breadcrumbs" display="false"/>
+<!-- Use arguments instead of deprecated <action> -->
+<referenceBlock name="product.info">
+    <arguments>
+        <argument name="custom_param" xsi:type="string">value</argument>
+    </arguments>
+</referenceBlock>
+```
+
+#### LLM Deep Analysis
+- Will removing this block break checkout or other critical flows?
+- Is `<action method="...">` being used (deprecated since 2.0)?
+- Are container references valid — does the container exist in the layout hierarchy?
+
+---
+
+## MSI / Inventory Rules
+
+---
+
+### COMM-MSI-001: Incorrect Multi-Source Inventory Usage
+
+- **Severity**: High
+- **Description**: Using legacy `cataloginventory_stock_item` directly instead of MSI APIs (`SourceItemInterface`, `GetSourceItemsBySkuInterface`) breaks multi-warehouse functionality and causes incorrect stock levels.
+
+#### Detect — Files to Scan
+```
+app/code/**/*.php
+app/code/**/etc/di.xml
+```
+
+#### Detect — Bad Pattern
+```regex
+cataloginventory_stock_item
+StockRegistryInterface.*getStockItem
+setQty\s*\(
+->setIsInStock\s*\(
+```
+
+#### Detect — Good Pattern
+```php
+// Use MSI APIs
+$sourceItems = $this->getSourceItemsBySku->execute($sku);
+$salableQty = $this->getProductSalableQty->execute($sku, $stockId);
+```
+
+#### False Positives
+- Projects with MSI disabled (`Magento_Inventory*` modules off) — legacy API is correct
+- B2B projects intentionally using single-source (verify in config.php)
+
+#### LLM Deep Analysis
+- Is MSI enabled in this project (`config.php` has `Magento_Inventory*`)?
+- Does the project use multiple sources/stocks?
+- Are reservation mechanisms being respected (source deduction vs. reservation)?
+
+---
+
+## Critical Commerce Flows Rules
+
+---
+
+### COMM-FLOW-001: Unsafe Checkout Flow Modifications
+
+- **Severity**: Critical
+- **Description**: Plugins or preferences on checkout totals, quote management, or order placement that don't handle errors gracefully can break the entire checkout flow, causing lost revenue.
+
+#### Detect — Files to Scan
+```
+app/code/**/etc/di.xml
+app/code/**/Plugin/**/*.php
+app/code/**/Observer/**/*.php
+```
+
+#### Detect — Bad Pattern
+```regex
+# Plugin on checkout-critical classes without try-catch
+<type name="Magento\\Quote\\Model\\Quote">
+<type name="Magento\\Sales\\Model\\Order">
+<type name="Magento\\Checkout\\Model\\PaymentInformationManagement">
+# Observer on checkout events without error handling
+checkout_submit_all_after
+sales_order_place_after
+```
+
+#### Detect — Good Pattern
+```php
+class SafeCheckoutPlugin
+{
+    public function afterPlaceOrder(Subject $subject, $result, ...$args)
+    {
+        try {
+            $this->customLogic->execute($result);
+        } catch (\Throwable $e) {
+            // NEVER break checkout — log and continue
+            $this->logger->critical('Custom logic failed', ['exception' => $e]);
+        }
+        return $result;
+    }
+}
+```
+
+#### LLM Deep Analysis
+- Does this plugin/observer on checkout-critical code have error handling?
+- Can a failure in this code prevent order placement?
+- Is it in the `around` position (most dangerous for checkout)?
+- What happens if the external service it calls is down?
+
+---
+
+## Business Logic Rules
+
+---
+
+### COMM-BIZ-001: Business Logic in Wrong Layer
+
+- **Severity**: Medium
+- **Description**: Business logic placed in controllers, templates, or observers instead of dedicated service classes makes it untestable, unreusable, and violates separation of concerns.
+
+#### Detect — Files to Scan
+```
+app/code/**/Controller/**/*.php
+app/code/**/view/**/*.phtml
+app/code/**/Observer/**/*.php
+app/code/**/Block/**/*.php
+```
+
+#### Detect — Bad Pattern
+```regex
+# Complex business logic in controller (multiple repository/save calls)
+class\s+\w+\s+extends\s+.*Action.*\{[\s\S]*?Repository.*save[\s\S]*?Repository.*save
+# Price/tax calculation in template
+\$.*->getPrice\(\)\s*\*
+# Order state changes in observer
+->setState\(|->setStatus\(
+```
+
+#### Detect — Good Pattern
+```php
+// Controller delegates to service
+class PlaceOrder extends Action
+{
+    public function execute()
+    {
+        $result = $this->orderPlacementService->execute($this->getRequest()->getParams());
+        return $this->resultFactory->create(ResultFactory::TYPE_JSON)->setData($result);
+    }
+}
+```
+
+#### LLM Deep Analysis
+- How many lines of business logic are in this controller/observer?
+- Could this logic be extracted to a testable service class?
+- Is the same business logic duplicated in REST API controller AND GraphQL resolver?
+- Would a service extraction allow unit testing without bootstrapping Magento?
+
+---
+
+## Frontend Template Rules
+
+---
+
+### COMM-FRONT-001: PHP Logic in Templates
+
+- **Severity**: Medium
+- **Description**: Excessive PHP code in `.phtml` templates (more than 10 PHP blocks, loops with DB calls, business logic) violates MVC separation, makes templates untestable, and complicates upgrades.
+
+#### Detect — Files to Scan
+```
+app/code/**/view/**/*.phtml
+app/design/**/templates/**/*.phtml
+```
+
+#### Detect — Bad Pattern
+```regex
+# DB calls in templates
+->getCollection\(\)|->load\(|Repository.*get
+# Direct ObjectManager in template
+ObjectManager::getInstance\(\)
+# Complex logic (if/else/switch > 5 levels)
+```
+
+#### Detect — Good Pattern
+```php
+<!-- Template only renders data from ViewModel -->
+<?php $viewModel = $block->getViewModel(); ?>
+<?php foreach ($viewModel->getItems() as $item): ?>
+    <div class="item"><?= $escaper->escapeHtml($item->getName()) ?></div>
+<?php endforeach; ?>
+```
+
+#### LLM Deep Analysis
+- How many PHP blocks are in this template? (threshold: 10)
+- Is there any database access happening in the template layer?
+- Could a ViewModel encapsulate the data preparation logic?
+- Are there unescaped outputs (`<?= $var ?>` without `$escaper->escapeHtml()`)?
+
+---
+
+## Composer & Dependency Rules
+
+---
+
+### COMM-COMPOSER-001: Dependency Management Issues
+
+- **Severity**: High
+- **Description**: Missing `composer.lock`, loose version constraints, or dependencies on abandoned packages create deployment instability and security risks.
+
+#### Detect — Files to Scan
+```
+composer.json
+composer.lock
+app/code/**/composer.json
+```
+
+#### Detect — Bad Pattern
+```regex
+# Wildcard version constraints
+"require":\s*\{[^}]*"\*"
+# Missing composer.lock in VCS
+# Dev dependencies in production require
+"require":\s*\{[^}]*"phpunit|mockery|codeception"
+```
+
+#### Detect — Good Pattern
+```json
+{
+    "require": {
+        "magento/framework": "^103.0",
+        "specific/package": "~2.1.0"
+    }
+}
+```
+
+#### LLM Deep Analysis
+- Is `composer.lock` committed to VCS?
+- Are there abandoned packages (`composer outdated` shows no updates for 2+ years)?
+- Do custom module composer.json files declare all their actual dependencies?
+- Are version constraints appropriate (not too loose, not too strict)?
+
+---
+
+## DB Schema Rules
+
+---
+
+### COMM-DBSCHEMA-001: Declarative Schema Issues
+
+- **Severity**: High
+- **Description**: Issues in `db_schema.xml` (missing indexes on foreign keys, incorrect column types for the data, oversized varchar columns, missing unsigned on ID columns) cause performance problems at scale.
+
+#### Detect — Files to Scan
+```
+app/code/**/etc/db_schema.xml
+```
+
+#### Detect — Bad Pattern
+```xml
+<!-- FK column without index -->
+<column name="customer_id" ... />
+<constraint type="foreign" ... column="customer_id"/>
+<!-- No index on customer_id -->
+
+<!-- Oversized columns -->
+<column name="sku" type="varchar" length="1024"/>  <!-- SKU should be 64 -->
+
+<!-- Missing unsigned on ID -->
+<column name="entity_id" type="int" identity="true"/>  <!-- Should be unsigned -->
+```
+
+#### Detect — Good Pattern
+```xml
+<column name="entity_id" type="int" unsigned="true" identity="true" nullable="false"/>
+<column name="sku" type="varchar" length="64" nullable="false"/>
+<index referenceId="IDX_CUSTOMER_ID">
+    <column name="customer_id"/>
+</index>
+```
+
+#### LLM Deep Analysis
+- Are all foreign key columns indexed?
+- Are varchar lengths appropriate for the data they hold?
+- Are ID columns unsigned (allows double the range)?
+- Is `db_schema_whitelist.json` in sync with `db_schema.xml`?
+
+---
+
+## Input Validation Rules
+
+---
+
+### COMM-INPUT-001: Missing Input Validation
+
+- **Severity**: High
+- **Description**: Controllers and API endpoints that don't validate/sanitize input data before processing enable injection attacks, data corruption, and application errors.
+
+#### Detect — Files to Scan
+```
+app/code/**/Controller/**/*.php
+app/code/**/Model/**/*Management.php
+app/code/**/Api/**/*Interface.php
+```
+
+#### Detect — Bad Pattern
+```regex
+# Direct request param usage without validation
+getParam\s*\([^)]+\)(?!.*validate|filter|sanitize|intval|abs)
+# No type casting on numeric inputs
+\$id\s*=\s*\$.*getParam\(['"]id['"]\)(?!.*\(int\))
+```
+
+#### Detect — Good Pattern
+```php
+$productId = (int) $this->getRequest()->getParam('id');
+if ($productId <= 0) {
+    throw new InputException(__('Invalid product ID'));
+}
+
+$email = $this->emailValidator->isValid($inputEmail)
+    ? $inputEmail
+    : throw new InputException(__('Invalid email format'));
+```
+
+#### LLM Deep Analysis
+- Is user input flowing to database queries without sanitization?
+- Are numeric parameters cast to int before use?
+- Are string inputs validated against expected patterns/lengths?
+- Is file upload content-type validated, not just extension?

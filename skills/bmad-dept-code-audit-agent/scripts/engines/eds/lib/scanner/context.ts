@@ -1,5 +1,5 @@
 /**
- * AEM Scanner Context — file discovery and helpers for AEM as a Cloud Service projects
+ * EDS Scanner Context — file discovery and helpers for Edge Delivery Services projects
  */
 import * as fs from "fs";
 import * as path from "path";
@@ -12,7 +12,7 @@ export interface GrepResult {
   match: RegExpExecArray;
 }
 
-export class AemScannerContext {
+export class EdsScannerContext {
   root: string;
   findings: FindingsMap;
   stats: Record<string, number>;
@@ -26,80 +26,33 @@ export class AemScannerContext {
 
   // ─── File collection helpers ───────────────────────────────────────
 
-  javaFiles(): string[] {
-    const patterns = [
-      path.join(this.root, "core/src/main/java/**/*.java"),
-      path.join(this.root, "bundle/src/main/java/**/*.java"),
-    ].map((p) => p.replace(/\\/g, "/"));
-    return fg.sync(patterns);
-  }
-
-  htlFiles(): string[] {
-    const patterns = [
-      path.join(this.root, "ui.apps/src/main/content/jcr_root/apps/**/*.html"),
-      path.join(this.root, "ui.apps/src/main/content/jcr_root/apps/**/*.htl"),
-    ].map((p) => p.replace(/\\/g, "/"));
-    return fg.sync(patterns);
-  }
-
-  xmlFiles(): string[] {
-    const pattern = path.join(this.root, "**/*.xml").replace(/\\/g, "/");
-    return fg.sync(pattern, { ignore: ["**/node_modules/**", "**/target/**", "**/.git/**"] });
-  }
-
-  contentXmlFiles(): string[] {
-    const patterns = [
-      path.join(this.root, "ui.apps/src/main/content/jcr_root/**/.content.xml"),
-      path.join(this.root, "ui.content/src/main/content/jcr_root/**/.content.xml"),
-    ].map((p) => p.replace(/\\/g, "/"));
-    return fg.sync(patterns);
-  }
-
-  osgiConfigFiles(): string[] {
-    const patterns = [
-      path.join(this.root, "ui.config/src/main/content/jcr_root/apps/**/config*/**/*.cfg.json"),
-      path.join(this.root, "ui.config/src/main/content/jcr_root/apps/**/config*/**/*.config"),
-      path.join(this.root, "ui.apps/src/main/content/jcr_root/apps/**/config*/**/*.cfg.json"),
-      path.join(this.root, "ui.apps/src/main/content/jcr_root/apps/**/config*/**/*.config"),
-    ].map((p) => p.replace(/\\/g, "/"));
-    return fg.sync(patterns);
-  }
-
-  dispatcherFiles(): string[] {
-    const patterns = [
-      path.join(this.root, "dispatcher/src/**/*.any"),
-      path.join(this.root, "dispatcher/src/**/*.conf"),
-    ].map((p) => p.replace(/\\/g, "/"));
-    return fg.sync(patterns);
-  }
-
-  clientlibFiles(): string[] {
-    const pattern = path.join(this.root, "ui.apps/src/main/content/jcr_root/apps/**/clientlibs/**").replace(/\\/g, "/");
+  blockJsFiles(): string[] {
+    const pattern = path.join(this.root, "blocks/**/*.js").replace(/\\/g, "/");
     return fg.sync(pattern);
   }
 
-  oakIndexFiles(): string[] {
-    const patterns = [
-      path.join(this.root, "ui.apps/src/main/content/jcr_root/_oak_index/**/.content.xml"),
-      path.join(this.root, "ui.apps/src/main/content/jcr_root/oak:index/**/.content.xml"),
-    ].map((p) => p.replace(/\\/g, "/"));
-    return fg.sync(patterns);
+  blockCssFiles(): string[] {
+    const pattern = path.join(this.root, "blocks/**/*.css").replace(/\\/g, "/");
+    return fg.sync(pattern);
   }
 
-  vaultHooksDir(): string | null {
-    const candidates = [
-      path.join(this.root, "ui.apps/src/main/content/META-INF/vault/hooks"),
-      path.join(this.root, "all/src/main/content/META-INF/vault/hooks"),
-    ];
-    for (const d of candidates) {
-      if (fs.existsSync(d)) return d;
-    }
-    return null;
+  scriptFiles(): string[] {
+    const pattern = path.join(this.root, "scripts/**/*.js").replace(/\\/g, "/");
+    return fg.sync(pattern);
   }
 
-  repoinitFiles(): string[] {
-    const pattern = path.join(this.root, "**/org.apache.sling.jcr.repoinit.RepositoryInitializer*").replace(/\\/g, "/");
-    return fg.sync(pattern, { ignore: ["**/node_modules/**", "**/target/**"] });
+  allJsFiles(): string[] {
+    return [...this.blockJsFiles(), ...this.scriptFiles()];
+  }
+
+  headHtml(): string | null {
+    const fp = path.join(this.root, "head.html");
+    return fs.existsSync(fp) ? fp : null;
+  }
+
+  stylesDir(): string[] {
+    const pattern = path.join(this.root, "styles/**/*.css").replace(/\\/g, "/");
+    return fg.sync(pattern);
   }
 
   // ─── Path helpers ──────────────────────────────────────────────────
@@ -111,17 +64,10 @@ export class AemScannerContext {
   module(fp: string): string {
     const rel = this.rel(fp);
     const parts = rel.split("/");
-    // For Java: core/src/main/java/com/example/MyClass.java → com.example
-    if (parts[0] === "core" && parts.includes("java") && parts.length > 5) {
-      const javaIdx = parts.indexOf("java");
-      const pkg = parts.slice(javaIdx + 1, -1).join(".");
-      return pkg || "core";
-    }
-    if (parts[0] === "ui.apps" || parts[0] === "ui.content" || parts[0] === "ui.config") {
-      return parts[0];
-    }
-    if (parts[0] === "dispatcher") return "dispatcher";
-    return parts[0] || "project";
+    if (parts[0] === "blocks" && parts.length >= 2) return parts[1];
+    if (parts[0] === "scripts") return "scripts";
+    if (parts[0] === "styles") return "styles";
+    return path.basename(fp, path.extname(fp));
   }
 
   // ─── File reading ──────────────────────────────────────────────────
@@ -205,5 +151,20 @@ export class AemScannerContext {
       justification,
     });
     this.stats[severity] = (this.stats[severity] || 0) + 1;
+  }
+
+  // ─── File size in bytes ────────────────────────────────────────────
+
+  fileSize(fp: string): number {
+    try {
+      return fs.statSync(fp).size;
+    } catch {
+      return 0;
+    }
+  }
+
+  lineCount(fp: string): number {
+    const content = this.read(fp);
+    return content ? content.split("\n").length : 0;
   }
 }

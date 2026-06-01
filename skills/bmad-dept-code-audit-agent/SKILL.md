@@ -1,13 +1,13 @@
 ---
 name: bmad-dept-code-audit-agent
-description: "Two-tier code auditor (part of BMAD DEPT Code Agent suite). Tier 1: deterministic TypeScript/Node.js static analysis (42+ categories, Excel report). Tier 2: LLM-driven deep semantic analysis for Commerce, AEMaaCS, EDS, and hybrid projects."
+description: "Two-tier code auditor (part of BMAD DEPT Code Agent suite). Tier 1: deterministic TypeScript/Node.js static analysis (42+ categories, Excel report). Tier 2: LLM-driven deep semantic analysis for Commerce, AEMaaCS, EDS, Adobe App Builder (API Mesh, Commerce UI Extensibility, AEM UI Extensibility), and hybrid projects."
 ---
 
 # BMAD DEPT Code Agent — Audit Skill
 
 ## Purpose
 
-Two-tier code audit system for enterprise projects including AEM as a Cloud Service (AEMaaCS), Adobe Commerce (Magento), Edge Delivery Services (EDS), and EDS+Commerce hybrid implementations.
+Two-tier code audit system for enterprise projects including AEM as a Cloud Service (AEMaaCS), Adobe Commerce (Magento), Edge Delivery Services (EDS), EDS+Commerce hybrid implementations, and Adobe App Builder (API Mesh, Commerce Admin UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute).
 
 ### Tier 1 — Deterministic Static Analysis (TypeScript/Node.js)
 
@@ -40,6 +40,10 @@ This skill activates when the user asks to:
 - Analyze architecture compliance
 - Check for anti-patterns or violations
 - Generate a code audit report
+- Audit an App Builder application or extension
+- Review API Mesh configuration
+- Audit Commerce Admin UI extension
+- Audit AEM UI extension
 - Run a static analysis scan
 - Analyze with DB dump / database schema
 - Run BRD impact analysis
@@ -143,7 +147,8 @@ Example prompt: "analyze patch upgrade impact from 2.4.7-p7 to 2.4.7-p9"
 | `ui.apps/`, `pom.xml` with AEM SDK | `aem` |
 | `blocks/`, `helix-query.yaml`, `fstab.yaml` | `eds` |
 | EDS signals + commerce dropins | `eds-commerce` |
-| Cannot determine | Ask: "What platform is this? Commerce / AEM / EDS?" |
+| `app.config.yaml`, `.aio`, `@adobe/aio-sdk` | `app-builder` |
+| Cannot determine | Ask: "What platform is this? Commerce / AEM / EDS / App Builder?" |
 
 ### Examples of Full Resolution
 
@@ -191,9 +196,13 @@ Use when the user wants semantic/architectural analysis:
 Recommended for comprehensive audits:
 
 1. Run Tier 1 → produces Excel with deterministic findings
-2. Feed high-severity findings into Tier 2 for deeper analysis
-3. Tier 2 analyzes flagged areas + discovers issues scripts missed
-4. Combined output: Excel report + AI-driven narrative report
+2. Load `resources/shared/scanner-llm-crossref.md` to determine LLM action per category
+3. For **SKIP** categories → keep scanner findings as-is (no LLM re-analysis)
+4. For **DEEPEN** categories → feed high-severity scanner findings to LLM with rule context for root-cause and cross-file enrichment
+5. For **VERIFY** categories → LLM confirms true positives, dismisses false positives
+6. For **EXPAND** categories → LLM runs full semantic analysis (business logic, cross-module flow) independent of scanner
+7. Deduplicate: same file+line from both tiers → merge into single finding using LLM rule ID
+8. Combined output: Excel report + AI-driven narrative report
 
 ### Step 1: Detect Project Type
 
@@ -204,13 +213,25 @@ Scan the workspace to determine which Adobe platform(s) are in use:
 | AEMaaCS | `ui.apps/`, `ui.content/`, `core/`, `all/`, `pom.xml` with AEM SDK dependency |
 | Commerce | `app/code/`, `composer.json` with `magento/`, `etc/module.xml` |
 | EDS | `scripts/`, `blocks/`, `helix-query.yaml`, `fstab.yaml`, `paths.json` |
-| EDS+Commerce | EDS signals + Commerce dropin references, `commerce-` prefixed blocks |
-
+| EDS+Commerce | EDS signals + Commerce dropin references, `commerce-` prefixed blocks || App Builder | `app.config.yaml`, `.aio` file, `@adobe/aio-sdk` in `package.json`, `dx/excshell/1` or `dx/asset-compute/worker/1` in config |
+| App Builder — Commerce UI Ext | `commerce/backend-ui/1` in `app.config.yaml`, `@adobe/uix-guest` in `package.json` |
+| App Builder — AEM UI Ext | `aem/cf-console-admin/1`, `aem/cf-editor/1`, `aem/universal-editor/1`, `aem/experience-hub/1`, or `aem/assets-view/1` in config |
+| App Builder — API Mesh | `meshConfig` in JSON files, `aio api-mesh` usage |
 ### Step 2: Load Applicable Rule Pack(s)
 
-Based on detected platform, load rules from `resources/rule-packs/<platform>/rules.md`.
+Based on detected platform, load rules from `resources/rule-packs/<platform>/`.
 
-For hybrid projects (e.g., EDS+Commerce), load multiple rule packs and apply intersection logic.
+| Platform | Rule pack files |
+|----------|----------------|
+| AEMaaCS | `rule-packs/aemcs/` |
+| Commerce | `rule-packs/commerce/` |
+| EDS | `rule-packs/eds/` |
+| EDS+Commerce | `rule-packs/eds-commerce/` |
+| App Builder (core) | `rule-packs/app-builder/rules.md` |
+| App Builder — Commerce UI | `rule-packs/app-builder/rules.md` + `rule-packs/app-builder/commerce-ui-extensibility-rules.md` |
+| App Builder — AEM UI | `rule-packs/app-builder/rules.md` + `rule-packs/app-builder/aem-ui-extensibility-rules.md` |
+
+For hybrid projects (e.g., EDS+Commerce, or App Builder with multiple extension types), load multiple rule packs and apply intersection logic.
 
 ### Step 3: Deep Analysis
 
