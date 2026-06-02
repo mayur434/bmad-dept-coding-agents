@@ -10,6 +10,6 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true
   },
-  "include": ["*.ts", "engines/**/*.ts", "shared/**/*.ts"],
+  "include": ["*.ts", "engines/**/*.ts", "shared/**/*.ts", "../../shared/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

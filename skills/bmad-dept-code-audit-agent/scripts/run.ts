@@ -16,6 +16,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { detectPlatform, getEngine, listEngines } from "./engines/registry";
+import { TokenBudgetManager } from "../../shared/token-budget";
 
 function parseArgs(argv: string[]): { engine?: string; path?: string; format?: string; listEngines: boolean; help: boolean; remaining: string[] } {
   const result = { engine: undefined as string | undefined, path: undefined as string | undefined, format: undefined as string | undefined, listEngines: false, help: false, remaining: [] as string[] };
@@ -149,6 +150,10 @@ async function main(): Promise<void> {
 
   // Override process.argv for the engine's arg parsing
   process.argv = ["ts-node", "audit.ts", ...engineArgv];
+
+  // ── Token Budget ──
+  const budget = new TokenBudgetManager("audit");
+  budget.showPreExecution();
 
   console.log(`\n${"=".repeat(60)}`);
   console.log(` Dispatching to: ${engineCfg.description}`);

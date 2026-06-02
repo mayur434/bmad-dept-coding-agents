@@ -12,6 +12,7 @@
 
 import { resolve } from "path";
 import { existsSync } from "fs";
+import { TokenBudgetManager } from "../../shared/token-budget";
 
 interface Args {
   path: string;
@@ -55,6 +56,10 @@ async function main(): Promise<void> {
     console.error(`❌ Project path not found: ${projectPath}`);
     process.exit(1);
   }
+
+  // ── Token Budget ──
+  const budget = new TokenBudgetManager("scan");
+  budget.showPreExecution();
 
   console.log(`📡 BMAD Code Scan Agent`);
   console.log(`   Path:   ${projectPath}`);
