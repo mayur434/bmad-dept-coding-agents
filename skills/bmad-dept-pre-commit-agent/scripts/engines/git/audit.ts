@@ -74,7 +74,7 @@ function getStagedDiff(): string {
 function getDiffFromFile(filePath: string): string {
   if (!fs.existsSync(filePath)) {
     console.error(`[reviewer] File not found: ${filePath}`);
-    process.exit(1);
+   setImmediate(() => process.exit(1));
   }
   return fs.readFileSync(filePath, "utf8");
 }
@@ -124,7 +124,7 @@ export async function run(args: string[]): Promise<void> {
 
   if (diffIdx !== -1) {
     const diffFile = args[diffIdx + 1];
-    if (!diffFile) { console.error("[reviewer] --diff requires a file path."); process.exit(1); }
+    if (!diffFile) { console.error("[reviewer] --diff requires a file path."); setImmediate(() => process.exit(1)); }
     console.log(paint(`\n🔐 Security Reviewer — reading from ${diffFile}\n`, "bold", "cyan"));
     rawDiff = getDiffFromFile(diffFile);
   } else {
@@ -134,14 +134,14 @@ export async function run(args: string[]): Promise<void> {
 
   if (!rawDiff.trim()) {
     console.log(paint("   No changes to review.\n", "gray"));
-    process.exit(0);
+    setImmediate(() => process.exit(0));
   }
 
   const files = parseDiffByFile(rawDiff);
 
   if (files.length === 0) {
     console.log(paint("   No reviewable file changes found.\n", "gray"));
-    process.exit(0);
+    setImmediate(() => process.exit(0));
   }
 
   console.log(paint(`   ${files.map(f => `${f.filePath} [${f.language}]`).join("\n   ")}\n`, "gray"));
@@ -190,5 +190,5 @@ export async function run(args: string[]): Promise<void> {
 
   printFinalVerdict(worstSeverity, blockCommit, totalIssues, files.length);
 
-  process.exit(blockCommit ? 1 : 0);
+  setImmediate(() => process.exit(blockCommit ? 1 : 0));
 }

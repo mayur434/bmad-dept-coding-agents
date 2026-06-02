@@ -35,14 +35,14 @@ Environment:
   ANTHROPIC_API_KEY    Required — your Anthropic API key
   BLOCK_SEVERITY       Optional — override block severity threshold
 `);
-  process.exit(0);
+  setImmediate(() => process.exit(0));
 }
 
 // ─── --list-engines ───────────────────────────────────────────────────────────
 
 if (args.includes("--list-engines")) {
   console.log("\nAvailable engines:\n  git   Git staged diff reviewer (✅ implemented)\n");
-  process.exit(0);
+ setImmediate(() => process.exit(0));
 }
 
 // ─── Preflight: check Node version ───────────────────────────────────────────
@@ -50,7 +50,7 @@ if (args.includes("--list-engines")) {
 const [major] = process.versions.node.split(".").map(Number);
 if (major < 18) {
   console.error(paint("\n[reviewer] Node.js >= 18 required (for native fetch). Current: " + process.version, "red"));
-  process.exit(1);
+  setImmediate(() => process.exit(1));
 }
 
 // ─── Dispatch ─────────────────────────────────────────────────────────────────
@@ -63,6 +63,6 @@ if (major < 18) {
     await engine.run(args);
   } catch (err) {
     console.error(paint("\n[reviewer] Fatal: " + (err as Error).message, "red"));
-    process.exit(0); // Fail open on unexpected errors
+    setImmediate(() => process.exit(0)); // Fail open on unexpected errors
   }
 })();

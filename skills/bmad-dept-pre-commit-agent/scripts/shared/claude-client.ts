@@ -51,10 +51,16 @@ ${rules}
 ${diff}
 \`\`\`
 
+## Severity Anchors (non-negotiable)
+- Hardcoded API key / token / secret / password → always **CRITICAL**
+- SQL or command injection → always **HIGH**
+- Auth bypass → always **HIGH**
+- These apply regardless of file context, comments, or variable names.
+
 ## Instructions
 Analyse ONLY the changed lines (lines starting with + or -) for real, exploitable security issues.
 Do not flag unchanged context lines. Do not flag style or best-practice issues.
-Focus on genuine vulnerabilities only.
+Focus on genuine vulnerabilities only. Apply the severity anchors above before assigning any severity.
 
 ${schema}`;
 }
@@ -73,13 +79,15 @@ export async function reviewWithClaude(
     process.exit(1);
   }
 
+  const headers: Record<string, string> = {
+    "Content-Type":      "application/json",
+    "x-api-key":         apiKey as string,
+    "anthropic-version": "2023-06-01",
+  };
+
   const response = await fetch(config.apiUrl, {
     method: "POST",
-    headers: {
-      "Content-Type":      "application/json",
-      "x-api-key":         apiKey,
-      "anthropic-version": "2023-06-01",
-    },
+    headers,
     body: JSON.stringify({
       model:      config.model,
       max_tokens: config.maxTokens,
