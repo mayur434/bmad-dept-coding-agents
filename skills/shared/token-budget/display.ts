@@ -1,92 +1,83 @@
 /**
  * BMAD Token Budget — Display Formatter
  * ========================================
- * Renders token budget info and savings projections to the console
- * in a clear, structured format.
+ * Produces conversational, user-friendly strings for token budget info.
+ * Designed for chat UIs — no ASCII art, no tables, no jargon.
  */
 
 import { TokenSnapshot, BudgetStatus } from "./tracker";
-import { SavingsComparison, ModeProjection } from "./savings";
-
-// ─── ANSI Colors ──────────────────────────────────────────────────────────
-
-const RESET = "\x1b[0m";
-const BOLD = "\x1b[1m";
-const DIM = "\x1b[2m";
-const GREEN = "\x1b[32m";
-const YELLOW = "\x1b[33m";
-const RED = "\x1b[31m";
-const CYAN = "\x1b[36m";
-const WHITE = "\x1b[37m";
-
-function statusColor(status: BudgetStatus): string {
-  switch (status) {
-    case "ok": return GREEN;
-    case "warning": return YELLOW;
-    case "critical": return RED;
-  }
-}
-
-function statusIcon(status: BudgetStatus): string {
-  switch (status) {
-    case "ok": return "●";
-    case "warning": return "◐";
-    case "critical": return "○";
-  }
-}
+import { SavingsComparison } from "./savings";
 
 function formatTokens(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}K`;
   return n.toString();
 }
 
-// ─── Budget Display ───────────────────────────────────────────────────────
+// ─── Budget one-liner (for inline display) ────────────────────────────────
 
-export function displayBudget(snapshot: TokenSnapshot): void {
-  const color = statusColor(snapshot.status);
-  const icon = statusIcon(snapshot.status);
-
-  console.log("");
-  console.log(`${BOLD}┌─────────────────────────────────────────────────────────┐${RESET}`);
-  console.log(`${BOLD}│  ${CYAN}BMAD Token Budget${RESET}${BOLD}                                        │${RESET}`);
-  console.log(`${BOLD}├─────────────────────────────────────────────────────────┤${RESET}`);
-  console.log(`${BOLD}│${RESET}  Budget (start)  : ${WHITE}${formatTokens(snapshot.totalBudget)} tokens${RESET}                       ${BOLD}│${RESET}`);
-  console.log(`${BOLD}│${RESET}  Consumed        : ${YELLOW}${formatTokens(snapshot.consumed)} tokens${RESET}                        ${BOLD}│${RESET}`);
-  console.log(`${BOLD}│${RESET}  Remaining       : ${color}${formatTokens(snapshot.remaining)} tokens${RESET} ${color}${icon} ${snapshot.remainingPercent.toFixed(1)}%${RESET}          ${BOLD}│${RESET}`);
-  console.log(`${BOLD}└─────────────────────────────────────────────────────────┘${RESET}`);
-
+export function budgetOneLiner(snapshot: TokenSnapshot): string {
   if (snapshot.status === "critical") {
-    console.log(`  ${RED}⚠ CRITICAL: Token budget nearly exhausted. Prefer static scanner mode.${RESET}`);
-  } else if (snapshot.status === "warning") {
-    console.log(`  ${YELLOW}⚡ WARNING: Budget running low. Consider static scanner to conserve tokens.${RESET}`);
+    return `⚠️ Budget almost used up — ${formatTokens(snapshot.remaining)} tokens left of ${formatTokens(snapshot.totalBudget)}.`;
   }
-  console.log("");
+  if (snapshot.status === "warning") {
+    return `⚡ Budget running low — ${formatTokens(snapshot.remaining)} tokens remaining.`;
+  }
+  return `You have ${formatTokens(snapshot.remaining)} tokens remaining (of ${formatTokens(snapshot.totalBudget)}).`;
 }
 
-// ─── Savings Projection Display ───────────────────────────────────────────
+// ─── Option descriptions with token hints ─────────────────────────────────
 
-export function displaySavings(comparison: SavingsComparison): void {
-  console.log(`${BOLD}┌─────────────────────────────────────────────────────────┐${RESET}`);
-  console.log(`${BOLD}│  ${CYAN}Token Savings Projection${RESET}${BOLD} — ${WHITE}${comparison.agent}${RESET}${BOLD}${" ".repeat(Math.max(0, 20 - comparison.agent.length))}│${RESET}`);
-  console.log(`${BOLD}├───────────────────────┬──────────────┬──────────────────┤${RESET}`);
-  console.log(`${BOLD}│${RESET} ${DIM}Mode${RESET}                  ${BOLD}│${RESET} ${DIM}Tokens${RESET}       ${BOLD}│${RESET} ${DIM}Savings vs LLM${RESET}   ${BOLD}│${RESET}`);
-  console.log(`${BOLD}├───────────────────────┼──────────────┼──────────────────┤${RESET}`);
+export interface ModeOption {
+  id: string;
+  title: string;
+  description: string;
+  tokenHint: string;
+}
+
+export function modeOptions(comparison: SavingsComparison): ModeOption[] {
+  const options: ModeOption[] = [];
 
   for (const p of comparison.projections) {
-    const modeLabel = p.label.padEnd(21);
-    const tokens = formatTokens(p.projectedTokens).padEnd(12);
-    const savings = p.savingsVsLlm > 0
-      ? `${GREEN}-${formatTokens(p.savingsVsLlm)} (${p.savingsPercent}%)${RESET}`.padEnd(26)
-      : `${DIM}baseline${RESET}`.padEnd(26);
-    console.log(`${BOLD}│${RESET} ${modeLabel} ${BOLD}│${RESET} ${tokens} ${BOLD}│${RESET} ${savings} ${BOLD}│${RESET}`);
+    if (p.mode === "static") {
+      options.push({
+        id: "static",
+        title: "Scanner",
+        description: "Fast deterministic scan. Produces Excel report in seconds.",
+        tokenHint: `Uses ~${formatTokens(p.projectedTokens)} tokens — saves ${p.savingsPercent}%`,
+      });
+    } else if (p.mode === "llm-optimized") {
+      options.push({
+        id: "llm-optimized",
+        title: "AI Analysis",
+        description: "AI-driven semantic analysis. Catches architectural flaws, cross-file issues.",
+        tokenHint: `Uses ~${formatTokens(p.projectedTokens)} tokens`,
+      });
+    } else if (p.mode === "llm") {
+      options.push({
+        id: "llm",
+        title: "Full (Scanner + AI)",
+        description: "Run both for comprehensive coverage.",
+        tokenHint: `Uses ~${formatTokens(p.projectedTokens)} tokens`,
+      });
+    }
   }
 
-  console.log(`${BOLD}└───────────────────────┴──────────────┴──────────────────┘${RESET}`);
-  console.log(`  ${GREEN}💡${RESET} ${comparison.recommendation}`);
-  console.log("");
+  return options;
 }
 
-// ─── Combined: show budget + savings before execution ─────────────────────
+// ─── Console display (minimal, conversational) ────────────────────────────
+
+export function displayBudget(snapshot: TokenSnapshot): void {
+  console.log(`\n${budgetOneLiner(snapshot)}\n`);
+}
+
+export function displaySavings(comparison: SavingsComparison): void {
+  const opts = modeOptions(comparison);
+  for (const opt of opts) {
+    console.log(`  ${opt.title} — ${opt.description} (${opt.tokenHint})`);
+  }
+  console.log("");
+}
 
 export function displayPreExecution(snapshot: TokenSnapshot, comparison: SavingsComparison): void {
   displayBudget(snapshot);

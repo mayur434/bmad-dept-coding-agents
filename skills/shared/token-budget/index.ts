@@ -15,7 +15,7 @@
 export { loadConfig, TokenBudgetConfig } from "./config";
 export { TokenTracker, TokenSnapshot, BudgetStatus } from "./tracker";
 export { projectSavings, SavingsComparison, ModeProjection } from "./savings";
-export { displayBudget, displaySavings, displayPreExecution } from "./display";
+export { displayBudget, displaySavings, displayPreExecution, budgetOneLiner, modeOptions, ModeOption } from "./display";
 
 import { TokenTracker } from "./tracker";
 import { projectSavings } from "./savings";
