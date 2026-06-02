@@ -58,6 +58,34 @@ cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
 ```
 Do NOT ask the user. Do NOT print install output unless it fails.
 
+## Consent: Ask Coverage Mode
+
+**Direct-intent triggers (skip the question, go straight to that mode):**
+- "analyze coverage" / "show gaps" / "coverage report" / "untested code" → Tier 1 (Analyze)
+- "generate tests" / "write tests for X" / "create unit tests" → Tier 2 (Generate)
+- "full coverage" / "analyze and generate" → Tier 1 + Tier 2
+
+**Ambiguous triggers (ask which mode):**
+- "test coverage" / "help with tests" / "improve coverage"
+
+When the intent is ambiguous, ask using the interactive question picker. Use the `vscode_askQuestions` tool:
+
+```
+question: "What would you like me to do?"
+options:
+  - label: "Find gaps"
+    description: "Scan your code and show what's missing tests. Fast, no AI tokens used (~1.8K)."
+    recommended: true
+  - label: "Generate tests"
+    description: "Write tests for uncovered code using AI. Uses ~32K tokens."
+  - label: "Both"
+    description: "Find gaps then generate tests for the top priorities. Uses ~34K tokens."
+```
+
+**Important:** Always recommend "Find gaps" as default. Users often just need visibility into what's untested before deciding what to generate.
+
+Proceed with the user's chosen mode.
+
 ## Workflow
 
 ### Mode: Analyze (Tier 1 only)

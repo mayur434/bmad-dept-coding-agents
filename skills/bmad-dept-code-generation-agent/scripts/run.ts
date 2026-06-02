@@ -8,7 +8,6 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { TokenBudgetManager } from "../../shared/token-budget";
 
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(SKILL_ROOT, "assets");
@@ -187,10 +186,6 @@ function main(): void {
     ? args[args.indexOf("--engine") + 1]
     : "auto-detect";
   const scaffold = args.includes("--scaffold");
-
-  // ── Token Budget ──
-  const budget = new TokenBudgetManager("generation");
-  budget.showPreExecution();
 
   console.log("⚡ BMAD Code Generation Agent");
   console.log(`   Path: ${projectRoot}`);

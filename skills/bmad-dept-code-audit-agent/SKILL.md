@@ -72,13 +72,21 @@ Do NOT ask the user for permission to install these — they are required for th
 **Ambiguous triggers (ask which mode):**
 - "audit my project" / "run code review" / "check my code" / "review code quality"
 
-When asking, present:
+When the intent is ambiguous, ask using the interactive question picker (options UI). Use the `vscode_askQuestions` tool with these options:
 
-> **How would you like to audit this project?**
->
-> 1. **Scanner** — Fast deterministic scan. Produces Excel report in seconds.
-> 2. **LLM Analysis** — AI-driven semantic analysis. Catches architectural flaws, cross-file issues.
-> 3. **Full Audit (Scanner + LLM)** — Run both for comprehensive coverage.
+```
+question: "How would you like to audit this project?"
+options:
+  - label: "Scanner"
+    description: "Fast deterministic scan. Produces Excel report in seconds. Minimal token usage (~1.5K)."
+    recommended: true
+  - label: "LLM Analysis"
+    description: "AI-driven semantic analysis. Catches architectural flaws, cross-file issues. Uses ~15K tokens."
+  - label: "Full Audit (Scanner + LLM)"
+    description: "Run both for comprehensive coverage. Uses ~25K tokens."
+```
+
+**Important:** Always recommend "Scanner" as default. It produces the same structured report with near-zero token cost. Only suggest LLM when the user needs semantic/architectural insights that rules can't catch.
 
 Proceed with the user's chosen mode.
 

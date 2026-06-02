@@ -15,7 +15,6 @@ import { resolve } from "path";
 import { existsSync } from "fs";
 import * as readline from "readline";
 import { TestFramework, DetectionStrategy } from "./shared/base";
-import { TokenBudgetManager } from "../../shared/token-budget";
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -225,10 +224,6 @@ async function main(): Promise<void> {
     frameworks = prompted.frameworks;
     strategy = prompted.strategy;
   }
-
-  // ── Token Budget ──
-  const budget = new TokenBudgetManager("coverage");
-  budget.showPreExecution();
 
   console.log(`🧪 BMAD Test Coverage Agent`);
   console.log(`   Path:   ${projectPath}`);

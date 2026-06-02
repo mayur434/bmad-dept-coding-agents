@@ -24,6 +24,31 @@ This skill activates when the user asks to:
 cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
 ```
 
+## Consent: Ask Scan Mode
+
+**Direct-intent triggers (skip the question, go straight):**
+- "quick scan" / "fast scan" / "scan for issues" → Scanner only
+- "deep scan" / "scan with AI" → LLM-assisted scan
+
+**Ambiguous triggers (ask which mode):**
+- "scan my code" / "check code" / "run analysis"
+
+When the intent is ambiguous, ask using the interactive question picker. Use the `vscode_askQuestions` tool:
+
+```
+question: "How thorough should the scan be?"
+options:
+  - label: "Quick scan"
+    description: "Rule-based check against known patterns. Done in seconds (~1.2K tokens)."
+    recommended: true
+  - label: "Deep scan"
+    description: "AI-assisted analysis for subtle issues rules can't catch. Uses ~18K tokens."
+```
+
+**Important:** Always recommend "Quick scan" as default. It covers the most common issues at near-zero cost.
+
+Proceed with the user's chosen mode.
+
 ## Workflow
 
 > TODO: Define scanning workflow, engine integration, and output format.
