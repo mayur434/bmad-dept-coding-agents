@@ -1,11 +1,22 @@
 #!/usr/bin/env node
 /**
- * AEM Code Audit Engine v1.0
+ * AEM Code Audit Engine v2.0
  * Enterprise-grade static code analysis for AEM (AMS & Cloud Service) projects.
- * Generates comprehensive Excel report with sub-sheets for:
- * Performance, Code Quality, Security, SEO, Accessibility,
- * Architecture, Sling & OSGi, Cloud Readiness, Dispatcher,
- * HTL & Frontend, Test Coverage, Maintainability
+ * Features:
+ *   - Auto-detects platform (AMS/On-Prem vs Cloud Service vs Migrated)
+ *   - Applies platform-appropriate rules (AMS rules for AMS, Cloud rules for AEMaaCS)
+ *   - Commerce-style Excel report with Executive Summary, Category Sheets,
+ *     Recommendations, Module Rollout, Execution Plan, Action Plan
+ *   - CEO-friendly risk scorecard + Technical detail in same report
+ *   - SonarQube-style code quality patterns (god classes, dead code, complexity)
+ *   - Accessibility scanning (WCAG 2.1 AA compliance)
+ *   - SCA-informed vulnerability detection patterns
+ *
+ * Categories audited:
+ *   Performance, Code Quality, Security, SEO, Accessibility,
+ *   Architecture, Sling & OSGi, Cloud Readiness, Dispatcher,
+ *   HTL & Frontend, Test Coverage, Maintainability,
+ *   AMS Specific, Dependencies & Versions
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -14,6 +25,7 @@ import { AemAuditScanner, FindingsMap, StatsMap } from './lib/scanner';
 import { AemReportGenerator } from './lib/report';
 import { generateMarkdownReport } from './lib/report-md';
 import { generatePdfReport } from './lib/report-pdf';
+import { detectPlatform, PlatformDetectionResult } from './lib/scanner/platform-detect';
 
 interface Config {
   project?: { path?: string; name?: string };
@@ -96,7 +108,7 @@ async function main(): Promise<void> {
 
   // Resolve values: CLI > config > defaults
   let projectPath = args.path || projectCfg.path || '';
-  const platform = (args.platform || scannerCfg.platform || 'both') as 'aemcs' | 'aemams' | 'both';
+  let platform = (args.platform || scannerCfg.platform || '') as 'aemcs' | 'aemams' | 'both' | '';
 
   // Validate project path
   if (!projectPath) {
@@ -116,6 +128,22 @@ async function main(): Promise<void> {
   const core = path.join(projectPath, 'core');
   if (!fs.existsSync(pomPath) && !fs.existsSync(uiApps) && !fs.existsSync(core)) {
     console.log('⚠️  Warning: This may not be a standard AEM project (no pom.xml, ui.apps, or core found).');
+  }
+
+  // ─── PLATFORM AUTO-DETECTION ────────────────────────────────────────────
+  let platformDetection: PlatformDetectionResult | null = null;
+  if (!platform) {
+    console.log('🔍 Auto-detecting AEM platform...');
+    platformDetection = detectPlatform(projectPath);
+    platform = platformDetection.platform;
+    console.log(`   ${platformDetection.summary}`);
+    if (platformDetection.isMigrated) {
+      console.log('   📋 Migration signals detected — will flag AMS patterns that need Cloud remediation');
+    }
+    console.log(`   Applying ${platform === 'aemcs' ? 'AEMaaCS' : platform === 'aemams' ? 'AEM AMS' : 'AMS + Cloud'} rule set`);
+    console.log('');
+  } else {
+    console.log(`   Platform: ${platform.toUpperCase()} (manually specified)`);
   }
 
   const projectName = args.name || projectCfg.name || path.basename(projectPath);
@@ -142,11 +170,11 @@ async function main(): Promise<void> {
 
   // Print summary
   console.log('═'.repeat(60));
-  console.log(' AEM Code Audit Engine v1.0');
+  console.log(' AEM Code Audit Engine v2.0');
   console.log('═'.repeat(60));
   console.log(`📄 Config: ${fs.existsSync(configPath) ? configPath : 'defaults'}`);
   console.log(`   Project: ${projectName}`);
-  console.log(`   Platform: ${platform.toUpperCase()}`);
+  console.log(`   Platform: ${platform.toUpperCase()}${platformDetection?.isMigrated ? ' (Migrated from AMS)' : ''}`);
   console.log(`   Path: ${projectPath}`);
   console.log(`   Output: ${outputDir}`);
   if (modules.length > 0) console.log(`   Modules: ${modules.join(', ')}`);
@@ -193,6 +221,7 @@ async function main(): Promise<void> {
   }
 
   const platformLabel = platform === 'aemcs' ? 'AEM as a Cloud Service' : platform === 'aemams' ? 'AEM Managed Services' : 'AEM (AMS + Cloud Service)';
+  const migrationNote = platformDetection?.isMigrated ? ' [Migrated to Cloud]' : '';
   const baseFileName = `${projectName}-aem-audit-${timestamp}${branchPart}`;
 
   const formats = format === 'all' ? ['excel', 'md', 'pdf'] : [format];
@@ -201,18 +230,18 @@ async function main(): Promise<void> {
     switch (fmt) {
       case 'excel': {
         const outputFile = path.join(outputDir, `${baseFileName}.xlsx`);
-        const report = new AemReportGenerator(findings, stats, projectName, projectPath, platformLabel);
+        const report = new AemReportGenerator(findings, stats, projectName, projectPath, platformLabel + migrationNote, platformDetection);
         await report.generate(outputFile);
         break;
       }
       case 'md': {
         const outputFile = path.join(outputDir, `${baseFileName}.md`);
-        await generateMarkdownReport(findings, stats, projectName, projectPath, platformLabel, outputFile);
+        await generateMarkdownReport(findings, stats, projectName, projectPath, platformLabel + migrationNote, outputFile);
         break;
       }
       case 'pdf': {
         const outputFile = path.join(outputDir, `${baseFileName}.pdf`);
-        await generatePdfReport(findings, stats, projectName, projectPath, platformLabel, outputFile);
+        await generatePdfReport(findings, stats, projectName, projectPath, platformLabel + migrationNote, outputFile);
         break;
       }
     }
@@ -226,7 +255,7 @@ async function main(): Promise<void> {
   }
 
   console.log('\n' + '═'.repeat(60));
-  console.log(' ✅ AEM Code Audit Complete');
+  console.log(' ✅ AEM Code Audit Complete (v2.0)');
   console.log('═'.repeat(60));
 }
 

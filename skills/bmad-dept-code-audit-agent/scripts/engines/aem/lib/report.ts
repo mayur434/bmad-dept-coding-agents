@@ -1,13 +1,18 @@
 /**
- * AEM Code Audit Report Generator
- * Generates enterprise Excel report with separate sheets per audit category.
- * Categories: Performance, Code Quality, SEO, Accessibility, Security,
- * Architecture, Sling & OSGi, Cloud Readiness, Dispatcher, Test Coverage,
- * Maintainability, HTL & Frontend
+ * AEM Code Audit Report Generator v2.0
+ * Generates enterprise Excel report matching Commerce engine format:
+ *   1. Executive Summary (CEO-friendly risk scorecard + technical metrics)
+ *   2. Per-Category Detail Sheets (13 columns with expert recommendations)
+ *   3. Top Recommendations (aggregated by type, sorted by severity)
+ *   4. Module Rollout Summary (risk scoring, deployment validation)
+ *   5. Module Execution Plan (prioritized module-level work)
+ *   6. Action Plan (phase-based remediation roadmap)
+ *   7. Platform Detection Summary (auto-detected platform details)
  */
 import ExcelJS from 'exceljs';
 import * as path from 'path';
 import { FindingsMap, StatsMap, Finding } from './scanner/types';
+import { PlatformDetectionResult } from './scanner/platform-detect';
 import {
   TITLE_FONT, SUBTITLE_FONT, HEADER_FONT, HEADER_FILL, HEADER_BORDER,
   SUMMARY_LABEL_FONT, SUMMARY_VALUE_FONT, BODY_FONT, BODY_FONT_BOLD,
@@ -35,21 +40,23 @@ export class AemReportGenerator {
   private projectName: string;
   private projectRoot: string;
   private platform: string;
+  private platformDetection: PlatformDetectionResult | null;
   private wb: ExcelJS.Workbook;
 
-  constructor(findings: FindingsMap, stats: StatsMap, projectName: string, projectRoot: string, platform: string = 'AEMaaCS') {
+  constructor(findings: FindingsMap, stats: StatsMap, projectName: string, projectRoot: string, platform: string = 'AEMaaCS', platformDetection: PlatformDetectionResult | null = null) {
     this.findings = findings;
     this.stats = stats;
     this.projectName = projectName;
     this.projectRoot = projectRoot;
     this.platform = platform;
+    this.platformDetection = platformDetection;
     this.wb = new ExcelJS.Workbook();
   }
 
   async generate(outputPath: string): Promise<void> {
-    console.log('\n📊 Generating AEM Audit Excel Report...');
+    console.log('\n📊 Generating AEM Audit Excel Report');
 
-    // 1. Executive Summary (always first)
+    // 1. Executive Summary (CEO-friendly — always first)
     this.sheetExecutiveSummary();
 
     // 2. Category detail sheets in defined order
@@ -64,6 +71,8 @@ export class AemReportGenerator {
       'Cloud Readiness',
       'Dispatcher',
       'HTL & Frontend',
+      'Frontend Framework',
+      'AMS Specific',
       'Test Coverage',
       'Maintainability',
       'Dependencies & Versions',
@@ -87,6 +96,11 @@ export class AemReportGenerator {
     // 6. Action Plan
     this.sheetActionPlan();
 
+    // 7. Platform Detection Summary (if auto-detected)
+    if (this.platformDetection) {
+      this.sheetPlatformDetection();
+    }
+
     await this.wb.xlsx.writeFile(outputPath);
     console.log(`✅ Report generated: ${outputPath}`);
     console.log(`   Total Sheets: ${this.wb.worksheets.length}`);
@@ -102,11 +116,17 @@ export class AemReportGenerator {
 
     const total = this.stats.totalFindings;
     const sev = this.stats.severityCounts;
+    const critCount = sev['CRITICAL'] || 0;
+    const highCount = sev['HIGH'] || 0;
+    const medCount = sev['MEDIUM'] || 0;
+    const lowCount = sev['LOW'] || 0;
+
+    // ─── CEO RISK SCORECARD (Top Section) ─────────────────────────────────
 
     // Title
     ws.mergeCells('A1:G1');
     const titleCell = ws.getCell('A1');
-    titleCell.value = `${this.projectName} — AEM CODE AUDIT REPORT`;
+    titleCell.value = `${this.projectName} — ENTERPRISE AEM CODE AUDIT REPORT`;
     titleCell.font = TITLE_FONT;
     titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
     ws.getRow(1).height = 36;
@@ -116,22 +136,56 @@ export class AemReportGenerator {
     ws.getCell('A2').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '2E75B6' } };
     ws.getRow(2).height = 4;
 
+    // ─── OVERALL HEALTH GRADE ─────────────────────────────────────────────
+    const riskScore = (critCount * 10000) + (highCount * 1000) + (medCount * 100) + (lowCount * 10);
+    const grade = critCount > 5 ? 'F' : critCount > 0 ? 'D' : highCount > 20 ? 'C' : highCount > 5 ? 'B-' : highCount > 0 ? 'B+' : 'A';
+    const gradeColor = grade.startsWith('A') ? '00B050' : grade.startsWith('B') ? '4472C4' : grade.startsWith('C') ? 'FFC000' : grade.startsWith('D') ? 'ED7D31' : 'FF0000';
+
+    ws.mergeCells('A4:B4');
+    ws.getCell('A4').value = 'CODEBASE HEALTH GRADE';
+    ws.getCell('A4').font = { name: 'Calibri', bold: true, size: 11, color: { argb: '333333' } };
+    ws.getCell('C4').value = grade;
+    ws.getCell('C4').font = { name: 'Calibri', bold: true, size: 24, color: { argb: gradeColor } };
+    ws.getCell('C4').alignment = CENTER_ALIGN;
+
+    ws.mergeCells('D4:G4');
+    const gradeDesc = grade.startsWith('A') ? 'Excellent — Production-ready with minimal concerns' :
+      grade.startsWith('B') ? 'Good — Minor issues, safe for production with planned remediation' :
+      grade.startsWith('C') ? 'Fair — Significant issues requiring attention before scaling' :
+      grade.startsWith('D') ? 'Poor — Critical issues must be fixed before production use' :
+      'Critical — Immediate action required, security/stability at risk';
+    ws.getCell('D4').value = gradeDesc;
+    ws.getCell('D4').font = { name: 'Calibri', size: 10, color: { argb: '555555' } };
+    ws.getRow(4).height = 36;
+
+    // Risk Score
+    ws.mergeCells('A5:B5');
+    ws.getCell('A5').value = 'RISK SCORE';
+    ws.getCell('A5').font = SUMMARY_LABEL_FONT;
+    ws.getCell('C5').value = riskScore.toLocaleString();
+    ws.getCell('C5').font = { name: 'Calibri', bold: true, size: 14, color: { argb: gradeColor } };
+    ws.mergeCells('D5:G5');
+    ws.getCell('D5').value = `Formula: Critical×10000 + High×1000 + Medium×100 + Low×10  |  Lower = Better`;
+    ws.getCell('D5').font = { name: 'Calibri', size: 9, color: { argb: '777777' } };
+    ws.getRow(5).height = 24;
+
     // Metadata
     const meta: [string, string | number][] = [
       ['Generated:', new Date().toISOString().replace('T', ' ').substring(0, 19)],
       ['Project Root:', this.projectRoot],
       ['Platform:', this.platform],
+      ['Platform Detection:', this.platformDetection ? `Auto-detected (${this.platformDetection.confidence}% confidence)` : 'Manually specified'],
       ['Java Version:', this.stats.techStack.javaVersion || 'Not detected'],
       ['AEM Version:', this.stats.techStack.aemVersion || this.stats.techStack.aemSdkVersion || 'Not detected'],
       ['Frontend:', `${this.stats.frontendFramework}${this.stats.frontendVersion ? ' ' + this.stats.frontendVersion : ''} (${this.stats.frontendSrcFiles} source files)`],
-      ['Tool:', 'AEM Code Audit Engine v1.0 (BMAD)'],
+      ['Tool:', 'AEM Code Audit Engine v2.0 (BMAD DEPT)'],
       ['Total Findings:', total],
       ['Scan Duration:', `${(this.stats.scanDuration / 1000).toFixed(1)}s`],
       ['Tokens Processed:', this.stats.tokensProcessed.toLocaleString()],
       ['Files Analyzed:', `Java: ${this.stats.javaFiles}, XML: ${this.stats.xmlFiles}, HTL: ${this.stats.htlFiles}, JS: ${this.stats.jsFiles}, CSS: ${this.stats.cssFiles}`],
     ];
     for (let i = 0; i < meta.length; i++) {
-      const row = i + 4;
+      const row = i + 7;
       ws.getCell(row, 1).value = meta[i][0];
       ws.getCell(row, 1).font = SUMMARY_LABEL_FONT;
       ws.getCell(row, 1).alignment = LEFT_TOP;
@@ -143,7 +197,7 @@ export class AemReportGenerator {
     }
 
     // Severity Breakdown
-    const sevStart = 4 + meta.length + 1;
+    const sevStart = 7 + meta.length + 1;
     ws.mergeCells(`A${sevStart}:G${sevStart}`);
     const secCell = ws.getCell(sevStart, 1);
     secCell.value = 'SEVERITY BREAKDOWN';
@@ -215,7 +269,8 @@ export class AemReportGenerator {
     const categoryOrder = [
       'Performance', 'Code Quality', 'Security', 'SEO', 'Accessibility',
       'Architecture', 'Sling & OSGi', 'Cloud Readiness', 'Dispatcher',
-      'HTL & Frontend', 'Test Coverage', 'Maintainability', 'Dependencies & Versions',
+      'HTL & Frontend', 'Frontend Framework', 'AMS Specific',
+      'Test Coverage', 'Maintainability', 'Dependencies & Versions',
     ];
 
     let catRowIdx = 0;
@@ -772,9 +827,90 @@ export class AemReportGenerator {
       'Cloud Readiness': '00B0F0',
       'Dispatcher': 'FFC000',
       'HTL & Frontend': '92D050',
+      'Frontend Framework': '4472C4',
+      'AMS Specific': 'ED7D31',
       'Test Coverage': 'BF8F00',
       'Maintainability': '44546A',
+      'Dependencies & Versions': 'A5A5A5',
     };
     return colors[category] || '808080';
+  }
+
+  // ─── Platform Detection Summary Sheet ──────────────────────────────────
+
+  private sheetPlatformDetection(): void {
+    if (!this.platformDetection) return;
+    const ws = this.wb.addWorksheet('Platform Detection', { properties: { tabColor: { argb: '4472C4' } } });
+    const pd = this.platformDetection;
+
+    // Title
+    ws.mergeCells('A1:D1');
+    ws.getCell('A1').value = 'PLATFORM AUTO-DETECTION RESULTS';
+    ws.getCell('A1').font = TITLE_FONT;
+    ws.getRow(1).height = 30;
+
+    // Summary
+    const summaryData: [string, string][] = [
+      ['Detected Platform:', pd.platform === 'aemcs' ? 'AEM as a Cloud Service' : pd.platform === 'aemams' ? 'AEM Managed Services (On-Premise)' : 'Unknown/Mixed'],
+      ['Confidence:', `${pd.confidence}%`],
+      ['Migrated from AMS:', pd.isMigrated ? 'YES — Shows signs of AMS → Cloud migration' : 'No'],
+      ['AEM Version:', pd.aemVersion || 'Not detected'],
+      ['Cloud SDK Version:', pd.sdkVersion || 'N/A'],
+      ['Uber-Jar Version:', pd.uberJarVersion || 'N/A'],
+      ['Java Version:', pd.javaVersion || 'Not detected'],
+      ['Rule Set Applied:', pd.platform === 'aemcs' ? 'AEMaaCS rules' : pd.platform === 'aemams' ? 'AEM AMS rules' : 'Both rule sets'],
+    ];
+
+    for (let i = 0; i < summaryData.length; i++) {
+      const row = i + 3;
+      ws.getCell(row, 1).value = summaryData[i][0];
+      ws.getCell(row, 1).font = SUMMARY_LABEL_FONT;
+      ws.getCell(row, 2).value = summaryData[i][1];
+      ws.getCell(row, 2).font = SUMMARY_VALUE_FONT;
+      ws.getRow(row).height = 22;
+    }
+
+    // Detection Signals table
+    const signalStart = 3 + summaryData.length + 2;
+    ws.mergeCells(`A${signalStart}:D${signalStart}`);
+    ws.getCell(signalStart, 1).value = 'DETECTION SIGNALS';
+    ws.getCell(signalStart, 1).font = SUBTITLE_FONT;
+    ws.getCell(signalStart, 1).fill = SECTION_FILL;
+    ws.getRow(signalStart).height = 26;
+
+    const sigHdr = signalStart + 1;
+    const sigHeaders = ['Signal', 'Value', 'Weight', 'Indicates'];
+    for (let c = 0; c < sigHeaders.length; c++) {
+      ws.getCell(sigHdr, c + 1).value = sigHeaders[c];
+      ws.getCell(sigHdr, c + 1).font = HEADER_FONT;
+      ws.getCell(sigHdr, c + 1).fill = HEADER_FILL;
+      ws.getCell(sigHdr, c + 1).alignment = CENTER_ALIGN;
+      ws.getCell(sigHdr, c + 1).border = HEADER_BORDER;
+    }
+
+    for (let i = 0; i < pd.signals.length; i++) {
+      const row = sigHdr + 1 + i;
+      const s = pd.signals[i];
+      ws.getCell(row, 1).value = s.signal;
+      ws.getCell(row, 1).font = BODY_FONT;
+      ws.getCell(row, 2).value = s.value;
+      ws.getCell(row, 2).font = CODE_FONT;
+      ws.getCell(row, 3).value = s.weight;
+      ws.getCell(row, 3).alignment = CENTER_TOP;
+      ws.getCell(row, 4).value = s.indicatesCloud ? '☁️ Cloud' : '🏢 AMS/On-Prem';
+      ws.getCell(row, 4).font = BODY_FONT;
+      ws.getCell(row, 4).fill = s.indicatesCloud
+        ? { type: 'pattern', pattern: 'solid', fgColor: { argb: 'E2EFDA' } }
+        : { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FCE4D6' } };
+      for (let c = 1; c <= 4; c++) ws.getCell(row, c).border = THIN_BORDER;
+      ws.getRow(row).height = 20;
+    }
+
+    applyZebraAndBorders(ws, sigHdr + pd.signals.length, 4, sigHdr + 1);
+
+    ws.getColumn(1).width = 50;
+    ws.getColumn(2).width = 30;
+    ws.getColumn(3).width = 10;
+    ws.getColumn(4).width = 20;
   }
 }
