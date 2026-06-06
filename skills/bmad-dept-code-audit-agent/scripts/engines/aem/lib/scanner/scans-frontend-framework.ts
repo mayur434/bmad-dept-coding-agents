@@ -575,16 +575,36 @@ function scanVue(ctx: ScanContext, files: string[], info: FrontendInfo): void {
 
 // ─── Generic Frontend Source Checks (no framework) ──────────────────────────────
 
+// Config/build files where strict mode is irrelevant
+const JS_CONFIG_PATTERNS = /\.(config|conf|rc|setup|gulpfile|gruntfile|Gruntfile)\.js$|webpack\.|babel\.|postcss\.|rollup\.|jest\.|karma\.|\.eslintrc|\.prettierrc|\.babelrc/;
+// Minified file detection
+const MINIFIED_PATTERN = /\.min\.js$|[\\/]dist[\\/]|[\\/]build[\\/]|[\\/]vendor[\\/]/;
+
+function isConfigOrBuildFile(filePath: string): boolean {
+  const basename = filePath.split(/[\\/]/).pop() || '';
+  return JS_CONFIG_PATTERNS.test(basename) || JS_CONFIG_PATTERNS.test(filePath);
+}
+
+function isMinifiedOrVendor(filePath: string): boolean {
+  return MINIFIED_PATTERN.test(filePath);
+}
+
 function scanGenericFrontendSrc(ctx: ScanContext, files: string[]): void {
   for (const f of files) {
     const ext = f.split('.').pop() || '';
     if (!['ts', 'tsx', 'js', 'jsx'].includes(ext)) continue;
 
+    // Skip config, build, minified, and vendor files from quality checks
+    if (isMinifiedOrVendor(f)) continue;
+
     const mod = ctx.module(f);
     const content = ctx.read(f);
     if (!content) continue;
 
-    // Basic security checks
+    const isJS = ext === 'js' || ext === 'jsx';
+    const isConfigFile = isConfigOrBuildFile(f);
+
+    // Basic security checks (apply to all files)
     for (const hit of ctx.grep(f, /\beval\s*\(|document\.write\s*\(/)) {
       ctx.add('Frontend Framework', mod, f, hit.lineNum,
         'Unsafe JavaScript Pattern',
@@ -593,16 +613,486 @@ function scanGenericFrontendSrc(ctx: ScanContext, files: string[]): void {
         'Remove eval/document.write. Use DOM APIs or template literals for dynamic content.', 'Low');
     }
 
-    // Missing strict mode
-    if (!content.includes('use strict') && !content.includes('import ') && !content.includes('export ')) {
-      // Only flag non-module files
-      ctx.add('Frontend Framework', mod, f, 1,
-        'Missing Strict Mode',
-        'Script file without "use strict" and not an ES module — allows silent errors',
-        '', 'LOW',
-        'Add "use strict" or convert to ES module (import/export) for implicit strict mode.', 'Low');
+    // ─── JS-Specific Checks (skip config/build files and TS files) ──────────
+    if (isJS && !isConfigFile) {
+      // Missing strict mode — only for actual application JS (not config, not vendor, not modules)
+      if (!content.includes('use strict') && !content.includes('import ') && !content.includes('export ')) {
+        ctx.add('Frontend Framework', mod, f, 1,
+          'Missing Strict Mode',
+          'Script file without "use strict" and not an ES module — allows silent errors',
+          '', 'LOW',
+          'Add "use strict" or convert to ES module (import/export) for implicit strict mode.', 'Low');
+      }
+
+      // Global variable pollution — var declarations at top level (not inside function/block)
+      for (const hit of ctx.grep(f, /^var\s+\w+/m)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Global Variable Declaration',
+          'Top-level "var" pollutes global scope — risk of naming collisions and hard-to-trace bugs',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Use "const" or "let" inside a module or IIFE. Wrap code in (function() { ... })() if not using modules.', 'Low');
+      }
+
+      // jQuery deprecated methods
+      for (const hit of ctx.grep(f, /\$\.(ajax|get|post)\s*\(\s*\{[^}]*async\s*:\s*false/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Synchronous AJAX Call',
+          'Synchronous XHR (async: false) blocks the main thread — causes browser freezes',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Convert to async pattern using $.ajax with async:true (default), Promises, or fetch API.', 'Medium',
+          'Performance, UX degradation');
+      }
+
+      for (const hit of ctx.grep(f, /\.live\s*\(|\.die\s*\(|\.bind\s*\(|\.unbind\s*\(|\.delegate\s*\(|\.undelegate\s*\(/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Deprecated jQuery Method',
+          'Using deprecated jQuery event methods (.live/.die/.bind/.unbind/.delegate) — removed in jQuery 3+',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Replace with .on() and .off() for event binding. E.g., $(selector).bind("click",fn) → $(selector).on("click",fn)', 'Low');
+      }
+
+      // Missing error handling in async operations
+      for (const hit of ctx.grep(f, /\$\.ajax\s*\([^)]*\{(?:(?!\berror\b|\bfail\b|\bcatch\b)[\s\S]){30,}?\}/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'AJAX Without Error Handling',
+          'AJAX call without error/fail callback — failures will be silently ignored',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Add error callback: $.ajax({...}).fail(function(jqXHR, textStatus, error) { /* handle */ })', 'Low');
+      }
+
+      // Inline event handlers in JS strings (building HTML with onclick etc.)
+      for (const hit of ctx.grep(f, /['"`].*\bon(click|change|submit|load|error|mouseover|keydown|keyup|focus|blur)\s*=/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Inline Event Handler in JS String',
+          'Building HTML strings with inline event handlers — XSS risk and unmaintainable pattern',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Use addEventListener() or jQuery .on() after inserting DOM elements. Avoid building HTML strings with event handlers.', 'Medium',
+          'XSS risk, CSP violation');
+      }
+
+      // setTimeout/setInterval with string argument (equivalent to eval)
+      for (const hit of ctx.grep(f, /set(Timeout|Interval)\s*\(\s*['"]/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'setTimeout/setInterval with String',
+          'Passing string to setTimeout/setInterval — equivalent to eval(), security risk',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Pass a function reference instead: setTimeout(function() { ... }, delay) or setTimeout(() => { ... }, delay)', 'Low');
+      }
+
+      // innerHTML assignment (potential XSS)
+      for (const hit of ctx.grep(f, /\.innerHTML\s*=\s*[^'"][^;]*\+/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Dynamic innerHTML Assignment',
+          'Setting innerHTML with concatenated dynamic content — XSS vulnerability',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Use textContent for plain text, or createElement/appendChild for structured content. If HTML is needed, sanitize input first.', 'Medium',
+          'XSS vulnerability');
+      }
+
+      // == instead of === (type coercion bugs)
+      const eqCount = (content.match(/[^!=]==[^=]/g) || []).length;
+      if (eqCount > 5) {
+        ctx.add('Frontend Framework', mod, f, 1,
+          `Loose Equality Operators (${eqCount} instances)`,
+          'Heavy use of == instead of === — type coercion causes subtle bugs (e.g., "" == false is true)',
+          '', 'LOW',
+          'Use === and !== for strict equality. Only use == for intentional null/undefined checks (x == null).', 'Medium');
+      }
+
+      // Nested callbacks (callback hell)
+      const maxNesting = measureCallbackNesting(content);
+      if (maxNesting >= 4) {
+        ctx.add('Frontend Framework', mod, f, 1,
+          `Deep Callback Nesting (${maxNesting} levels)`,
+          'Deeply nested callbacks (callback hell) — hard to read, debug, and maintain',
+          '', 'MEDIUM',
+          'Refactor using Promises, async/await, or break into named functions. Consider a flow control library for complex chains.', 'High');
+      }
+
+      // ─── Syntax & Runtime Error Patterns ──────────────────────────────
+      // Empty catch block (swallowing errors silently)
+      for (const hit of ctx.grep(f, /catch\s*\([^)]*\)\s*\{\s*\}/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Empty Catch Block',
+          'Empty catch block silently swallows errors — hides bugs and makes debugging impossible',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Log the error (console.error), re-throw, or handle gracefully. Never silently swallow exceptions.', 'Low');
+      }
+
+      // JSON.parse without try-catch
+      for (const hit of ctx.grep(f, /JSON\.parse\s*\(/)) {
+        // Check if there's a try block nearby (within ~5 lines before)
+        const lineIdx = hit.lineNum - 1;
+        const nearbyLines = content.split('\n').slice(Math.max(0, lineIdx - 5), lineIdx + 1).join('\n');
+        if (!nearbyLines.includes('try')) {
+          ctx.add('Frontend Framework', mod, f, hit.lineNum,
+            'JSON.parse Without Error Handling',
+            'JSON.parse() throws SyntaxError on invalid input — will crash without try-catch',
+            ctx.context(f, hit.lineNum), 'MEDIUM',
+            'Wrap in try-catch: try { JSON.parse(data) } catch(e) { /* handle invalid JSON */ }', 'Low');
+        }
+      }
+
+      // parseInt without radix parameter
+      for (const hit of ctx.grep(f, /parseInt\s*\(\s*[^,)]+\s*\)/)) {
+        const matchText = hit.lineText || '';
+        // Only flag if there's no second argument (no comma before closing paren)
+        if (!matchText.includes(',')) {
+          ctx.add('Frontend Framework', mod, f, hit.lineNum,
+            'parseInt Without Radix',
+            'parseInt() without explicit radix — may interpret "08" as octal in older engines, always ambiguous',
+            ctx.context(f, hit.lineNum), 'LOW',
+            'Always pass radix: parseInt(value, 10). Or use Number(value) for simple conversions.', 'Low');
+        }
+      }
+
+      // with statement (deprecated, error-prone)
+      for (const hit of ctx.grep(f, /\bwith\s*\(/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'with Statement Usage',
+          '"with" statement is deprecated — creates ambiguous scope, forbidden in strict mode, and breaks optimizations',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Remove "with" block. Use explicit object references: obj.prop instead of with(obj) { prop }.', 'Low');
+      }
+
+      // arguments.callee (removed in strict mode)
+      for (const hit of ctx.grep(f, /arguments\.callee/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'arguments.callee Usage',
+          'arguments.callee is deprecated and removed in strict mode — prevents engine optimizations',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Use named function expressions instead: const factorial = function factorial(n) { return n <= 1 ? 1 : n * factorial(n-1); }', 'Low');
+      }
+
+      // Duplicate object keys (runtime silent override)
+      const objKeyDupes = findDuplicateObjectKeys(content);
+      for (const dupe of objKeyDupes) {
+        ctx.add('Frontend Framework', mod, f, dupe.line,
+          `Duplicate Object Key "${dupe.key}"`,
+          'Duplicate key in object literal — second value silently overrides the first (likely a bug)',
+          '', 'HIGH',
+          `Remove the duplicate key "${dupe.key}" or rename one of them.`, 'Low');
+      }
+
+      // ─── Scope & Hoisting Bug Patterns ────────────────────────────────
+      // var inside for-loop (closure bug — shared variable)
+      for (const hit of ctx.grep(f, /for\s*\(\s*var\s+/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'var in For-Loop',
+          '"var" in for-loop leaks to function scope — causes stale closure bugs in callbacks/timers inside the loop',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Use "let" instead of "var" in for-loops: for (let i = 0; ...). "let" creates block-scoped binding per iteration.', 'Low');
+      }
+
+      // Implicit global (assignment to undeclared variable)
+      for (const hit of ctx.grep(f, /^\s+(\w+)\s*=\s*(?!.*(?:var|let|const|function|class|import|export|return|throw|yield)\b)/m)) {
+        // Heuristic: assignment at start of line without declaration — skip common patterns
+        const assignMatch = hit.lineText?.trim() || '';
+        if (assignMatch && !assignMatch.startsWith('//') && !assignMatch.startsWith('*') &&
+            !assignMatch.includes('.') && !assignMatch.includes('[') &&
+            !assignMatch.startsWith('this') && !assignMatch.startsWith('self') &&
+            !assignMatch.startsWith('if') && !assignMatch.startsWith('else') &&
+            !assignMatch.startsWith('case') && !assignMatch.startsWith('default')) {
+          // Skip — too many false positives with heuristic-only approach
+        }
+      }
+
+      // ─── Promise & Async Error Patterns ───────────────────────────────
+      // Promise without catch
+      for (const hit of ctx.grep(f, /new\s+Promise\s*\(/)) {
+        // Check surrounding context for .catch or try-catch
+        const lines = content.split('\n');
+        const endIdx = Math.min(lines.length, hit.lineNum + 10);
+        const nearbyAfter = lines.slice(hit.lineNum - 1, endIdx).join('\n');
+        if (!nearbyAfter.includes('.catch') && !nearbyAfter.includes('.then(') ) {
+          ctx.add('Frontend Framework', mod, f, hit.lineNum,
+            'Promise Without .catch()',
+            'Promise created but no .catch() or .then(null, handler) — unhandled rejection will crash Node or be silently lost in browser',
+            ctx.context(f, hit.lineNum), 'MEDIUM',
+            'Always chain .catch(err => { /* handle */ }) or use try-catch with await.', 'Medium');
+        }
+      }
+
+      // Return inside forEach (common mistake — doesn't break iteration)
+      for (const hit of ctx.grep(f, /\.forEach\s*\(\s*(?:function\s*\([^)]*\)|[^)]*=>)\s*\{/)) {
+        const lines = content.split('\n');
+        const startIdx = hit.lineNum - 1;
+        const endIdx = Math.min(lines.length, startIdx + 20);
+        const forEachBody = lines.slice(startIdx, endIdx).join('\n');
+        if (/\breturn\b/.test(forEachBody) && !/\breturn\s+false\s*;?\s*\/\/\s*(?:break|stop)/i.test(forEachBody)) {
+          ctx.add('Frontend Framework', mod, f, hit.lineNum,
+            'Return Inside forEach',
+            '"return" inside forEach() only exits the callback, not the outer function — does NOT break the loop',
+            ctx.context(f, hit.lineNum), 'MEDIUM',
+            'Use for...of or Array.some()/Array.find() if you need early exit. forEach cannot be broken with return.', 'Medium');
+        }
+      }
+
+      // await inside for/while loop (sequential async — potential N+1)
+      for (const hit of ctx.grep(f, /(?:for\s*\(|while\s*\()[\s\S]{0,200}await\s+/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Await Inside Loop',
+          'Using await inside a loop executes async operations sequentially — severely degrades performance',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Use Promise.all() with .map() for parallel execution: await Promise.all(items.map(item => fetchItem(item)))', 'High');
+      }
+
+      // ─── DOM Performance Patterns ─────────────────────────────────────
+      // DOM query inside loop
+      for (const hit of ctx.grep(f, /(?:for\s*\(|while\s*\(|\.forEach|\.map\s*\()[\s\S]{0,300}(?:document\.getElementById|document\.querySelector|document\.getElementsBy|\$\s*\(\s*['"])/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'DOM Query Inside Loop',
+          'DOM query (getElementById/querySelector/$()) inside loop — re-querying DOM on every iteration is expensive',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Cache DOM reference before the loop: const el = document.getElementById("x"); for (...) { el.doSomething(); }', 'Medium');
+      }
+
+      // Creating regex inside loop
+      for (const hit of ctx.grep(f, /(?:for\s*\(|while\s*\(|\.forEach|\.map\s*\()[\s\S]{0,200}new\s+RegExp\s*\(/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'RegExp Creation Inside Loop',
+          'Creating RegExp object inside loop — allocates new regex on every iteration unnecessarily',
+          ctx.context(f, hit.lineNum), 'LOW',
+          'Move regex creation outside the loop: const re = new RegExp("pattern"); for (...) { re.test(str); }', 'Low');
+      }
+
+      // ─── Browser Security Patterns ────────────────────────────────────
+      // postMessage without target origin
+      for (const hit of ctx.grep(f, /\.postMessage\s*\([^,]+,\s*['"][*]['"]\s*\)/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'postMessage With Wildcard Origin',
+          'postMessage with "*" origin — any window/iframe can receive this message, data leak risk',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Specify exact target origin: window.postMessage(data, "https://trusted-domain.com")', 'Medium',
+          'Data exposure, cross-origin attack');
+      }
+
+      // addEventListener message without origin check
+      for (const hit of ctx.grep(f, /addEventListener\s*\(\s*['"]message['"]/)) {
+        const lines = content.split('\n');
+        const endIdx = Math.min(lines.length, hit.lineNum + 10);
+        const handlerBody = lines.slice(hit.lineNum - 1, endIdx).join('\n');
+        if (!handlerBody.includes('.origin') && !handlerBody.includes('event.source')) {
+          ctx.add('Frontend Framework', mod, f, hit.lineNum,
+            'Message Listener Without Origin Check',
+            'Listening for postMessage events without checking event.origin — accepts messages from any source',
+            ctx.context(f, hit.lineNum), 'CRITICAL',
+            'Always verify origin: window.addEventListener("message", (e) => { if (e.origin !== "https://trusted.com") return; ... })', 'Medium',
+            'XSS, Cross-origin data injection');
+        }
+      }
+
+      // localStorage/sessionStorage with sensitive-looking keys
+      for (const hit of ctx.grep(f, /(?:localStorage|sessionStorage)\.(setItem|getItem)\s*\(\s*['"](.*?(?:token|password|secret|auth|key|session|credit|ssn|api.?key|jwt).*?)['"]/i)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Sensitive Data in Browser Storage',
+          'Storing potentially sensitive data (token/password/key) in localStorage/sessionStorage — accessible via XSS',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Use httpOnly cookies for auth tokens. If client-side storage is required, use short-lived tokens and encrypt sensitive values.', 'Medium',
+          'XSS data theft, session hijacking');
+      }
+
+      // window.open with variable URL (open redirect risk)
+      for (const hit of ctx.grep(f, /window\.open\s*\(\s*[^'")\s]/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Dynamic window.open URL',
+          'window.open() with dynamic URL — open redirect vulnerability if URL comes from user input',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Validate URL against allowlist before opening. Ensure URL starts with expected protocol and domain.', 'Medium',
+          'Open redirect, phishing');
+      }
+
+      // ─── Common JS Bug Patterns ───────────────────────────────────────
+      // Comparing with NaN using == or ===
+      for (const hit of ctx.grep(f, /[=!]==?\s*NaN\b|\bNaN\s*[=!]==?/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'NaN Comparison',
+          'Comparing with NaN using == or === always returns false (NaN !== NaN) — this check never works',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Use Number.isNaN(value) or isNaN(value) to check for NaN.', 'Low');
+      }
+
+      // Array.sort without comparator (sorts as strings)
+      for (const hit of ctx.grep(f, /\.sort\s*\(\s*\)/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Array.sort Without Comparator',
+          'Array.sort() without comparator sorts elements as strings — [10,2,1].sort() gives [1,10,2]',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Pass a comparator function: arr.sort((a, b) => a - b) for numeric sort.', 'Low');
+      }
+
+      // typeof comparison with wrong string
+      for (const hit of ctx.grep(f, /typeof\s+\w+\s*===?\s*['"](array|null|integer|float|double|char|long|short|byte|list|dict|hash|map|set|tuple|class|lambda|void|NaN|nil|none)['"]/i)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Invalid typeof Comparison',
+          'typeof never returns this value — valid typeof results are: undefined, boolean, number, bigint, string, symbol, function, object',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Use correct check. For arrays: Array.isArray(x). For null: x === null. For NaN: Number.isNaN(x). For class: x instanceof ClassName.', 'Low');
+      }
+
+      // delete on array (leaves hole, does not reindex)
+      for (const hit of ctx.grep(f, /delete\s+\w+\[\d+\]|delete\s+\w+\[\w+\]/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Delete on Array Element',
+          '"delete arr[i]" leaves a hole (undefined) and does NOT change array length or reindex',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Use arr.splice(index, 1) to remove and reindex, or arr.filter() to create a new array without the element.', 'Low');
+      }
+
+      // for-in on array (iterates string keys, includes prototype)
+      for (const hit of ctx.grep(f, /for\s*\(\s*(?:var|let|const)\s+\w+\s+in\s+/)) {
+        // Check if it looks like array iteration (common pattern: arr, items, list, data, results)
+        const varAfterIn = (hit.lineText || '').match(/\bin\s+(\w+)/);
+        if (varAfterIn) {
+          const arrName = varAfterIn[1].toLowerCase();
+          if (/arr|items?|list|data|results?|elements?|rows?|records?|entries|values|files|nodes|children|users?|products?/i.test(arrName)) {
+            ctx.add('Frontend Framework', mod, f, hit.lineNum,
+              'for-in on Array',
+              'for...in iterates string keys including prototype properties — wrong for arrays, gives unexpected results',
+              ctx.context(f, hit.lineNum), 'MEDIUM',
+              'Use for...of for array values: for (const item of array). Or use .forEach(), .map(), .filter() for functional style.', 'Low');
+          }
+        }
+      }
+
+      // Overwriting built-in prototype
+      for (const hit of ctx.grep(f, /(?:Array|String|Object|Number|Boolean|Function|Date|RegExp|Error)\.prototype\.\w+\s*=/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Native Prototype Modification',
+          'Modifying built-in prototype (Array/String/Object/etc.) — breaks other code, causes unpredictable conflicts',
+          ctx.context(f, hit.lineNum), 'CRITICAL',
+          'Never modify native prototypes. Create utility functions instead: function myHelper(arr) { ... }', 'Medium',
+          'Third-party library conflicts, hard-to-debug failures');
+      }
+
+      // alert/confirm/prompt in production code
+      for (const hit of ctx.grep(f, /\b(?:alert|confirm|prompt)\s*\(/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Browser Dialog in Code',
+          'alert()/confirm()/prompt() blocks the main thread and breaks UX — not suitable for production',
+          ctx.context(f, hit.lineNum), 'LOW',
+          'Replace with custom modal/dialog component or toast notification. Use a UI framework dialog instead.', 'Low');
+      }
+
+      // debugger statement left in code
+      for (const hit of ctx.grep(f, /^\s*debugger\s*;?\s*$/m)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Debugger Statement',
+          '"debugger" statement left in code — will freeze the browser when DevTools is open in production',
+          ctx.context(f, hit.lineNum), 'HIGH',
+          'Remove all debugger statements before committing. Use conditional breakpoints in DevTools instead.', 'Low');
+      }
+
+      // Unreachable code after return/throw/break/continue
+      for (const hit of ctx.grep(f, /(?:return|throw|break|continue)\s+[^;]*;\s*\n\s*(?!\/\/|\/\*|\}|\s*$|case |default:)[a-zA-Z$_]/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Unreachable Code',
+          'Code after return/throw/break/continue — this code will never execute',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Remove unreachable code or restructure the logic. If intentional, it indicates a code smell.', 'Low');
+      }
+
+      // Floating point comparison (0.1 + 0.2 === 0.3 is false)
+      for (const hit of ctx.grep(f, /\d+\.\d+\s*[\+\-\*]\s*\d+\.\d+\s*===?\s*\d+\.\d+/)) {
+        ctx.add('Frontend Framework', mod, f, hit.lineNum,
+          'Floating Point Comparison',
+          'Direct floating-point comparison — 0.1 + 0.2 !== 0.3 in JavaScript due to IEEE 754 precision',
+          ctx.context(f, hit.lineNum), 'MEDIUM',
+          'Use epsilon comparison: Math.abs(a - b) < Number.EPSILON. Or use integer math (cents instead of dollars).', 'Low');
+      }
+
+      // Comma operator misuse (often accidental)
+      for (const hit of ctx.grep(f, /return\s+[^;,]+,\s*[^;]+;/)) {
+        // Only if it looks like accidental comma (not destructuring or multiple declarations)
+        const commaLine = hit.lineText || '';
+        if (!commaLine.includes('{') && !commaLine.includes('[') && !commaLine.includes('const') && !commaLine.includes('let') && !commaLine.includes('var')) {
+          ctx.add('Frontend Framework', mod, f, hit.lineNum,
+            'Comma Operator in Return',
+            'Comma operator in return — only returns the last expression, previous expressions are discarded (likely a bug)',
+            ctx.context(f, hit.lineNum), 'HIGH',
+            'If intentional, split into separate statements. If returning multiple values, use an object or array.', 'Low');
+        }
+      }
+
+      // Assignment in condition (= instead of ==)
+      for (const hit of ctx.grep(f, /if\s*\(\s*\w+\s*=[^=][^)]*\)/)) {
+        const hitText = hit.lineText || '';
+        // Skip common intentional patterns like while((match = re.exec(str)))
+        if (!hitText.includes('==') && !hitText.includes('!=') && !hitText.includes('>=') && !hitText.includes('<=')) {
+          ctx.add('Frontend Framework', mod, f, hit.lineNum,
+            'Assignment in Condition',
+            'Single "=" in if-condition — assigns instead of comparing. Likely meant == or ===',
+            ctx.context(f, hit.lineNum), 'HIGH',
+            'Use === for comparison. If assignment is intentional, wrap in extra parens: if ((x = getValue())) { ... }', 'Low');
+        }
+      }
+
+      // String concatenation for building HTML (XSS risk + maintainability)
+      const htmlConcatCount = (content.match(/['"]\s*\+\s*.*\s*\+\s*['"]<|['"]<[^'"]*['"]\s*\+/g) || []).length;
+      if (htmlConcatCount > 3) {
+        ctx.add('Frontend Framework', mod, f, 1,
+          `HTML String Concatenation (${htmlConcatCount} instances)`,
+          'Building HTML via string concatenation — XSS risk, hard to maintain, error-prone',
+          '', 'MEDIUM',
+          'Use template literals, DOM APIs (createElement), or a templating library. Sanitize all dynamic values.', 'Medium');
+      }
+
+      // Magic numbers (unexplained numeric literals in conditions/logic)
+      const magicNums = content.match(/(?:if|else if|while|case|return|===?|!==?|[<>]=?)\s*[-+]?\d{2,}/g) || [];
+      if (magicNums.length > 5) {
+        ctx.add('Frontend Framework', mod, f, 1,
+          `Magic Numbers (${magicNums.length} instances)`,
+          'Multiple unexplained numeric constants in conditions/logic — hard to understand and maintain',
+          '', 'LOW',
+          'Extract magic numbers to named constants: const MAX_RETRIES = 3; const HTTP_NOT_FOUND = 404;', 'Medium');
+      }
     }
   }
+}
+
+/** Measure max callback nesting depth in JS content */
+function measureCallbackNesting(content: string): number {
+  let max = 0, depth = 0;
+  const lines = content.split('\n');
+  for (const line of lines) {
+    if (/function\s*\(|=>\s*\{/.test(line)) depth++;
+    if (/^\s*\}\s*[\),;]/.test(line)) depth = Math.max(0, depth - 1);
+    max = Math.max(max, depth);
+  }
+  return max;
+}
+
+/** Find duplicate keys in object literals */
+function findDuplicateObjectKeys(content: string): Array<{key: string; line: number}> {
+  const results: Array<{key: string; line: number}> = [];
+  const lines = content.split('\n');
+  // Track keys per object scope (simplified — single-level objects)
+  let inObject = false;
+  let braceDepth = 0;
+  const keysInScope: Map<string, number> = new Map();
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    for (const ch of line) {
+      if (ch === '{') { braceDepth++; inObject = true; }
+      if (ch === '}') {
+        braceDepth--;
+        if (braceDepth <= 0) { keysInScope.clear(); inObject = false; braceDepth = 0; }
+      }
+    }
+    if (inObject) {
+      const keyMatch = line.match(/^\s*['"]?(\w+)['"]?\s*:/);
+      if (keyMatch) {
+        const key = keyMatch[1];
+        if (keysInScope.has(key)) {
+          results.push({ key, line: i + 1 });
+        } else {
+          keysInScope.set(key, i + 1);
+        }
+      }
+    }
+  }
+  return results;
 }
 
 // ─── Framework Version Checks ───────────────────────────────────────────────────
