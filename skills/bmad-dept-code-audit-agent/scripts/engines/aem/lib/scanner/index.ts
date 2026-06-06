@@ -1,63 +1,154 @@
 /**
- * AEM Audit Scanner — Orchestrator
- * ==================================
- * Runs all scan modules and returns combined FindingsMap
+ * AEM Audit Scanner - Main scanner class.
+ * Orchestrates all scan categories and produces findings.
  */
-import { FindingsMap } from "../../../../shared/base";
-import { AemScannerContext } from "./context";
+import * as fs from 'fs';
+import * as path from 'path';
+import { Finding, FindingsMap, StatsMap, ScannerOptions, DEFAULT_THRESHOLDS, ScanContext } from './types';
+import { AemScannerContext } from './context';
 
-// Architecture scans
-import { scanContentSeparation, scanClassicUi, scanCustomRunmodes, scanLibsOverlay, scanRepoinit } from "./scans-arch";
-// Sling/OSGi scans
-import { scanResolverLeak, scanDeprecatedSlingServlet, scanJcrSessionLeak, scanFelixScr, scanSlingModelValidation } from "./scans-sling";
-// Performance scans
-import { scanAsyncProcessing, scanUnboundedQueries, scanModelCaching, scanClientlibSize } from "./scans-perf";
-// Security scans
-import { scanHardcodedCredentials, scanDispatcherRules, scanHtlXss, scanServiceUserPermissions } from "./scans-security";
-// Cloud Readiness scans
-import { scanFilesystemAccess, scanInstallHooks, scanOakIndex, scanSchedulerLeader } from "./scans-cloud";
+// Scan modules
+import { scanPerformance } from './scans-performance';
+import { scanCodeQuality } from './scans-code-quality';
+import { scanSecurity } from './scans-security';
+import { scanSeo } from './scans-seo';
+import { scanAccessibility } from './scans-accessibility';
+import { scanArchitecture, scanSlingOsgi } from './scans-architecture';
+import { scanCloudReadiness, scanDispatcher } from './scans-cloud-readiness';
+import { scanTestCoverage, scanMaintainability } from './scans-testing';
+import { scanHtlFrontend } from './scans-htl-frontend';
+import { scanFrontendFramework } from './scans-frontend-framework';
+import { scanAmsSpecific } from './scans-ams-specific';
+import { scanDependencies } from './scans-dependencies';
+
+export { Finding, FindingsMap, StatsMap, ScannerOptions, DEFAULT_THRESHOLDS, ScanContext };
+export type { TechStackInfo } from './types';
 
 export class AemAuditScanner {
   private ctx: AemScannerContext;
+  private options: ScannerOptions;
 
-  constructor(opts: { root: string }) {
-    this.ctx = new AemScannerContext(opts.root);
+  constructor(options: ScannerOptions) {
+    this.options = options;
+    this.ctx = new AemScannerContext(options);
   }
 
-  scan(): FindingsMap {
-    // === Architecture ===
-    scanContentSeparation(this.ctx);
-    scanClassicUi(this.ctx);
-    scanCustomRunmodes(this.ctx);
-    scanLibsOverlay(this.ctx);
-    scanRepoinit(this.ctx);
+  /**
+   * Run the full scan pipeline.
+   * Returns findings map and stats.
+   */
+  async scan(): Promise<{ findings: FindingsMap; stats: StatsMap }> {
+    const { root } = this.options;
+    if (!root || !fs.existsSync(root)) {
+      throw new Error(`Root path does not exist: ${root}`);
+    }
 
-    // === Sling/OSGi ===
-    scanResolverLeak(this.ctx);
-    scanDeprecatedSlingServlet(this.ctx);
-    scanJcrSessionLeak(this.ctx);
-    scanFelixScr(this.ctx);
-    scanSlingModelValidation(this.ctx);
+    console.log('[AEM Scanner] Collecting project files...');
+    const java = this.ctx.javaFiles();
+    const xml = this.ctx.xmlFiles();
+    const htl = this.ctx.htlFiles();
+    const js = this.ctx.jsFiles();
+    const css = this.ctx.cssFiles();
+    const frontendSrc = this.ctx.frontendSrcFiles();
+    const frontendInfo = this.ctx.detectFrontendFramework();
 
-    // === Performance ===
-    scanAsyncProcessing(this.ctx);
-    scanUnboundedQueries(this.ctx);
-    scanModelCaching(this.ctx);
-    scanClientlibSize(this.ctx);
+    console.log(`[AEM Scanner] Java: ${java.length}, XML: ${xml.length}, HTL: ${htl.length}, JS: ${js.length}, CSS: ${css.length}`);
+    if (frontendSrc.length > 0) {
+      console.log(`[AEM Scanner] Frontend Src: ${frontendSrc.length} files (${frontendInfo?.framework || 'vanilla'}${frontendInfo?.version ? ' ' + frontendInfo.version : ''})`);
+    }
 
-    // === Security ===
-    scanHardcodedCredentials(this.ctx);
-    scanDispatcherRules(this.ctx);
-    scanHtlXss(this.ctx);
-    scanServiceUserPermissions(this.ctx);
+    const startTime = Date.now();
 
-    // === Cloud Readiness ===
-    scanFilesystemAccess(this.ctx);
-    scanInstallHooks(this.ctx);
-    scanOakIndex(this.ctx);
-    scanSchedulerLeader(this.ctx);
+    // 1. Performance
+    this.runSafe('Performance', () => scanPerformance(this.ctx, java, xml, htl));
 
-    console.log(`[aem] Scan complete — ${JSON.stringify(this.ctx.stats)}`);
-    return this.ctx.findings;
+    // 2. Code Quality
+    this.runSafe('Code Quality', () => scanCodeQuality(this.ctx, java, xml, htl));
+
+    // 3. Security
+    this.runSafe('Security', () => scanSecurity(this.ctx, java, xml, htl));
+
+    // 4. SEO
+    this.runSafe('SEO', () => scanSeo(this.ctx, java, xml, htl));
+
+    // 5. Accessibility
+    this.runSafe('Accessibility', () => scanAccessibility(this.ctx, java, xml, htl));
+
+    // 6. Architecture
+    this.runSafe('Architecture', () => scanArchitecture(this.ctx, java, xml, htl));
+
+    // 7. Sling & OSGi
+    this.runSafe('Sling & OSGi', () => scanSlingOsgi(this.ctx, java, xml, htl));
+
+    // 8. Cloud Readiness
+    this.runSafe('Cloud Readiness', () => scanCloudReadiness(this.ctx, java, xml, htl));
+
+    // 9. Dispatcher
+    this.runSafe('Dispatcher', () => scanDispatcher(this.ctx, java, xml, htl));
+
+    // 10. Test Coverage
+    this.runSafe('Test Coverage', () => scanTestCoverage(this.ctx, java, xml, htl));
+
+    // 11. Maintainability
+    this.runSafe('Maintainability', () => scanMaintainability(this.ctx, java, xml, htl));
+
+    // 12. HTL & Frontend
+    this.runSafe('HTL & Frontend', () => scanHtlFrontend(this.ctx, java, xml, htl));
+
+    // 13. Frontend Framework (React/Angular/Vue)
+    this.runSafe('Frontend Framework', () => scanFrontendFramework(this.ctx, frontendSrc, frontendInfo));
+
+    // 14. AMS-Specific Rules
+    this.runSafe('AMS Specific', () => scanAmsSpecific(this.ctx, java, xml, htl));
+
+    // 15. Dependencies & Versions (EOL/deprecated detection)
+    let techStack: import('./types').TechStackInfo = { javaVersion: '', mavenCompilerVersion: '', aemVersion: '', aemSdkVersion: '', coreComponentsVersion: '', frontendMavenPluginVersion: '', nodeVersion: '', npmVersion: '', frontendDeps: {}, mavenDeps: {}, plugins: {} };
+    this.runSafe('Dependencies & Versions', () => { techStack = scanDependencies(this.ctx); });
+
+    const duration = Date.now() - startTime;
+
+    return {
+      findings: this.ctx.findings,
+      stats: this.buildStats(java, xml, htl, js, css, frontendSrc, frontendInfo, techStack, duration, this.ctx.totalCharsRead),
+    };
+  }
+
+  private runSafe(label: string, fn: () => void): void {
+    try {
+      console.log(`[AEM Scanner] Scanning: ${label}...`);
+      fn();
+      const count = this.ctx.findings[label]?.length || 0;
+      if (count > 0) console.log(`[AEM Scanner]   → ${count} findings`);
+    } catch (err: any) {
+      console.error(`[AEM Scanner] Error in ${label}: ${err.message}`);
+    }
+  }
+
+  private buildStats(java: string[], xml: string[], htl: string[], js: string[], css: string[], frontendSrc: string[], frontendInfo: import('./types').FrontendInfo | null, techStack: import('./types').TechStackInfo, duration: number, totalChars: number): StatsMap {
+    const totalFindings = Object.values(this.ctx.findings).reduce((sum, arr) => sum + arr.length, 0);
+    const severityCounts: Record<string, number> = {};
+    for (const arr of Object.values(this.ctx.findings)) {
+      for (const f of arr) {
+        severityCounts[f.severity] = (severityCounts[f.severity] || 0) + 1;
+      }
+    }
+
+    return {
+      totalFiles: java.length + xml.length + htl.length + js.length + css.length + frontendSrc.length,
+      javaFiles: java.length,
+      xmlFiles: xml.length,
+      htlFiles: htl.length,
+      jsFiles: js.length,
+      cssFiles: css.length,
+      frontendSrcFiles: frontendSrc.length,
+      frontendFramework: frontendInfo?.framework || 'vanilla',
+      frontendVersion: frontendInfo?.version || '',
+      techStack,
+      totalFindings,
+      categories: Object.keys(this.ctx.findings).length,
+      severityCounts,
+      scanDuration: duration,
+      tokensProcessed: Math.round(totalChars / 4),
+    };
   }
 }

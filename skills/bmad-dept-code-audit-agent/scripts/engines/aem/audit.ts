@@ -1,3 +1,4 @@
+#!/usr/bin/env node
 /**
  * AEM Code Audit Engine v2.0
  * Enterprise-grade static code analysis for AEM (AMS & Cloud Service) projects.
@@ -121,9 +122,12 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  scan(): FindingsMap {
-    const scanner = new AemAuditScanner({ root: this.projectRoot });
-    return scanner.scan();
+  // Verify it's an AEM project
+  const pomPath = path.join(projectPath, 'pom.xml');
+  const uiApps = path.join(projectPath, 'ui.apps');
+  const core = path.join(projectPath, 'core');
+  if (!fs.existsSync(pomPath) && !fs.existsSync(uiApps) && !fs.existsSync(core)) {
+    console.log('⚠️  Warning: This may not be a standard AEM project (no pom.xml, ui.apps, or core found).');
   }
 
   // ─── PLATFORM AUTO-DETECTION ────────────────────────────────────────────
@@ -176,15 +180,44 @@ async function main(): Promise<void> {
   if (modules.length > 0) console.log(`   Modules: ${modules.join(', ')}`);
   console.log('');
 
-    // Generate Excel report
-    const excelReport = new AuditExcelReport(findings, stats, projectName, this.projectRoot, aemReportConfig);
-    const xlsxPath = await excelReport.generate(outputPath);
-    console.log(`[${this.PLATFORM_ID}] Excel report: ${xlsxPath}`);
+  // Run scanner
+  console.log('🔍 Starting AEM code audit...\n');
+  const scanner = new AemAuditScanner({
+    root: projectPath,
+    platform,
+    thresholds: thresholds as any,
+    categories: scannerCfg.categories,
+    modules,
+  });
 
-    // Generate Markdown report
-    const mdReport = new AuditMarkdownReport(findings, stats, projectName, this.projectRoot, aemReportConfig);
-    const mdPath = mdReport.generate(outputPath);
-    console.log(`[${this.PLATFORM_ID}] Markdown report: ${mdPath}`);
+  const { findings, stats } = await scanner.scan();
+
+  // Print summary
+  console.log('\n' + '─'.repeat(60));
+  console.log('📈 SCAN SUMMARY');
+  console.log('─'.repeat(60));
+  console.log(`   Total Files: ${stats.totalFiles}`);
+  console.log(`   Total Findings: ${stats.totalFindings}`);
+  console.log(`   Categories: ${stats.categories}`);
+  console.log(`   Tokens Processed: ${stats.tokensProcessed.toLocaleString()}`);
+  console.log(`   Duration: ${(stats.scanDuration / 1000).toFixed(1)}s`);
+  console.log('');
+  console.log('   Severity Distribution:');
+  for (const sev of ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW', 'INFO']) {
+    const count = stats.severityCounts[sev] || 0;
+    if (count > 0) {
+      const bar = '█'.repeat(Math.min(40, Math.round(count / Math.max(1, stats.totalFindings) * 40)));
+      console.log(`     ${sev.padEnd(9)} ${String(count).padStart(4)} ${bar}`);
+    }
+  }
+  console.log('');
+
+  // Generate report(s) based on --format flag
+  const format = (args.format || 'excel').toLowerCase();
+  const validFormats = ['excel', 'md', 'pdf', 'all'];
+  if (!validFormats.includes(format)) {
+    console.error(`❌ Invalid format: ${format}. Valid options: excel, md, pdf, all`);
+    process.exit(1);
   }
 
   const platformLabel = platform === 'aemcs' ? 'AEM as a Cloud Service' : platform === 'aemams' ? 'AEM Managed Services' : 'AEM (AMS + Cloud Service)';
@@ -212,13 +245,6 @@ async function main(): Promise<void> {
         break;
       }
     }
-    return {
-      totalFiles: 0,
-      totalFindings,
-      categories: Object.keys(findings).length,
-      severityCounts,
-      scanDuration: 0,
-    };
   }
 
   // Optionally output JSON
@@ -232,3 +258,9 @@ async function main(): Promise<void> {
   console.log(' ✅ AEM Code Audit Complete (v2.0)');
   console.log('═'.repeat(60));
 }
+
+main().catch((err) => {
+  console.error(`\n❌ Fatal error: ${err.message}`);
+  console.error(err.stack);
+  process.exit(1);
+});
