@@ -12,10 +12,10 @@ import { BaseEngine } from "../shared/base";
 // Engine imports (add new engines here)
 // ---------------------------------------------------------------------------
 
-// import { CommerceEngine } from "./commerce/coverage";
-// import { AemEngine } from "./aem/coverage";
-// import { EdsEngine } from "./eds/coverage";
-// import { EdsCommerceEngine } from "./eds_commerce/coverage";
+import { CommerceEngine } from "./commerce/coverage";
+import { AemEngine } from "./aem/coverage";
+import { EdsEngine } from "./eds/coverage";
+import { EdsCommerceEngine } from "./eds_commerce/coverage";
 
 // ---------------------------------------------------------------------------
 // Registry
@@ -35,10 +35,7 @@ const ENGINES: EngineEntry[] = [
     detect: (p) =>
       existsSync(join(p, "composer.json")) &&
       (existsSync(join(p, "app/etc/env.php")) || existsSync(join(p, "app/code"))),
-    create: () => {
-      // TODO: return new CommerceEngine();
-      throw new Error("Commerce engine not yet implemented");
-    },
+    create: () => new CommerceEngine(),
   },
   {
     id: "aem",
@@ -46,10 +43,7 @@ const ENGINES: EngineEntry[] = [
     detect: (p) =>
       existsSync(join(p, "pom.xml")) &&
       (existsSync(join(p, "ui.apps")) || existsSync(join(p, "core"))),
-    create: () => {
-      // TODO: return new AemEngine();
-      throw new Error("AEM engine not yet implemented");
-    },
+    create: () => new AemEngine(),
   },
   {
     id: "eds",
@@ -58,10 +52,7 @@ const ENGINES: EngineEntry[] = [
       existsSync(join(p, "scripts")) &&
       existsSync(join(p, "blocks")) &&
       existsSync(join(p, "helix-query.yaml")),
-    create: () => {
-      // TODO: return new EdsEngine();
-      throw new Error("EDS engine not yet implemented");
-    },
+    create: () => new EdsEngine(),
   },
   {
     id: "eds-commerce",
@@ -69,10 +60,7 @@ const ENGINES: EngineEntry[] = [
     detect: (p) =>
       existsSync(join(p, "blocks")) &&
       (existsSync(join(p, "scripts/commerce.js")) || existsSync(join(p, "commerce"))),
-    create: () => {
-      // TODO: return new EdsCommerceEngine();
-      throw new Error("EDS Commerce engine not yet implemented");
-    },
+    create: () => new EdsCommerceEngine(),
   },
 ];
 

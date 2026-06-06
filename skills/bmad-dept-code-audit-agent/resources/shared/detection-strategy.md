@@ -76,3 +76,33 @@ For security and data-flow rules, trace across files:
 3. **Sink**: Where does it reach a sensitive operation? (SQL query, HTML output, file write)
 
 If a complete source→sink path exists without sanitization, confidence is maximum (0.95+).
+
+## Full Audit Mode: Scanner + LLM Sync Strategy
+
+When running **Full Audit (Tier 1 + Tier 2)**, use the cross-reference mapping in `resources/shared/scanner-llm-crossref.md` to coordinate how the LLM processes scanner findings.
+
+### LLM Actions per Scanner Finding
+
+| Action | LLM Behavior |
+|--------|-------------|
+| **DEEPEN** | Scanner found the issue. LLM adds root-cause analysis, cross-file tracing, and remediation priority. Don't re-detect — enrich. |
+| **VERIFY** | Scanner flagged it, but may be false positive. LLM uses contextual understanding to confirm or dismiss. |
+| **EXPAND** | Scanner can't detect this category. LLM is the primary detector — run full semantic analysis independent of scanner. |
+| **SKIP** | Scanner is comprehensive and deterministic. LLM does not re-analyze (avoids noise/duplication). |
+
+### Deduplication Rules
+
+When both tiers flag the same file + line:
+1. Use the LLM rule ID (e.g., `COMM-ARCH-001`) as the canonical identifier
+2. Merge scanner's exact location data with LLM's semantic context
+3. Take the higher severity if they differ
+4. Combine recommendations (scanner's quick fix + LLM's architectural suggestion)
+
+### Priority of LLM Effort
+
+In Full Audit mode, allocate LLM analysis time in this order:
+1. **EXPAND** categories (only LLM can detect) — highest priority
+2. **DEEPEN** on CRITICAL/HIGH scanner findings — add root-cause context
+3. **VERIFY** flagged items — confirm or dismiss false positives
+4. **DEEPEN** on MEDIUM scanner findings — if time/token budget allows
+5. **SKIP** — never analyze these

@@ -11,6 +11,7 @@ import { BaseAuditEngine, FindingsMap } from "../../shared/base";
 import { AuditExcelReport, ReportStats } from "../../shared/report-excel";
 import { AuditMarkdownReport } from "../../shared/report-markdown";
 import { edsReportConfig } from "./config";
+import { EdsAuditScanner } from "./lib/scanner/index";
 
 export class EdsAuditEngine extends BaseAuditEngine {
   readonly PLATFORM_ID = "eds";
@@ -28,10 +29,8 @@ export class EdsAuditEngine extends BaseAuditEngine {
   }
 
   scan(): FindingsMap {
-    // Tier 1 scanner placeholder — to be implemented with EDS-specific scans
-    // (Block structure validation, JS module analysis, CSS audit, Lighthouse checks, etc.)
-    console.log(`[${this.PLATFORM_ID}] Scanning: ${this.projectRoot}`);
-    return {};
+    const scanner = new EdsAuditScanner({ root: this.projectRoot });
+    return scanner.scan();
   }
 
   async generateReport(findings: FindingsMap, outputPath: string): Promise<void> {

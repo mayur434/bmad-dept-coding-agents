@@ -1,6 +1,6 @@
 ---
 name: bmad-dept-code-generation-agent
-description: "AI-driven code generation agent (part of BMAD DEPT Code Agent suite). Generates production-ready code for AEMaaCS (MCP), AEM AMS (LLM skills), and Adobe Commerce (Magento 2) following platform best practices, security standards, and scalable architecture."
+description: "AI-driven code generation agent (part of BMAD DEPT Code Agent suite). Generates production-ready code for AEMaaCS (MCP), AEM AMS (LLM skills), Adobe Commerce (Magento 2), and Adobe App Builder (API Mesh, Commerce Admin UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute) following platform best practices, security standards, and scalable architecture."
 ---
 
 # BMAD DEPT Code Agent — Generation Skill
@@ -22,6 +22,14 @@ Generates all layers of an Adobe Commerce project: Modules, Plugins, Observers, 
 - **AEMaaCS** — Full MCP integration (remote + local), Cloud Manager, SDK validation
 - **AEM AMS** — LLM skills-based generation, project scanning, Maven + CI/CD deploy, no MCP
 - **Adobe Commerce** — LLM skills-based generation, module scaffolding, PHP best practices, Magento 2 architecture
+- **Adobe App Builder** — Serverless platform on Adobe I/O Runtime encompassing all extensibility services:
+  - Core App Builder — Headless actions, React Spectrum SPA, `aio` CLI, `app.config.yaml`
+  - API Mesh — GraphQL gateway combining multiple sources (`aio api-mesh`)
+  - Commerce Admin UI Extensibility — Admin UI SDK extensions (`commerce/backend-ui/1`), custom menus/pages/mass actions/banners via `@adobe/uix-guest`
+  - AEM UI Extensibility — CF Console/Editor, Universal Editor, Experience Hub, Assets View extensions, action bar/header menu/panel customizations via `@adobe/uix-guest`
+  - Experience Cloud Shell SPA (`dx/excshell/1`)
+  - Asset Compute Workers (`dx/asset-compute/worker/1`)
+  - MCP integration via Commerce App Builder MCP server
 
 ## MCP Integration (Zero-Config, Pre-Configured)
 
@@ -125,6 +133,17 @@ This skill activates when the user asks to:
 - Create a message queue consumer/publisher
 - Set up Commerce DB schema (db_schema.xml)
 - Generate Commerce integration/unit tests
+- **Create an App Builder application or action**
+- **Scaffold an App Builder extension (Experience Cloud Shell, Asset Compute)**
+- **Generate API Mesh configuration**
+- **Create a Commerce Admin UI extension (menu, page, mass action, order view button, banner)**
+- **Scaffold Commerce UI extensibility app with Admin UI SDK**
+- **Generate an AEM UI extension (CF Console, CF Editor, Universal Editor, Experience Hub, Assets View)**
+- **Create AEM UI extension action bar button, header menu, or panel**
+- **Generate I/O Runtime serverless actions**
+- **Create I/O Events publisher/consumer action**
+
+> All App Builder services (API Mesh, Commerce UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute) use patterns from `resources/app-builder/`.
 
 ## Pre-flight
 
@@ -201,6 +220,19 @@ Analyze the user's initial prompt first. Skip any question whose answer is alrea
 | `app/code/` directory exists | Adobe Commerce |
 | `etc/module.xml` or `registration.php` in module | Adobe Commerce |
 | `bin/magento` exists at project root | Adobe Commerce |
+| `app.config.yaml` with `extensions:` block | Adobe App Builder |
+| `.aio` file present | Adobe App Builder |
+| `@adobe/aio-sdk` in `package.json` | Adobe App Builder |
+| `commerce/backend-ui/1` in `app.config.yaml` | Commerce Admin UI Extension |
+| `@adobe/uix-guest` in `package.json` | UI Extensibility (Commerce or AEM) |
+| `aem/cf-console-admin/1` in config | AEM CF Console UI Extension |
+| `aem/cf-editor/1` in config | AEM CF Editor UI Extension |
+| `aem/universal-editor/1` in config | AEM Universal Editor Extension |
+| `aem/experience-hub/1` in config | AEM Experience Hub Extension |
+| `aem/assets-view/1` in config | AEM Assets View Extension |
+| `meshConfig` in JSON files | API Mesh |
+| `dx/excshell/1` in config | Experience Cloud Shell SPA |
+| `dx/asset-compute/worker/1` in config | Asset Compute Worker |
 | Cannot determine | **Ask Q1** |
 
 #### Smart skipping rules:
