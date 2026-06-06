@@ -15,10 +15,17 @@ Fast, reproducible analysis using `scripts/run.ts`. Produces a coverage report w
 - Testable unit inventory (classes, methods, functions, templates)
 - Existing test mapping (which source files have tests, which don't)
 - Coverage gap identification (untested public methods, critical paths without coverage)
-- Complexity-weighted priority scoring (high-complexity untested code ranks first)
-- Platform-specific test pattern detection (PHPUnit, JUnit/Sling, Mocha/Jest)
+- 6-factor priority scoring (complexity, revenue path, plugin/observer, public API, git churn, fan-in)
+- Platform-specific test pattern detection across 7 framework types
+- Multi-strategy detection (filename, namespace, annotation — or combined)
+- Interactive mode for guided framework/strategy selection
 
-**Invocation:** `npx ts-node scripts/run.ts --mode analyze --path <PROJECT_ROOT>`
+**Invocation:**
+```bash
+npx ts-node scripts/run.ts --mode analyze --path <PROJECT_ROOT>
+npx ts-node scripts/run.ts --mode analyze --path <PROJECT_ROOT> --frameworks unit,mftf,api-functional
+npx ts-node scripts/run.ts --interactive --path <PROJECT_ROOT>
+```
 
 ### Tier 2 — LLM Test Generation
 
@@ -51,6 +58,34 @@ cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
 ```
 Do NOT ask the user. Do NOT print install output unless it fails.
 
+## Consent: Ask Coverage Mode
+
+**Direct-intent triggers (skip the question, go straight to that mode):**
+- "analyze coverage" / "show gaps" / "coverage report" / "untested code" → Tier 1 (Analyze)
+- "generate tests" / "write tests for X" / "create unit tests" → Tier 2 (Generate)
+- "full coverage" / "analyze and generate" → Tier 1 + Tier 2
+
+**Ambiguous triggers (ask which mode):**
+- "test coverage" / "help with tests" / "improve coverage"
+
+When the intent is ambiguous, ask using the interactive question picker. Use the `vscode_askQuestions` tool:
+
+```
+question: "What would you like me to do?"
+options:
+  - label: "Find gaps"
+    description: "Scan your code and show what's missing tests. Fast, no AI tokens used (~1.8K)."
+    recommended: true
+  - label: "Generate tests"
+    description: "Write tests for uncovered code using AI. Uses ~32K tokens."
+  - label: "Both"
+    description: "Find gaps then generate tests for the top priorities. Uses ~34K tokens."
+```
+
+**Important:** Always recommend "Find gaps" as default. Users often just need visibility into what's untested before deciding what to generate.
+
+Proceed with the user's chosen mode.
+
 ## Workflow
 
 ### Mode: Analyze (Tier 1 only)
@@ -81,10 +116,16 @@ Do NOT ask the user. Do NOT print install output unless it fails.
 ## Platform-Specific Behavior
 
 ### Adobe Commerce (Magento 2)
-- Test framework: PHPUnit
-- Unit tests: `Test/Unit/` within module
-- Integration tests: `dev/tests/integration/`
-- API functional tests: `dev/tests/api-functional/`
+- **7 testing frameworks supported:**
+  - `unit` — PHPUnit unit tests (`app/code/**/Test/Unit/`)
+  - `integration` — PHPUnit integration tests (`dev/tests/integration/`)
+  - `mftf` — Magento Functional Testing Framework (XML-based E2E)
+  - `api-functional` — REST & GraphQL endpoint tests (`dev/tests/api-functional/`)
+  - `js` — JavaScript tests via Jasmine/Jest (`dev/tests/js/`)
+  - `static` — Static analysis presence (PHPCS, PHPStan, PHPMD)
+  - `performance` — Load tests (JMeter, Gatling, k6)
+- **Detection strategies:** `filename` (path conventions), `namespace` (PSR-4 mapping), `annotation` (`@covers`/`@group`), or `all` (combined)
+- **Priority scoring:** complexity × revenue-path × plugin/observer × public-API × git-churn × fan-in
 - Mocking: PHPUnit mocks + ObjectManager isolation
 - Patterns: Repository tests, Plugin tests, Observer tests, ViewModel tests
 
@@ -117,8 +158,24 @@ Do NOT ask the user. Do NOT print install output unless it fails.
 | Trigger | Action |
 |---------|--------|
 | `analyze test coverage` | Tier 1 — gap analysis only |
+| `analyze coverage --interactive` | Tier 1 with guided framework/strategy prompt |
+| `analyze coverage --frameworks unit,mftf` | Tier 1 scoped to specific frameworks |
 | `generate tests` | Tier 2 — LLM generates tests for known gaps |
 | `full test coverage` | Tier 1 + Tier 2 combined |
 | `generate tests for <file/module>` | Targeted generation for specific scope |
 | `show untested code` | Tier 1 — list uncovered units |
 | `create test plan` | Tier 1 analysis + prioritized plan output |
+
+## CLI Options
+
+| Flag | Description |
+|------|-------------|
+| `--mode <analyze\|generate\|full>` | Operation mode (default: analyze) |
+| `--path <dir>` | Project root (default: .) |
+| `--engine <engine>` | Platform engine (auto-detect if omitted) |
+| `--frameworks <list>` | Comma-separated: unit,integration,mftf,api-functional,js,static,performance |
+| `--strategy <strategy>` | Detection: filename, namespace, annotation, all (default: all) |
+| `--interactive` | Prompt which frameworks/strategy to use |
+| `--module <name>` | Scope to specific module/package |
+| `--output <dir>` | Output directory for reports |
+| `--list-engines` | List available engines |

@@ -19,6 +19,37 @@ This skill activates when the user asks to:
 - Trace dependencies
 - Check breaking changes
 
+## Pre-flight: Auto-install Dependencies
+
+```bash
+cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
+```
+
+## Consent: Ask Analysis Mode
+
+**Direct-intent triggers (skip the question, go straight):**
+- "trace dependencies" / "what uses X" / "dependency chain" → Static trace
+- "upgrade risk" / "what breaks if" / "blast radius" → AI-assisted analysis
+
+**Ambiguous triggers (ask which mode):**
+- "impact analysis" / "analyze impact" / "check impact"
+
+When the intent is ambiguous, ask using the interactive question picker. Use the `vscode_askQuestions` tool:
+
+```
+question: "What kind of impact analysis do you need?"
+options:
+  - label: "Trace dependencies"
+    description: "Follow the call chain — see what's connected. Fast, rule-based (~1.4K tokens)."
+    recommended: true
+  - label: "Risk assessment"
+    description: "AI evaluates blast radius, likelihood of breakage, and remediation effort. Uses ~22K tokens."
+```
+
+**Important:** Always recommend "Trace dependencies" as default. It answers "what's connected" without needing AI inference.
+
+Proceed with the user's chosen mode.
+
 ## Workflow
 
 > TODO: Define impact analysis workflow, dependency tracing, and risk scoring.

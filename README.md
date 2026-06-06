@@ -18,22 +18,22 @@ A multi-agent AI suite purpose-built for **Adobe platform** projects — Commerc
 
 ### Coverage Matrix
 
-| Agent | Commerce | AEMaaCS | EDS | EDS+Commerce |
-|-------|:--------:|:-------:|:---:|:------------:|
-| **Audit** (Scanner + LLM) | ✅ | 🔲 | 🔲 | 🔲 |
-| **Code Generation** (MCP + LLM) | ✅ | ✅ | 🔲 | 🔲 |
-| **Test Coverage** (Scanner + LLM) | 🔲 | 🔲 | 🔲 | 🔲 |
-| **Impact Analysis** (Scanner + LLM) | 🔲 | 🔲 | 🔲 | 🔲 |
-| **Scan** (Scanner + LLM) | 🔲 | 🔲 | 🔲 | 🔲 |
+| Agent | Commerce | AEMaaCS | AEM AMS | App Builder | EDS | EDS+Commerce |
+|-------|:--------:|:-------:|:-------:|:-----------:|:---:|:------------:|
+| **Audit** (Scanner + LLM) | ✅ | ✅ | — | — | ✅ | ✅ |
+| **Code Generation** (MCP + LLM) | ✅ | ✅ | ✅ | ✅ | 🔲 | 🔲 |
+| **Test Coverage** (Scanner + LLM) | ✅ | ✅ | — | — | ✅ | ✅ |
+| **Impact Analysis** (Scanner + LLM) | 🔲 | 🔲 | — | — | 🔲 | 🔲 |
+| **Scan** (Scanner + LLM) | 🔲 | 🔲 | — | — | 🔲 | 🔲 |
 
-> ✅ = Implemented &nbsp;&nbsp; 🔲 = Scaffolded, coming next
+> ✅ = Implemented &nbsp;&nbsp; ⚙️ = Report gen + detection done, scanner TODO &nbsp;&nbsp; 🔲 = Scaffolded, coming next &nbsp;&nbsp; — = N/A
 
 ### What Each Agent Does
 
 | Agent | Tier 1 (TypeScript Scanner) | Tier 2 (LLM Skills) |
 |-------|----------------------------|---------------------|
-| **Audit** | 42+ category static scan → Excel report | Architecture, data flow, business logic deep analysis |
-| **Code Generation** | — | MCP-powered (AEMaaCS) + LLM skills (AMS/Commerce) code gen |
+| **Audit** | 42+ category static scan → Excel + MD report | Architecture, data flow, business logic deep analysis |
+| **Code Generation** | — | MCP-powered (AEMaaCS) + LLM skills (AMS/Commerce/App Builder) code gen |
 | **Test Coverage** | Coverage gap detection, priority scoring | Generates unit/integration/functional tests |
 | **Impact Analysis** | Dependency tracing, blast radius mapping | Risk assessment, upgrade compatibility |
 | **Scan** | Fast violation detection | Pattern matching, contextual analysis |
@@ -64,9 +64,10 @@ flowchart TD
     subgraph Platforms ["Engines"]
         direction LR
         Commerce["commerce ✅"]
-        AEM["aem 🔲"]
-        EDS["eds 🔲"]
-        EDSCom["eds-commerce 🔲"]
+        AEM["aem ✅"]
+        EDS["eds ✅"]
+        EDSCom["eds-commerce ✅"]
+        AppBuilder["app-builder ✅"]
     end
 
     T1 --> Output
@@ -80,7 +81,7 @@ flowchart TD
     end
 ```
 
-> Agents are **independent** — use any one on its own. Listed in SDLC order (generate → scan → audit → test → impact) but no dependencies between them. Each agent uses Tier 1 (TypeScript deterministic engine) + Tier 2 (LLM skills). Commerce is fully implemented; other platforms are scaffolded (🔲).
+> Agents are **independent** — use any one on its own. Listed in SDLC order (generate → scan → audit → test → impact) but no dependencies between them. Each agent uses Tier 1 (TypeScript deterministic engine) + Tier 2 (LLM skills). All Audit engines (Commerce, AEM, EDS, EDS-Commerce) are fully implemented with Tier 1 scanners. App Builder is available via the Code Generation agent (LLM skills).
 
 ---
 
@@ -315,9 +316,10 @@ npx bmad-method uninstall --directory .
 | Engine | Platform | Scanner | Report Gen | Status |
 |--------|----------|:-------:|:----------:|--------|
 | `commerce` | Adobe Commerce / Magento 2 | ✅ | ✅ Excel + MD | Full implementation |
-| `aem` | AEM as a Cloud Service | 🔲 | ✅ Excel + MD | Report ready, scanner TODO |
-| `eds` | Edge Delivery Services | 🔲 | ✅ Excel + MD | Report ready, scanner TODO |
-| `eds-commerce` | EDS + Commerce Hybrid | 🔲 | ✅ Excel + MD | Report ready, scanner TODO |
+| `aem` | AEM as a Cloud Service | ⚙️ | ✅ Excel + MD | Detection + report done, scanner rules TODO |
+| `eds` | Edge Delivery Services | ⚙️ | ✅ Excel + MD | Detection + report done, scanner rules TODO |
+| `eds-commerce` | EDS + Commerce Hybrid | ⚙️ | ✅ Excel + MD | Detection + report done, scanner rules TODO |
+| `app-builder` | Adobe App Builder / I/O Runtime | — | — | Code Generation only (LLM skills) |
 
 ### Standalone Scanner (without BMAD)
 
@@ -376,6 +378,12 @@ create Cloud Manager pipeline configuration
 create a new Commerce module Acme_CustomShipping
 create an after plugin on Magento\Catalog\Model\Product::getName
 add a GraphQL resolver for querying custom entity by ID
+
+# Code Generation (App Builder)
+create an App Builder action for order sync
+generate API Mesh configuration
+scaffold Commerce Admin UI extension for custom order view
+create an AEM UI extension for Content Fragment Console
 
 # Test Coverage
 analyze test coverage

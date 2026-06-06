@@ -4,7 +4,6 @@
     "module": "commonjs",
     "lib": ["ES2022"],
     "outDir": "./dist",
-    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -14,6 +13,6 @@
     "declarationMap": true,
     "sourceMap": true
   },
-  "include": ["./**/*.ts"],
+  "include": ["./**/*.ts", "../../shared/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
