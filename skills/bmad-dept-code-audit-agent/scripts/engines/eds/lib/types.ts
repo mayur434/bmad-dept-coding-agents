@@ -33,6 +33,12 @@ export interface AuditResult {
   categories: CategoryResult[];
   pageSpeedResults?: PageSpeedSummary[];
   lowScoreFiles?: FileScoreSummary[];
+  /** Audit processing metrics */
+  metrics?: {
+    totalLinesOfCode: number;
+    totalRuleChecks: number;
+    auditDurationMs: number;
+  };
 }
 
 export interface PageSpeedSummary {

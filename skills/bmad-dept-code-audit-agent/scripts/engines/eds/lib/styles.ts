@@ -59,9 +59,9 @@ export function styleHeaderRow(ws: Worksheet, colCount: number): void {
   }
 }
 
-export function applyZebraAndBorders(ws: Worksheet, maxRow: number, colCount: number): void {
-  for (let r = 2; r <= maxRow; r++) {
-    const zebra = (r - 2) % 2 === 0 ? ZEBRA_FILL_1 : ZEBRA_FILL_2;
+export function applyZebraAndBorders(ws: Worksheet, maxRow: number, colCount: number, startRow: number = 2): void {
+  for (let r = startRow; r <= maxRow; r++) {
+    const zebra = (r - startRow) % 2 === 0 ? ZEBRA_FILL_1 : ZEBRA_FILL_2;
     for (let c = 1; c <= colCount; c++) {
       const cell = ws.getCell(r, c);
       if (!cell.fill || !(cell.fill as any).fgColor) cell.fill = zebra;
@@ -70,8 +70,8 @@ export function applyZebraAndBorders(ws: Worksheet, maxRow: number, colCount: nu
   }
 }
 
-export function colorSeverityCol(ws: Worksheet, col: number, maxRow: number): void {
-  for (let r = 2; r <= maxRow; r++) {
+export function colorSeverityCol(ws: Worksheet, col: number, maxRow: number, startRow: number = 2): void {
+  for (let r = startRow; r <= maxRow; r++) {
     const cell = ws.getCell(r, col);
     const val = String(cell.value || '').toUpperCase();
     if (SEVERITY_STYLES[val]) {

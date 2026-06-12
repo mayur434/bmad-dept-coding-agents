@@ -1,90 +1,79 @@
 /**
- * EDS Audit Engine — Main Entry Point
- * =====================================
+ * EDS Quick Scan — Non-interactive audit entry point
+ * ====================================================
+ * Designed to be invoked by AI agents or CI pipelines.
+ * Runs all 88 EDS rules, generates the same Excel report as the full audit,
+ * and exits immediately with no interactive prompts.
+ *
  * Usage:
- *   npx ts-node engines/eds/audit.ts --path /local/project
- *   npx ts-node engines/eds/audit.ts --github https://github.com/org/repo
- *   npx ts-node engines/eds/audit.ts --github https://github.com/org/repo --name "My Project" --output ./reports
+ *   npx ts-node engines/eds/quick-scan.ts --path /local/project
+ *   npx ts-node engines/eds/quick-scan.ts --path /project --name "My Project" --output ./reports
+ *   npx ts-node engines/eds/quick-scan.ts --github https://github.com/org/repo --pagespeed --domain example.com
+ *
+ * Output:
+ *   Last line of stdout is a JSON summary for programmatic consumption:
+ *   {"score":56,"findings":3596,"report":"/absolute/path/to/report.xlsx","duration":"12.3s"}
  */
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
-import * as readline from 'readline';
-import { EDSConfig, AuditResult, CategoryResult, Finding, Severity, PageSpeedSummary, FileScoreSummary } from './lib/types';
+import { EDSConfig, AuditResult, CategoryResult, Finding, Severity, FileScoreSummary } from './lib/types';
 import { fetchGitHubRepo } from './lib/github-fetcher';
 import { collectLocalFiles, categorizeFiles } from './lib/file-collector';
 import { getAllAnalyzers } from './lib/analyzers';
 import { generateReport } from './lib/report';
 import { runPageSpeedChecks, PageSpeedConfig, PageSpeedResult } from './lib/pagespeed-checker';
 
-interface CliArgs {
+// ─── CLI Args ──────────────────────────────────────────────────────────────────
+
+interface QuickScanArgs {
   path?: string;
   github?: string;
   name?: string;
   output?: string;
-  config?: string;
   json?: boolean;
+  silent?: boolean;
   pagespeed?: boolean;
   pages?: string[];
   psiKey?: string;
   domain?: string;
 }
 
-function parseArgs(): CliArgs {
-  const args: CliArgs = {};
+function parseArgs(): QuickScanArgs {
   const argv = process.argv.slice(2);
+  const args: Partial<QuickScanArgs> = {};
 
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
-      case '--path':
-        args.path = argv[++i];
-        break;
-      case '--github':
-        args.github = argv[++i];
-        break;
-      case '--name':
-        args.name = argv[++i];
-        break;
-      case '--output':
-        args.output = argv[++i];
-        break;
-      case '--config':
-        args.config = argv[++i];
-        break;
-      case '--json':
-        args.json = true;
-        break;
-      case '--pagespeed':
-        args.pagespeed = true;
-        break;
-      case '--pages':
-        args.pages = argv[++i]?.split(',').map((p) => p.trim()) || [];
-        break;
-      case '--psi-key':
-        args.psiKey = argv[++i];
-        break;
-      case '--domain':
-        args.domain = argv[++i];
-        break;
+      case '--path': args.path = argv[++i]; break;
+      case '--github': args.github = argv[++i]; break;
+      case '--name': args.name = argv[++i]; break;
+      case '--output': args.output = argv[++i]; break;
+      case '--json': args.json = true; break;
+      case '--silent': args.silent = true; break;
+      case '--pagespeed': args.pagespeed = true; break;
+      case '--pages': args.pages = argv[++i]?.split(',').map((p) => p.trim()) || []; break;
+      case '--psi-key': args.psiKey = argv[++i]; break;
+      case '--domain': args.domain = argv[++i]; break;
     }
   }
 
-  return args;
-}
-
-function loadConfig(configPath?: string): EDSConfig {
-  const defaultConfigPath = path.join(__dirname, 'config.json');
-  const defaultConfig: EDSConfig = JSON.parse(fs.readFileSync(defaultConfigPath, 'utf-8'));
-
-  if (configPath && fs.existsSync(configPath)) {
-    const userConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    return { ...defaultConfig, ...userConfig };
+  if (!args.path && !args.github) {
+    console.error('Error: Provide --path <local_dir> or --github <repo_url>');
+    console.error('Usage: npx ts-node engines/eds/quick-scan.ts --path /path/to/project [--name "Name"] [--output ./reports]');
+    console.error('       npx ts-node engines/eds/quick-scan.ts --github https://github.com/org/repo [--pagespeed --domain example.com]');
+    process.exit(1);
   }
 
-  return defaultConfig;
+  if (args.path && !fs.existsSync(args.path)) {
+    console.error(`Error: Path does not exist: ${args.path}`);
+    process.exit(1);
+  }
+
+  return args as QuickScanArgs;
 }
 
-/** Category weights for overall score (total = 100%) */
+// ─── Scoring Logic (same as audit.ts) ──────────────────────────────────────────
+
 const CATEGORY_WEIGHTS: Record<string, number> = {
   'Performance': 20,
   'Architecture': 15,
@@ -100,7 +89,6 @@ const CATEGORY_WEIGHTS: Record<string, number> = {
   'Git Hooks': 2,
 };
 
-/** Severity impact multipliers */
 const SEVERITY_WEIGHT: Record<string, number> = {
   CRITICAL: 10,
   HIGH: 5,
@@ -108,17 +96,10 @@ const SEVERITY_WEIGHT: Record<string, number> = {
   LOW: 0.5,
 };
 
-function calculateCategoryScore(findings: Finding[], category?: string, totalFiles?: number): number {
+function calculateCategoryScore(findings: Finding[], _category?: string, totalFiles?: number): number {
   if (findings.length === 0) return 100;
-
   const fileCount = Math.max(totalFiles || 50, 1);
-
-  // Calculate weighted penalty from all findings
   const weightedPenalty = findings.reduce((sum, f) => sum + (SEVERITY_WEIGHT[f.severity] || 1), 0);
-
-  // Exponential decay: score decreases smoothly as findings grow
-  // Calibrated so penalty equal to 2× file count ≈ score of 37
-  // Few findings relative to project size = high score
   const score = Math.round(100 * Math.exp(-weightedPenalty / (fileCount * 2)));
   return Math.max(0, Math.min(100, score));
 }
@@ -139,8 +120,7 @@ function calculateOverallScore(categories: CategoryResult[]): number {
   return Math.round(weightedSum / totalWeight);
 }
 
-/** Calculate per-file scores and return files scoring below 90 */
-function calculateFileScores(findings: Finding[], totalFiles: number): FileScoreSummary[] {
+function calculateFileScores(findings: Finding[], _totalFiles: number): FileScoreSummary[] {
   const fileFindings = new Map<string, Finding[]>();
 
   for (const f of findings) {
@@ -158,7 +138,6 @@ function calculateFileScores(findings: Finding[], totalFiles: number): FileScore
     const medium = fFindings.filter((f) => f.severity === 'MEDIUM').length;
     const low = fFindings.filter((f) => f.severity === 'LOW').length;
 
-    // Score: start at 100, deduct per severity
     const penalty = (critical * 15) + (high * 8) + (medium * 3) + (low * 1);
     const score = Math.max(0, Math.min(100, 100 - penalty));
 
@@ -184,38 +163,43 @@ function calculateFileScores(findings: Finding[], totalFiles: number): FileScore
   return results.sort((a, b) => a.score - b.score);
 }
 
-async function run(): Promise<void> {
-  const args = parseArgs();
-  const config = loadConfig(args.config);
+// ─── Config ────────────────────────────────────────────────────────────────────
 
-  if (!args.path && !args.github) {
-    console.error('Error: Provide --path <local_dir> or --github <repo_url>');
-    process.exit(1);
-  }
+function loadConfig(): EDSConfig {
+  const configPath = path.join(__dirname, 'config.json');
+  return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+}
+
+// ─── Main Quick Scan ───────────────────────────────────────────────────────────
+
+async function quickScan(): Promise<void> {
+  const args = parseArgs();
+  const startTime = Date.now();
+  const config = loadConfig();
 
   const source = args.github || args.path!;
-  const projectName = args.name || config.project.name || path.basename(source.replace(/\/$/, ''));
+  const projectName = args.name || path.basename(source.replace(/[\\/]$/, ''));
+  const log = args.silent ? (..._a: unknown[]) => {} : console.log;
 
-  console.log(`\n⚡ EDS Audit Engine v1.0.0`);
-  console.log(`📁 Source: ${source}`);
-  console.log(`📋 Project: ${projectName}\n`);
+  log(`\n⚡ EDS Quick Scan v1.0.0`);
+  log(`📁 Source: ${source}`);
+  log(`📋 Project: ${projectName}\n`);
 
-  // Collect files
-  console.log('Collecting files...');
+  // ─── Collect Files ─────────────────────────────────────────────────────────
+  log('Collecting files...');
   let rawFiles;
   if (args.github) {
     rawFiles = await fetchGitHubRepo(args.github);
   } else {
     rawFiles = collectLocalFiles(args.path!);
   }
+  log(`Found ${rawFiles.length} files to analyze`);
 
-  console.log(`Found ${rawFiles.length} files to analyze`);
-  const auditStartTime = Date.now();
   const totalLinesOfCode = rawFiles.reduce((sum, f) => sum + f.content.split('\n').length, 0);
   const files = categorizeFiles(rawFiles);
 
-  // Run analyzers
-  console.log('Running analyzers...');
+  // ─── Run All Analyzers ─────────────────────────────────────────────────────
+  log('Running analyzers...');
   const analyzers = getAllAnalyzers();
   const categories: CategoryResult[] = [];
   const totalFiles = rawFiles.length;
@@ -230,11 +214,14 @@ async function run(): Promise<void> {
     const sev = findings.length > 0
       ? ` (${findings.filter(f => f.severity === 'CRITICAL').length}C/${findings.filter(f => f.severity === 'HIGH').length}H/${findings.filter(f => f.severity === 'MEDIUM').length}M/${findings.filter(f => f.severity === 'LOW').length}L)`
       : '';
-    console.log(`  ✓ ${analyzer.category}: ${findings.length} findings${sev}`);
+    log(`  ✓ ${analyzer.category}: ${findings.length} findings${sev}`);
   }
 
-  // Build result
+  // ─── Build Result ──────────────────────────────────────────────────────────
   const allFindings = categories.flatMap((c) => c.findings);
+  const totalRuleChecks = analyzers.length * rawFiles.length;
+  const auditDurationMs = Date.now() - startTime;
+
   const result: AuditResult = {
     projectName,
     timestamp: new Date().toISOString(),
@@ -249,29 +236,26 @@ async function run(): Promise<void> {
       LOW: allFindings.filter((f) => f.severity === 'LOW').length,
     },
     categories,
+    metrics: {
+      totalLinesOfCode,
+      totalRuleChecks,
+      auditDurationMs,
+    },
   };
 
-  // Per-file score tracking — flag files scoring below 90
+  // Per-file scores
   result.lowScoreFiles = calculateFileScores(allFindings, totalFiles);
 
-  // Audit processing metrics
-  const totalRuleChecks = analyzers.length * rawFiles.length;
-  result.metrics = {
-    totalLinesOfCode,
-    totalRuleChecks,
-    auditDurationMs: Date.now() - auditStartTime,
-  };
-
   if (result.lowScoreFiles.length > 0) {
-    console.log(`\n⚠️  Files scoring below 90:`);
+    log(`\n⚠️  Files scoring below 90:`);
     for (const f of result.lowScoreFiles) {
-      console.log(`    ${f.file}: ${f.score}/100 (${f.critical}C/${f.high}H/${f.medium}M/${f.low}L)`);
+      log(`    ${f.file}: ${f.score}/100 (${f.critical}C/${f.high}H/${f.medium}M/${f.low}L)`);
     }
   }
 
-  // Run PageSpeed Insights if requested
+  // ─── Run PageSpeed Insights (if requested) ─────────────────────────────────
   if (args.pagespeed && args.github) {
-    console.log('\nRunning PageSpeed Insights checks...');
+    log('\nRunning PageSpeed Insights checks...');
     const psiConfig: PageSpeedConfig = {
       enabled: true,
       apiKey: args.psiKey,
@@ -323,89 +307,63 @@ async function run(): Promise<void> {
     // Print PSI summary
     const failingPages = psiResults.filter((r) => r.score >= 0 && r.score < 90);
     if (failingPages.length > 0) {
-      console.log(`\n❌ Pages below 90 score:`);
+      log(`\n❌ Pages below 90 score:`);
       for (const p of failingPages) {
-        console.log(`    ${p.strategy.padEnd(7)} ${p.url} → ${p.score}/100 (LCP: ${(p.metrics.lcp / 1000).toFixed(1)}s)`);
+        log(`    ${p.strategy.padEnd(7)} ${p.url} → ${p.score}/100 (LCP: ${(p.metrics.lcp / 1000).toFixed(1)}s)`);
       }
     } else if (psiResults.some((r) => r.score >= 0)) {
-      console.log(`\n✅ All pages score 90+ on PageSpeed Insights`);
+      log(`\n✅ All pages score 90+ on PageSpeed Insights`);
     }
   }
 
-  // Generate output
+  // ─── Generate Report ───────────────────────────────────────────────────────
   const outputDir = args.output || '.';
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').substring(0, 19);
   const safeName = projectName.replace(/[^a-zA-Z0-9-]/g, '-').toLowerCase();
+  const xlsxPath = path.join(outputDir, `${safeName}-eds-audit-${timestamp}.xlsx`);
 
+  await generateReport(result, xlsxPath);
+  const resolvedPath = path.resolve(xlsxPath);
+
+  // Optional JSON output
   if (args.json) {
     const jsonPath = path.join(outputDir, `${safeName}-eds-audit-${timestamp}.json`);
     fs.writeFileSync(jsonPath, JSON.stringify(result, null, 2));
-    console.log(`\n📄 JSON report: ${jsonPath}`);
+    log(`\n📄 JSON report: ${jsonPath}`);
   }
 
-  const xlsxPath = path.join(outputDir, `${safeName}-eds-audit-${timestamp}.xlsx`);
-  await generateReport(result, xlsxPath);
+  // ─── Print Summary ─────────────────────────────────────────────────────────
+  const durationSec = (auditDurationMs / 1000).toFixed(1);
 
-  // Print summary
-  console.log(`\n${'═'.repeat(50)}`);
-  console.log(`  Overall Score: ${result.overallScore}/100`);
-  console.log(`  Total Findings: ${result.totalFindings}`);
-  console.log(`  CRITICAL: ${result.severityBreakdown.CRITICAL} | HIGH: ${result.severityBreakdown.HIGH} | MEDIUM: ${result.severityBreakdown.MEDIUM} | LOW: ${result.severityBreakdown.LOW}`);
-  console.log(`${'═'.repeat(50)}`);
-  console.log(`\n📊 Excel report: ${xlsxPath}`);
+  log(`\n${'═'.repeat(50)}`);
+  log(`  Overall Score: ${result.overallScore}/100`);
+  log(`  Total Findings: ${result.totalFindings}`);
+  log(`  CRITICAL: ${result.severityBreakdown.CRITICAL} | HIGH: ${result.severityBreakdown.HIGH} | MEDIUM: ${result.severityBreakdown.MEDIUM} | LOW: ${result.severityBreakdown.LOW}`);
+  log(`  Files: ${rawFiles.length} | Lines: ${totalLinesOfCode.toLocaleString()} | Rule Checks: ${totalRuleChecks.toLocaleString()}`);
+  log(`  Duration: ${durationSec}s`);
+  log(`${'═'.repeat(50)}`);
+  log(`\n📊 Excel report: ${resolvedPath}`);
 
-  // Prompt user with download/open options
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-  console.log(`\n┌─────────────────────────────────────────────┐`);
-  console.log(`│  What would you like to do?                 │`);
-  console.log(`│  [1] Open Excel report                      │`);
-  console.log(`│  [2] Reveal in File Explorer                │`);
-  console.log(`│  [3] Exit                                   │`);
-  console.log(`└─────────────────────────────────────────────┘`);
-
-  const answer = await new Promise<string>((resolve) => {
-    rl.question('\nYour choice (1/2/3): ', resolve);
-  });
-  rl.close();
-
-  const resolvedPath = path.resolve(xlsxPath);
-  switch (answer.trim()) {
-    case '1':
-      try {
-        if (process.platform === 'win32') {
-          execSync(`start "" "${resolvedPath}"`, { stdio: 'ignore' });
-        } else if (process.platform === 'darwin') {
-          execSync(`open "${resolvedPath}"`, { stdio: 'ignore' });
-        } else {
-          execSync(`xdg-open "${resolvedPath}"`, { stdio: 'ignore' });
-        }
-        console.log('✅ Opening report...');
-      } catch {
-        console.log(`⚠️  Could not auto-open. File is at:\n   ${resolvedPath}`);
-      }
-      break;
-    case '2':
-      try {
-        if (process.platform === 'win32') {
-          execSync(`explorer /select,"${resolvedPath}"`, { stdio: 'ignore' });
-        } else if (process.platform === 'darwin') {
-          execSync(`open -R "${resolvedPath}"`, { stdio: 'ignore' });
-        } else {
-          execSync(`xdg-open "${path.dirname(resolvedPath)}"`, { stdio: 'ignore' });
-        }
-        console.log('✅ Opening File Explorer...');
-      } catch {
-        console.log(`⚠️  Could not open explorer. File is at:\n   ${resolvedPath}`);
-      }
-      break;
-    default:
-      console.log('Done.\n');
-  }
+  // ─── Machine-readable output (always printed, even in silent mode) ─────────
+  // AI agents can parse this last JSON line to get the report path
+  console.log(JSON.stringify({
+    score: result.overallScore,
+    findings: result.totalFindings,
+    critical: result.severityBreakdown.CRITICAL,
+    high: result.severityBreakdown.HIGH,
+    medium: result.severityBreakdown.MEDIUM,
+    low: result.severityBreakdown.LOW,
+    filesScanned: rawFiles.length,
+    linesOfCode: totalLinesOfCode,
+    ruleChecks: totalRuleChecks,
+    duration: `${durationSec}s`,
+    report: resolvedPath,
+  }));
 }
 
-run().catch((err) => {
+quickScan().catch((err) => {
   console.error('Fatal error:', err.message);
   process.exit(1);
 });
