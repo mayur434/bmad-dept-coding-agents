@@ -21,6 +21,8 @@ Generates all layers of an Adobe Commerce project: Modules, Plugins, Observers, 
 ### Platform Support:
 - **AEMaaCS** — Full MCP integration (remote + local), Cloud Manager, SDK validation
 - **AEM AMS** — LLM skills-based generation, project scanning, Maven + CI/CD deploy, no MCP
+- **Sling-12 / Shaft** — LLM patterns (`resources/sling-shaft/`) + **deterministic scaffolder** (`--scaffold --engine sling`): OSGi services, Sling servlets/filters, Sling Models, SAM/MDM/connector patterns. Java/Apache Sling, JDK 8+, no MCP
+- **Spring Boot** — LLM patterns (`resources/spring-boot/`) + **deterministic scaffolder** (`--scaffold --engine spring`): REST controllers+DTOs, services, JPA repos+entities, security config. Java 17/21 + Jakarta, Maven or Gradle, no MCP
 - **Adobe Commerce** — LLM skills-based generation, module scaffolding, PHP best practices, Magento 2 architecture
 - **Adobe App Builder** — Serverless platform on Adobe I/O Runtime encompassing all extensibility services:
   - Core App Builder — Headless actions, React Spectrum SPA, `aio` CLI, `app.config.yaml`
@@ -142,8 +144,27 @@ This skill activates when the user asks to:
 - **Create AEM UI extension action bar button, header menu, or panel**
 - **Generate I/O Runtime serverless actions**
 - **Create I/O Events publisher/consumer action**
+- **Generate a Sling/Shaft OSGi service, Sling servlet, request filter, or Sling Model**
+- **Create a Spring Boot REST controller, service, or JPA repository/entity**
 
 > All App Builder services (API Mesh, Commerce UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute) use patterns from `resources/app-builder/`.
+> **Sling/Shaft** uses `resources/sling-shaft/patterns.md`; **Spring Boot** uses `resources/spring-boot/patterns.md`.
+
+### Deterministic scaffolder (fast path for common artifacts)
+
+For standard, repeatable artifacts prefer the deterministic scaffolder — it generates real files and emits the
+standardized generation report + CHANGE-LOG:
+
+```bash
+npx ts-node scripts/run.ts --list-types
+npx ts-node scripts/run.ts --scaffold --engine sling  --type osgi-service    --name OrderSync --package com.acme.shaft.order --path .
+npx ts-node scripts/run.ts --scaffold --engine spring --type rest-controller --name Order      --package com.acme.app        --path .
+npx ts-node scripts/run.ts --scaffold --engine app-builder --type action     --name "order sync" --path . [--dry-run]
+```
+
+Types: `sling` → osgi-service, sling-servlet, sling-filter, sling-model · `spring` → rest-controller, service,
+jpa-repository · `app-builder` → action. For custom/business logic beyond these, use the LLM path with the
+resource packs above.
 
 ## Pre-flight
 
