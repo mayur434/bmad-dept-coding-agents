@@ -8,6 +8,7 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { scaffold, GENERATORS, listTypes } from "./scaffold";
 
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(SKILL_ROOT, "assets");
@@ -156,14 +157,23 @@ function listTemplates(): void {
   }
 }
 
+function flag(args: string[], name: string): string | undefined {
+  const i = args.indexOf(name);
+  return i >= 0 && i + 1 < args.length ? args[i + 1] : undefined;
+}
+
+function listScaffoldTypes(): void {
+  console.log("Deterministic scaffolders (npx ts-node run.ts --scaffold --engine <stack> --type <type> --name <Name>):");
+  for (const stack of Object.keys(GENERATORS)) {
+    console.log(`  ${stack}:`);
+    for (const t of listTypes(stack)) console.log(`    • ${t}`);
+  }
+}
+
 // ── CLI ──
-function main(): void {
+async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const projectRoot = path.resolve(
-    args.includes("--path")
-      ? args[args.indexOf("--path") + 1]
-      : "."
-  );
+  const projectRoot = path.resolve(flag(args, "--path") ?? ".");
 
   if (args.includes("--setup")) {
     console.log("⚡ BMAD Code Generation Agent — MCP Setup");
@@ -171,27 +181,42 @@ function main(): void {
     setupMcp(projectRoot);
     return;
   }
+  if (args.includes("--detect")) { detectProject(projectRoot); return; }
+  if (args.includes("--list-templates")) { listTemplates(); return; }
+  if (args.includes("--list-types")) { listScaffoldTypes(); return; }
 
-  if (args.includes("--detect")) {
-    detectProject(projectRoot);
+  if (args.includes("--scaffold")) {
+    const stack = flag(args, "--engine");
+    const type = flag(args, "--type");
+    const name = flag(args, "--name");
+    if (!stack || !type || !name) {
+      console.error("❌ --scaffold requires --engine <stack> --type <type> --name <Name>");
+      listScaffoldTypes();
+      process.exit(1);
+    }
+    console.log(`⚡ Scaffolding ${stack}/${type} "${name}" into ${projectRoot}\n`);
+    await scaffold({
+      stack, type, name,
+      pkg: flag(args, "--package"),
+      projectRoot,
+      outputDir: flag(args, "--output"),
+      dryRun: args.includes("--dry-run"),
+      force: args.includes("--force"),
+    });
     return;
   }
-
-  if (args.includes("--list-templates")) {
-    listTemplates();
-    return;
-  }
-
-  const engine = args.includes("--engine")
-    ? args[args.indexOf("--engine") + 1]
-    : "auto-detect";
-  const scaffold = args.includes("--scaffold");
 
   console.log("⚡ BMAD Code Generation Agent");
   console.log(`   Path: ${projectRoot}`);
-  console.log(`   Engine: ${engine}`);
-  console.log(`   Mode: ${scaffold ? "scaffold" : "generate"}`);
-  console.log("\n⚠️  Not yet implemented. Add generation logic to scripts/engines/");
+  console.log("\nUsage:");
+  console.log("  --setup                    Install MCP config for LLM/MCP generation");
+  console.log("  --detect                   Detect project structure");
+  console.log("  --list-types               List deterministic scaffolders");
+  console.log("  --scaffold --engine <stack> --type <type> --name <Name> [--package p] [--dry-run]");
+  console.log("\nFor complex/custom generation, use the LLM path (SKILL.md + resource packs).");
 }
 
-main();
+main().catch((err) => {
+  console.error(`❌ Fatal error: ${err.message}`);
+  process.exit(1);
+});

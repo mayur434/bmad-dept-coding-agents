@@ -4,7 +4,7 @@
  * Auto-detects platform engine or resolves explicit engine ID.
  */
 
-import { existsSync } from "fs";
+import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { BaseEngine } from "../shared/base";
 
@@ -16,6 +16,35 @@ import { CommerceEngine } from "./commerce/coverage";
 import { AemEngine } from "./aem/coverage";
 import { EdsEngine } from "./eds/coverage";
 import { EdsCommerceEngine } from "./eds_commerce/coverage";
+import { SlingEngine } from "./sling/coverage";
+import { SpringEngine } from "./spring/coverage";
+import { AppBuilderEngine } from "./app-builder/coverage";
+
+// ---------------------------------------------------------------------------
+// Detection helpers for the new stacks
+// ---------------------------------------------------------------------------
+
+function readSafe(p: string): string {
+  try { return readFileSync(p, "utf-8"); } catch { return ""; }
+}
+function looksLikeAem(p: string): boolean {
+  return existsSync(join(p, "ui.apps")) || existsSync(join(p, "ui.content")) ||
+    /com\.adobe\.aem|aem-sdk-api|uber-jar|cq-quickstart/i.test(readSafe(join(p, "pom.xml")));
+}
+function detectSpring(p: string): boolean {
+  const build = readSafe(join(p, "pom.xml")) + readSafe(join(p, "build.gradle")) + readSafe(join(p, "build.gradle.kts"));
+  return /spring-boot-starter|spring-boot-maven-plugin|org\.springframework\.boot/i.test(build);
+}
+function detectSling(p: string): boolean {
+  if (looksLikeAem(p) || detectSpring(p)) return false;
+  const build = readSafe(join(p, "pom.xml")) + readSafe(join(p, "bnd.bnd"));
+  return /org\.apache\.sling|org\.apache\.felix|slingstart|jackrabbit/i.test(build) ||
+    existsSync(join(p, "src", "main", "features")) || existsSync(join(p, "mdm")) || existsSync(join(p, "sam"));
+}
+function detectAppBuilder(p: string): boolean {
+  return existsSync(join(p, "app.config.yaml")) || existsSync(join(p, "app.config.yml")) ||
+    existsSync(join(p, ".aio")) || /@adobe\/(aio-sdk|aio-lib-|uix-guest)/.test(readSafe(join(p, "package.json")));
+}
 
 // ---------------------------------------------------------------------------
 // Registry
@@ -36,6 +65,24 @@ const ENGINES: EngineEntry[] = [
       existsSync(join(p, "composer.json")) &&
       (existsSync(join(p, "app/etc/env.php")) || existsSync(join(p, "app/code"))),
     create: () => new CommerceEngine(),
+  },
+  {
+    id: "app-builder",
+    name: "Adobe App Builder",
+    detect: detectAppBuilder,
+    create: () => new AppBuilderEngine(),
+  },
+  {
+    id: "spring",
+    name: "Spring Boot",
+    detect: detectSpring,
+    create: () => new SpringEngine(),
+  },
+  {
+    id: "sling",
+    name: "Apache Sling / Shaft",
+    detect: detectSling,
+    create: () => new SlingEngine(),
   },
   {
     id: "aem",
