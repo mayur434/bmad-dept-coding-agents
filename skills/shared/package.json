@@ -1,0 +1,23 @@
+{
+  "name": "@bmad/dca-shared",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Shared foundation for the BMAD DCA agent suite — standardized reports, CHANGE-LOG, branch/output helpers, unified engine contract, and the tree-sitter AST layer.",
+  "main": "index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "smoke:ast": "npx ts-node ast/smoke.ts"
+  },
+  "dependencies": {
+    "exceljs": "^4.4.0",
+    "fast-glob": "^3.3.0",
+    "mammoth": "^1.8.0",
+    "tree-sitter-wasms": "^0.1.11",
+    "web-tree-sitter": "^0.22.6"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.4.0"
+  }
+}

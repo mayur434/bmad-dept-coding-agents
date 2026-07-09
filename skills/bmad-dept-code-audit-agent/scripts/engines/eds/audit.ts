@@ -12,6 +12,8 @@ import { AuditExcelReport, ReportStats } from "../../shared/report-excel";
 import { AuditMarkdownReport } from "../../shared/report-markdown";
 import { edsReportConfig } from "./config";
 import { EdsAuditScanner } from "./lib/scanner/index";
+import { emitStandardOutputs } from "../../../../shared/output";
+import { fromLegacyFindingsMap } from "../../../../shared/core/types";
 
 export class EdsAuditEngine extends BaseAuditEngine {
   readonly PLATFORM_ID = "eds";
@@ -65,4 +67,50 @@ export class EdsAuditEngine extends BaseAuditEngine {
       scanDuration: 0,
     };
   }
+}
+
+function argVal(flag: string): string | undefined {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
+}
+
+export async function main(): Promise<void> {
+  const projectPath = path.resolve(argVal("--path") ?? ".");
+  if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
+    console.error(`❌ Project path does not exist: ${projectPath}`);
+    process.exit(1);
+  }
+  const projectName = argVal("--name") ?? path.basename(projectPath);
+  const outputDir = argVal("--output") ?? path.join(projectPath, "audit-reports");
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const engine = new EdsAuditEngine(projectPath);
+  const findings = engine.scan();
+  const total = Object.values(findings).reduce((n, a) => n + a.length, 0);
+  console.log(`🔍 EDS scan: ${total} finding(s)`);
+
+  // Legacy platform report (EDS-specific sheets) — non-fatal.
+  try {
+    await engine.generateReport(findings, outputDir);
+  } catch (e) {
+    console.log(`⚠️  Legacy report skipped: ${(e as Error).message}`);
+  }
+
+  // Standardized report + CHANGE-LOG — uniform across every DCA audit engine.
+  const std = await emitStandardOutputs({
+    agent: "audit",
+    meta: { agent: "audit", engine: "eds", stack: "Edge Delivery Services", projectName, projectRoot: projectPath },
+    findings: fromLegacyFindingsMap(findings as any, "eds"),
+    outputDir,
+    changelogSummary: `EDS audit: ${total} finding(s).`,
+  });
+  console.log(`📊 Standardized report: ${std.xlsxPath}`);
+  if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
+}
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`❌ Fatal error: ${err.message}`);
+    process.exit(1);
+  });
 }

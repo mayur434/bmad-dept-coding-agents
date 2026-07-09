@@ -11,10 +11,12 @@
  *   npx ts-node run.ts --list-engines
  */
 
-import { resolve } from "path";
+import { resolve, basename, join } from "path";
 import { existsSync } from "fs";
 import * as readline from "readline";
-import { TestFramework, DetectionStrategy } from "./shared/base";
+import { TestFramework, DetectionStrategy, CoverageReport } from "./shared/base";
+import { emitStandardOutputs } from "../../shared/output";
+import type { Finding, Severity } from "../../shared/core/types";
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -193,6 +195,60 @@ async function promptUser(args: Args): Promise<{ frameworks: TestFramework[]; st
 }
 
 // ---------------------------------------------------------------------------
+// Standardized output (shared foundation)
+// ---------------------------------------------------------------------------
+
+const PRIORITY_TO_SEVERITY: Record<string, Severity> = {
+  critical: "CRITICAL",
+  high: "HIGH",
+  medium: "MEDIUM",
+  low: "LOW",
+};
+
+/** Map coverage gaps into the shared normalized Finding model. */
+function coverageToFindings(report: CoverageReport): Finding[] {
+  return report.gaps.map((g) => ({
+    title: `Missing ${g.framework} test — ${g.className ?? basename(g.file)}${g.method ? "::" + g.method : ""}`,
+    description: g.reason,
+    stack: report.engine,
+    category: `Coverage: ${g.framework}`,
+    file: g.file,
+    severity: PRIORITY_TO_SEVERITY[g.priority] ?? "MEDIUM",
+    recommendation: `Add a ${g.framework} test covering ${g.className ?? g.method ?? g.file}.`,
+    impact: `Untested (cyclomatic complexity ~${g.complexity}). Regressions here ship undetected.`,
+    effort: g.complexity > 10 ? "L" : g.complexity > 5 ? "M" : "S",
+    source: "scanner",
+  }));
+}
+
+/** Emit the three standardized outputs (report + markdown + CHANGE-LOG). */
+async function emitCoverageOutputs(report: CoverageReport, projectPath: string, args: Args): Promise<void> {
+  const findings = coverageToFindings(report);
+  const outputDir = args.output ?? join(projectPath, "test-coverage-reports");
+  const res = await emitStandardOutputs({
+    agent: "test-coverage",
+    meta: {
+      agent: "test-coverage",
+      engine: report.engine,
+      stack: report.engine,
+      projectName: report.projectName || args.name || basename(projectPath),
+      projectRoot: projectPath,
+      extra: {
+        "Coverage %": report.coveragePercent,
+        "Tested Files": report.testedFiles,
+        "Total Source Files": report.totalSourceFiles,
+      },
+    },
+    findings,
+    outputDir,
+    changelogSummary: `Coverage analysis: ${report.coveragePercent}% (${report.testedFiles}/${report.totalSourceFiles} files); ${findings.length} gap(s).`,
+  });
+  console.log(`\n📊 Report:     ${res.xlsxPath}`);
+  if (res.mdPath) console.log(`📄 Markdown:   ${res.mdPath}`);
+  if (res.changelogPath) console.log(`📝 CHANGE-LOG: ${res.changelogPath}`);
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -254,6 +310,7 @@ async function main(): Promise<void> {
           console.log(`    ${fb.framework.padEnd(16)} ${fb.coveragePercent}% (${fb.testedFiles}/${fb.totalFiles})`);
         }
       }
+      await emitCoverageOutputs(report, projectPath, args);
       break;
     }
     case "generate":
@@ -263,6 +320,7 @@ async function main(): Promise<void> {
       const report = await engine.analyzeCoverage(projectPath, coverageOpts);
       console.log(`  Coverage: ${report.coveragePercent}% — ${report.gaps.length} gaps found`);
       await engine.generateTests(projectPath, coverageOpts);
+      await emitCoverageOutputs(report, projectPath, args);
       break;
     }
   }

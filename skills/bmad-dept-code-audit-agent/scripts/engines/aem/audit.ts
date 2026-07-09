@@ -26,6 +26,8 @@ import { AemReportGenerator } from './lib/report';
 import { generateMarkdownReport } from './lib/report-md';
 import { generatePdfReport } from './lib/report-pdf';
 import { detectPlatform, PlatformDetectionResult } from './lib/scanner/platform-detect';
+import { emitStandardOutputs } from '../../../../shared/output';
+import { fromLegacyFindingsMap } from '../../../../shared/core/types';
 
 interface Config {
   project?: { path?: string; name?: string };
@@ -245,6 +247,26 @@ async function main(): Promise<void> {
         break;
       }
     }
+  }
+
+  // Standardized report + CHANGE-LOG — uniform across every DCA audit engine.
+  {
+    const engineId = platform === 'aemcs' ? 'aemcs' : platform === 'aemams' ? 'aemams' : 'aem';
+    const stackLabel = platform === 'aemcs' ? 'AEMaaCS' : platform === 'aemams' ? 'AEM AMS' : 'AEM (AMS + Cloud)';
+    const stdFindings = fromLegacyFindingsMap(findings as any, engineId);
+    const std = await emitStandardOutputs({
+      agent: 'audit',
+      meta: {
+        agent: 'audit', engine: engineId, stack: stackLabel + migrationNote,
+        projectName, projectRoot: projectPath,
+        extra: { 'Total Files': stats.totalFiles },
+      },
+      findings: stdFindings,
+      outputDir,
+      changelogSummary: `AEM audit (${platform}): ${stats.totalFindings} finding(s).`,
+    });
+    console.log(`📊 Standardized report: ${std.xlsxPath}`);
+    if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
   }
 
   // Optionally output JSON

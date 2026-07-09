@@ -75,18 +75,18 @@ Do NOT ask the user for permission to install these — they are required for th
 When the intent is ambiguous, ask using the interactive question picker (options UI). Use the `vscode_askQuestions` tool with these options:
 
 ```
-question: "How would you like to audit this project?"
+question: "How deep should I look?"
 options:
-  - label: "Scanner"
-    description: "Fast deterministic scan. Produces Excel report in seconds. Minimal token usage (~1.5K)."
+  - label: "Quick review"
+    description: "I'll check your code against best practices and give you a report in seconds. Barely uses any tokens (~1.5K)."
     recommended: true
-  - label: "LLM Analysis"
-    description: "AI-driven semantic analysis. Catches architectural flaws, cross-file issues. Uses ~15K tokens."
-  - label: "Full Audit (Scanner + LLM)"
-    description: "Run both for comprehensive coverage. Uses ~25K tokens."
+  - label: "Deep review"
+    description: "I'll reason through your architecture and logic to find subtle issues. Uses ~15K tokens."
+  - label: "Everything"
+    description: "Quick review first, then I'll dig deeper into what I find. Uses ~25K tokens."
 ```
 
-**Important:** Always recommend "Scanner" as default. It produces the same structured report with near-zero token cost. Only suggest LLM when the user needs semantic/architectural insights that rules can't catch.
+**Important:** Always recommend "Quick review" as default. It produces the same structured report with near-zero token cost. Only suggest deeper modes when the user needs semantic/architectural insights that rules can't catch.
 
 Proceed with the user's chosen mode.
 
@@ -153,10 +153,12 @@ Example prompt: "analyze patch upgrade impact from 2.4.7-p7 to 2.4.7-p9"
 |----------------|--------|
 | `composer.json` with `magento/` or `app/code/` | `commerce` |
 | `ui.apps/`, `pom.xml` with AEM SDK | `aem` |
+| `pom.xml`/`bnd` with `org.apache.sling`/`org.apache.felix` (or Shaft/MDM/SAM markers), **no** AEM markers | `sling` |
+| `spring-boot-starter`/`org.springframework.boot` in `pom.xml`/`build.gradle`, or `@SpringBootApplication` | `spring` |
 | `blocks/`, `helix-query.yaml`, `fstab.yaml` | `eds` |
 | EDS signals + commerce dropins | `eds-commerce` |
 | `app.config.yaml`, `.aio`, `@adobe/aio-sdk` | `app-builder` |
-| Cannot determine | Ask: "What platform is this? Commerce / AEM / EDS / App Builder?" |
+| Cannot determine | Ask: "What platform is this? Commerce / AEM / Sling-Shaft / EDS / App Builder?" |
 
 ### Examples of Full Resolution
 
@@ -219,6 +221,8 @@ Scan the workspace to determine which Adobe platform(s) are in use:
 | Platform | Detection Signals |
 |----------|------------------|
 | AEMaaCS | `ui.apps/`, `ui.content/`, `core/`, `all/`, `pom.xml` with AEM SDK dependency |
+| Sling-12 / Shaft | `pom.xml`/`bnd.bnd` with `org.apache.sling`/`org.apache.felix`/feature-model, or Shaft/MDM/SAM markers — and **no** AEM markers (ui.apps, aem-sdk, uber-jar) |
+| Spring Boot | `spring-boot-starter*`/`org.springframework.boot` in `pom.xml` or `build.gradle(.kts)`, or `@SpringBootApplication` in sources |
 | Commerce | `app/code/`, `composer.json` with `magento/`, `etc/module.xml` |
 | EDS | `scripts/`, `blocks/`, `helix-query.yaml`, `fstab.yaml`, `paths.json` |
 | EDS+Commerce | EDS signals + Commerce dropin references, `commerce-` prefixed blocks || App Builder | `app.config.yaml`, `.aio` file, `@adobe/aio-sdk` in `package.json`, `dx/excshell/1` or `dx/asset-compute/worker/1` in config |
@@ -232,6 +236,8 @@ Based on detected platform, load rules from `resources/rule-packs/<platform>/`.
 | Platform | Rule pack files |
 |----------|----------------|
 | AEMaaCS | `rule-packs/aemcs/` |
+| Sling-12 / Shaft | `rule-packs/sling-shaft/` (Tier-1 AST engine at `scripts/engines/sling/`) |
+| Spring Boot | `rule-packs/spring-boot/` (Tier-1 AST + config engine at `scripts/engines/spring/`) |
 | Commerce | `rule-packs/commerce/` |
 | EDS | `rule-packs/eds/` |
 | EDS+Commerce | `rule-packs/eds-commerce/` |

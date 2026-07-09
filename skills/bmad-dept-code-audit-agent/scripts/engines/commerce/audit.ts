@@ -10,6 +10,8 @@ import { AdobeCommerceAuditScanner, FindingsMap, StatsMap, Finding } from './lib
 import { AuditReportGenerator } from './lib/report';
 import { BRDAnalysisEngine } from './lib/brd_analyzer';
 import { ImpactAnalyzer } from './lib/impact';
+import { emitStandardOutputs } from '../../../../shared/output';
+import { fromLegacyFindingsMap } from '../../../../shared/core/types';
 
 interface Config {
   project?: { path?: string; name?: string };
@@ -317,7 +319,23 @@ async function main(): Promise<void> {
 
     const report = new AuditReportGenerator(allFindings, allStats, projectName, projectPath || dbPath || '');
     await report.generate(outputFile);
-    console.log(`\n📁 Report saved to: ${outputFile}`);
+    console.log(`\n📁 Platform report saved to: ${outputFile}`);
+
+    // Standardized report + CHANGE-LOG — uniform across every DCA audit engine.
+    const stdFindings = fromLegacyFindingsMap(allFindings as any, 'commerce-paas');
+    const std = await emitStandardOutputs({
+      agent: 'audit',
+      meta: {
+        agent: 'audit', engine: 'commerce-paas', stack: 'Adobe Commerce PaaS',
+        projectName, projectRoot: projectPath || outputDir,
+        extra: { 'Analysis Mode': auditMode },
+      },
+      findings: stdFindings,
+      outputDir,
+      changelogSummary: `Commerce audit (${auditMode}): ${totalFindings} finding(s).`,
+    });
+    console.log(`📊 Standardized report: ${std.xlsxPath}`);
+    if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
   } else {
     console.log('\n⚠️  No findings generated. Check your configuration and inputs.');
   }

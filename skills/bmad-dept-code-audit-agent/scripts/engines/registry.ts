@@ -7,6 +7,9 @@
 
 import * as fs from "fs";
 import * as path from "path";
+import { detectSling } from "./sling/detect";
+import { detectSpringBoot } from "./spring/detect";
+import { detectAppBuilder } from "./app-builder/detect";
 
 interface EngineEntry {
   description: string;
@@ -96,6 +99,9 @@ function detectEdsCommerce(p: string): boolean {
 // ─── Register Built-in Engines ────────────────────────────────────────────
 
 register("commerce", "Adobe Commerce / Magento 2", detectCommerce, "engines/commerce/audit");
+register("sling", "Apache Sling / Shaft (sling-12)", detectSling, "engines/sling/audit");
+register("spring", "Spring Boot (custom middleware)", detectSpringBoot, "engines/spring/audit");
+register("app-builder", "Adobe App Builder / I/O Runtime", detectAppBuilder, "engines/app-builder/audit");
 register("aem", "AEM as a Cloud Service", detectAem, "engines/aem/audit");
 register("eds", "Edge Delivery Services", detectEds, "engines/eds/audit");
 register("eds-commerce", "EDS + Commerce Hybrid", detectEdsCommerce, "engines/eds_commerce/audit");

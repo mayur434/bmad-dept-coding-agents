@@ -12,6 +12,8 @@ import { AuditExcelReport, ReportStats } from "../../shared/report-excel";
 import { AuditMarkdownReport } from "../../shared/report-markdown";
 import { edsCommerceReportConfig } from "./config";
 import { EdsCommerceAuditScanner } from "./lib/scanner/index";
+import { emitStandardOutputs } from "../../../../shared/output";
+import { fromLegacyFindingsMap } from "../../../../shared/core/types";
 
 export class EdsCommerceAuditEngine extends BaseAuditEngine {
   readonly PLATFORM_ID = "eds-commerce";
@@ -78,4 +80,50 @@ export class EdsCommerceAuditEngine extends BaseAuditEngine {
       scanDuration: 0,
     };
   }
+}
+
+function argVal(flag: string): string | undefined {
+  const i = process.argv.indexOf(flag);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : undefined;
+}
+
+export async function main(): Promise<void> {
+  const projectPath = path.resolve(argVal("--path") ?? ".");
+  if (!fs.existsSync(projectPath) || !fs.statSync(projectPath).isDirectory()) {
+    console.error(`❌ Project path does not exist: ${projectPath}`);
+    process.exit(1);
+  }
+  const projectName = argVal("--name") ?? path.basename(projectPath);
+  const outputDir = argVal("--output") ?? path.join(projectPath, "audit-reports");
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  const engine = new EdsCommerceAuditEngine(projectPath);
+  const findings = engine.scan();
+  const total = Object.values(findings).reduce((n, a) => n + a.length, 0);
+  console.log(`🔍 EDS+Commerce scan: ${total} finding(s)`);
+
+  // Legacy platform report (EDS-Commerce-specific sheets) — non-fatal.
+  try {
+    await engine.generateReport(findings, outputDir);
+  } catch (e) {
+    console.log(`⚠️  Legacy report skipped: ${(e as Error).message}`);
+  }
+
+  // Standardized report + CHANGE-LOG — uniform across every DCA audit engine.
+  const std = await emitStandardOutputs({
+    agent: "audit",
+    meta: { agent: "audit", engine: "eds-commerce", stack: "EDS + Commerce", projectName, projectRoot: projectPath },
+    findings: fromLegacyFindingsMap(findings as any, "eds-commerce"),
+    outputDir,
+    changelogSummary: `EDS+Commerce audit: ${total} finding(s).`,
+  });
+  console.log(`📊 Standardized report: ${std.xlsxPath}`);
+  if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
+}
+
+if (require.main === module) {
+  main().catch((err) => {
+    console.error(`❌ Fatal error: ${err.message}`);
+    process.exit(1);
+  });
 }

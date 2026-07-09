@@ -1,5 +1,15 @@
 # Adobe App Builder / API Mesh — Audit Rules
 
+> **Tier-1 scanner (new):** a deterministic tree-sitter JS/TS + config engine now exists at
+> `scripts/engines/app-builder/` (auto-detected via `app.config.yaml` / `.aio` / `@adobe/aio-sdk`). It emits
+> the standardized report and deterministically covers: **JS-SEC-001** (hardcoded secret), **JS-SEC-002**
+> (eval / new Function), **JS-SEC-003** (command injection); **APPB-SEC-001** (`require-adobe-auth: false`),
+> **APPB-SEC-002** (secret literal in `app.config.yaml`), **APPB-SEC-004** (logging `__ow_headers`/secret
+> params), **APPB-SEC-005** (`.env` not gitignored); **APPB-MESH-001** (hardcoded auth in a mesh source),
+> **APPB-MESH-002** (mesh with no depth/rate limiting). The rules below are the **Tier-2 (semantic)** layer —
+> apply them on top of the scanner output, especially for eventing (I/O Events webhooks/signatures),
+> middleware/BFF logic, and UI-extensibility apps (see the `*-ui-extensibility-rules.md` packs).
+
 ---
 
 ## Architecture Rules
