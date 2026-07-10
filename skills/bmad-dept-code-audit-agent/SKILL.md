@@ -155,6 +155,7 @@ Example prompt: "analyze patch upgrade impact from 2.4.7-p7 to 2.4.7-p9"
 | `ui.apps/`, `pom.xml` with AEM SDK | `aem` |
 | `pom.xml`/`bnd` with `org.apache.sling`/`org.apache.felix` (or Shaft/MDM/SAM markers), **no** AEM markers | `sling` |
 | `spring-boot-starter`/`org.springframework.boot` in `pom.xml`/`build.gradle`, or `@SpringBootApplication` | `spring` |
+| Storefront Events SDK / `Magento-Environment-Id` / `catalog-service.adobe.io` (no `app/code`) | `commerce-saas` |
 | `blocks/`, `helix-query.yaml`, `fstab.yaml` | `eds` |
 | EDS signals + commerce dropins | `eds-commerce` |
 | `app.config.yaml`, `.aio`, `@adobe/aio-sdk` | `app-builder` |
@@ -224,6 +225,7 @@ Scan the workspace to determine which Adobe platform(s) are in use:
 | Sling-12 / Shaft | `pom.xml`/`bnd.bnd` with `org.apache.sling`/`org.apache.felix`/feature-model, or Shaft/MDM/SAM markers — and **no** AEM markers (ui.apps, aem-sdk, uber-jar) |
 | Spring Boot | `spring-boot-starter*`/`org.springframework.boot` in `pom.xml` or `build.gradle(.kts)`, or `@SpringBootApplication` in sources |
 | Commerce | `app/code/`, `composer.json` with `magento/`, `etc/module.xml` |
+| Commerce SaaS | `@adobe/magento-storefront-event*`, `Magento-Environment-Id`, `catalog-service.adobe.io`/`commerce.adobe.io`, Live Search — and **no** `app/code` |
 | EDS | `scripts/`, `blocks/`, `helix-query.yaml`, `fstab.yaml`, `paths.json` |
 | EDS+Commerce | EDS signals + Commerce dropin references, `commerce-` prefixed blocks || App Builder | `app.config.yaml`, `.aio` file, `@adobe/aio-sdk` in `package.json`, `dx/excshell/1` or `dx/asset-compute/worker/1` in config |
 | App Builder — Commerce UI Ext | `commerce/backend-ui/1` in `app.config.yaml`, `@adobe/uix-guest` in `package.json` |
@@ -239,6 +241,7 @@ Based on detected platform, load rules from `resources/rule-packs/<platform>/`.
 | Sling-12 / Shaft | `rule-packs/sling-shaft/` (Tier-1 AST engine at `scripts/engines/sling/`) |
 | Spring Boot | `rule-packs/spring-boot/` (Tier-1 AST + config engine at `scripts/engines/spring/`) |
 | Commerce | `rule-packs/commerce/` |
+| Commerce SaaS | `rule-packs/commerce-saas/` (Tier-1 JS + config engine at `scripts/engines/commerce-saas/`) |
 | EDS | `rule-packs/eds/` |
 | EDS+Commerce | `rule-packs/eds-commerce/` |
 | App Builder (core) | `rule-packs/app-builder/rules.md` |

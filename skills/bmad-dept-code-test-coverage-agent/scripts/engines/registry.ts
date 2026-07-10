@@ -19,6 +19,7 @@ import { EdsCommerceEngine } from "./eds_commerce/coverage";
 import { SlingEngine } from "./sling/coverage";
 import { SpringEngine } from "./spring/coverage";
 import { AppBuilderEngine } from "./app-builder/coverage";
+import { CommerceSaasEngine } from "./commerce-saas/coverage";
 
 // ---------------------------------------------------------------------------
 // Detection helpers for the new stacks
@@ -45,6 +46,11 @@ function detectAppBuilder(p: string): boolean {
   return existsSync(join(p, "app.config.yaml")) || existsSync(join(p, "app.config.yml")) ||
     existsSync(join(p, ".aio")) || /@adobe\/(aio-sdk|aio-lib-|uix-guest)/.test(readSafe(join(p, "package.json")));
 }
+function detectCommerceSaas(p: string): boolean {
+  if (existsSync(join(p, "app/code")) && existsSync(join(p, "composer.json"))) return false;
+  const blob = readSafe(join(p, "package.json")) + readSafe(join(p, "config.json")) + readSafe(join(p, "commerce.env.json"));
+  return /@adobe\/magento-storefront-event|Magento-Environment-Id|catalog-service\.adobe\.io|commerce\.adobe\.io|live-search/i.test(blob);
+}
 
 // ---------------------------------------------------------------------------
 // Registry
@@ -65,6 +71,12 @@ const ENGINES: EngineEntry[] = [
       existsSync(join(p, "composer.json")) &&
       (existsSync(join(p, "app/etc/env.php")) || existsSync(join(p, "app/code"))),
     create: () => new CommerceEngine(),
+  },
+  {
+    id: "commerce-saas",
+    name: "Adobe Commerce SaaS",
+    detect: detectCommerceSaas,
+    create: () => new CommerceSaasEngine(),
   },
   {
     id: "app-builder",

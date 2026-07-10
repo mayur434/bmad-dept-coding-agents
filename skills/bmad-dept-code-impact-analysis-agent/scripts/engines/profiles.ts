@@ -23,8 +23,9 @@ export interface StackProfile {
 }
 
 function has(p: string, rel: string): boolean { return fs.existsSync(path.join(p, rel)); }
-function readPom(p: string): string { try { return fs.readFileSync(path.join(p, "pom.xml"), "utf8"); } catch { return ""; } }
-function readPkg(p: string): string { try { return fs.readFileSync(path.join(p, "package.json"), "utf8"); } catch { return ""; } }
+function read(abs: string): string { try { return fs.readFileSync(abs, "utf8"); } catch { return ""; } }
+function readPom(p: string): string { return read(path.join(p, "pom.xml")); }
+function readPkg(p: string): string { return read(path.join(p, "package.json")); }
 
 const IGNORE = ["**/target/**", "**/build/**", "**/node_modules/**", "**/vendor/**", "**/generated-sources/**", "**/dist/**"];
 
@@ -37,6 +38,16 @@ export const PROFILES: StackProfile[] = [
     ignore: IGNORE,
     entitySuffixes: ["Plugin", "Observer", "Resolver", "Repository", "Model", "Block", "ViewModel", "Controller", "Command", "Cron"],
     modulePattern: /\b[A-Z][A-Za-z0-9]+[_\\][A-Z][A-Za-z0-9]+\b/g,
+  },
+  {
+    id: "commerce-saas",
+    name: "Adobe Commerce SaaS",
+    detect: (p) => !(has(p, "app/code") && has(p, "composer.json")) &&
+      (/@adobe\/magento-storefront-event/i.test(readPkg(p)) ||
+        /Magento-Environment-Id|catalog-service\.adobe\.io|commerce\.adobe\.io|live-search/i.test(readPkg(p) + read(path.join(p, "config.json")) + read(path.join(p, "commerce.env.json")))),
+    sourceGlobs: ["blocks/**/*.js", "src/**/*.{js,mjs}", "scripts/**/*.js", "**/*.{js,mjs}"],
+    ignore: [...IGNORE, "**/*.test.js"],
+    entitySuffixes: ["Block", "Service", "Resolver", "Dropin"],
   },
   {
     id: "app-builder",

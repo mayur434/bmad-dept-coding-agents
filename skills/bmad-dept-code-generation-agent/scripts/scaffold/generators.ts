@@ -662,11 +662,61 @@ export default async function decorate(block) {
   },
 };
 
+// ── Adobe Commerce SaaS (Catalog Service / Live Search / drop-ins) ────────────
+const commerceSaasGenerators: Record<string, Generator> = {
+  "catalog-query": (o) => {
+    const k = kebab(o.name), C = camel(o.name);
+    return [{ path: `src/commerce/${k}.js`, content:
+`// Catalog Service query. Config (environmentId, apiKey, storeViewCode) comes from
+// the storefront config — never hardcode the environment id or private keys here.
+const CATALOG_SERVICE = 'https://catalog-service.adobe.io/graphql';
+
+export async function ${C}(config, variables) {
+  const res = await fetch(CATALOG_SERVICE, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Magento-Environment-Id': config.environmentId,
+      'Magento-Store-View-Code': config.storeViewCode,
+      'Magento-Website-Code': config.websiteCode,
+      'x-api-key': config.apiKey, // PUBLIC Catalog Service key only
+    },
+    body: JSON.stringify({
+      query: \`query ${C}($phrase: String!) { productSearch(phrase: $phrase) { items { product { sku name } } } }\`,
+      variables,
+    }),
+  });
+  if (!res.ok) throw new Error('Catalog Service error ' + res.status);
+  const json = await res.json();
+  if (json.errors) throw new Error(json.errors.map((e) => e.message).join('; '));
+  return json.data;
+}
+` }];
+  },
+  "storefront-block": (o) => {
+    const k = kebab(o.name);
+    return [
+      { path: `blocks/${k}/${k}.js`, content:
+`import { events } from '@dropins/tools/event-bus.js';
+
+export default async function decorate(block) {
+  block.classList.add('${k}');
+  // 1. read SaaS config (environmentId, storeViewCode, public apiKey) from storefront config
+  // 2. query Catalog Service / Live Search (see src/commerce/*), sanitize any params (sku, q)
+  // 3. render + subscribe to drop-in events; never expose private/admin tokens client-side
+}
+` },
+      { path: `blocks/${k}/${k}.css`, content: `.${k} {\n  /* block styles */\n}\n` },
+    ];
+  },
+};
+
 export const GENERATORS: Record<string, Record<string, Generator>> = {
   aem: aemGenerators,
   sling: slingGenerators,
   spring: springGenerators,
   "commerce-paas": commerceGenerators,
+  "commerce-saas": commerceSaasGenerators,
   "app-builder": { ...appBuilderGenerators, ...appBuilderExtra },
   eds: edsGenerators,
   "eds-commerce": edsCommerceGenerators,
