@@ -9,7 +9,8 @@
   },
   "dependencies": {
     "exceljs": "^4.4.0",
-    "fast-glob": "^3.3.0"
+    "fast-glob": "^3.3.0",
+    "mammoth": "^1.6.0"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
