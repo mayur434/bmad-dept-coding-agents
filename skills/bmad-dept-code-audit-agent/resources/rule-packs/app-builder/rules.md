@@ -6,9 +6,10 @@
 > (eval / new Function), **JS-SEC-003** (command injection); **APPB-SEC-001** (`require-adobe-auth: false`),
 > **APPB-SEC-002** (secret literal in `app.config.yaml`), **APPB-SEC-004** (logging `__ow_headers`/secret
 > params), **APPB-SEC-005** (`.env` not gitignored); **APPB-MESH-001** (hardcoded auth in a mesh source),
-> **APPB-MESH-002** (mesh with no depth/rate limiting). The rules below are the **Tier-2 (semantic)** layer —
-> apply them on top of the scanner output, especially for eventing (I/O Events webhooks/signatures),
-> middleware/BFF logic, and UI-extensibility apps (see the `*-ui-extensibility-rules.md` packs).
+> **APPB-MESH-002** (mesh with no depth/rate limiting); **APPB-EVT-001** (I/O Events/webhook consumer without
+> HMAC signature verification), **APPB-EVT-002** (event handler with no idempotency/dedupe guard). The rules
+> below are the **Tier-2 (semantic)** layer — apply them on top of the scanner output, especially for
+> middleware/BFF business logic and UI-extensibility apps (see the `*-ui-extensibility-rules.md` packs).
 
 ---
 

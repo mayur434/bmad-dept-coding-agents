@@ -127,6 +127,7 @@ export class JavaAstScanner {
       line,
       code: (ctx.lines[line - 1] ?? "").trim().slice(0, 300),
       severity: spec.severity,
+      confidence: 0.9,
       ruleId,
       recommendation: spec.recommendation,
       impact: spec.impact,

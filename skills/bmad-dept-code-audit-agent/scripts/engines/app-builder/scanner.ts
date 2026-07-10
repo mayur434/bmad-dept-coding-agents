@@ -33,7 +33,45 @@ const ruleLogSensitive: JsRule = (ctx, add) => {
   }
 };
 
-const APPB_JS_RULES: JsRule[] = [ruleLogSensitive];
+// APPB-EVT-001: I/O Events / webhook consumer that trusts the payload without
+// verifying the provider signature (Adobe I/O Events sends an HMAC signature;
+// unverified webhooks let anyone forge events).
+const ruleWebhookSignature: JsRule = (ctx, add) => {
+  const isEventHandler =
+    /\/(events?|webhook|consumer)[-/]/i.test(ctx.rel) ||
+    /__ow_body|params\.data\b|x-adobe-signature|io[_-]?events|\bchallenge\b/i.test(ctx.source);
+  if (!isEventHandler) return;
+  const verifies = /createHmac|timingSafeEqual|verifySignature|x-adobe-signature|verifyDigitalSignature|@adobe\/aio-lib-events/i.test(ctx.source);
+  if (!verifies) {
+    // anchor on the exported action entry if present
+    const line = ctx.lines.findIndex((l) => /exports\.main|async\s+function\s+main/.test(l));
+    add(line >= 0 ? line + 1 : 1, {
+      ruleId: "APPB-EVT-001", title: "Webhook/event handler without signature verification",
+      category: "Eventing", severity: "HIGH",
+      description: "An I/O Events / webhook consumer processes the payload without verifying the provider HMAC signature.",
+      recommendation: "Verify the `x-adobe-signature` HMAC (aio-lib-events or crypto.timingSafeEqual) before acting on the event.",
+      impact: "Attackers can forge events and drive downstream side effects.", effort: "M",
+    });
+  }
+};
+
+// APPB-EVT-002: event handler with no idempotency guard (providers retry, so
+// non-idempotent handling causes duplicate side effects).
+const ruleEventIdempotency: JsRule = (ctx, add) => {
+  const isEventHandler = /\/(events?|webhook|consumer)[-/]/i.test(ctx.rel) || /__ow_body|params\.data\b|io[_-]?events/i.test(ctx.source);
+  if (!isEventHandler) return;
+  if (!/idempoten|dedup|already[_ ]?processed|event[_.]?id|seen|processedEvents|State\.get/i.test(ctx.source)) {
+    add(1, {
+      ruleId: "APPB-EVT-002", title: "Event handler without idempotency guard",
+      category: "Eventing", severity: "MEDIUM",
+      description: "No dedupe/idempotency check — I/O Events (and webhooks) deliver at-least-once and retry.",
+      recommendation: "Dedupe on the event id (e.g. aio State) and make side effects idempotent; use a DLQ for poison events.",
+      impact: "Retries cause duplicate orders/emails/charges.", effort: "M",
+    });
+  }
+};
+
+const APPB_JS_RULES: JsRule[] = [ruleLogSensitive, ruleWebhookSignature, ruleEventIdempotency];
 
 export interface AppBuilderScanResult {
   findings: Finding[];
