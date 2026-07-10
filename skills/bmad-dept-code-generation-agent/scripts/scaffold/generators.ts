@@ -335,10 +335,341 @@ describe('${k} action', () => {
   },
 };
 
+// ── AEM (AEMaaCS + AMS) ───────────────────────────────────────────────────────
+const aemPkg = (o: GenOptions) => o.pkg ?? "com.acme.aem";
+const aemGenerators: Record<string, Generator> = {
+  "sling-model": (o) => {
+    const C = pascal(o.name), pkg = aemPkg(o), dir = `core/src/main/java/${pkgPath(pkg)}/models`;
+    return [{ path: `${dir}/${C}Model.java`, content:
+`package ${pkg}.models;
+
+import org.apache.sling.api.SlingHttpServletRequest;
+import org.apache.sling.models.annotations.Model;
+import org.apache.sling.models.annotations.DefaultInjectionStrategy;
+import org.apache.sling.models.annotations.injectorspecific.ValueMapValue;
+
+@Model(adaptables = SlingHttpServletRequest.class, defaultInjectionStrategy = DefaultInjectionStrategy.OPTIONAL)
+public class ${C}Model {
+    @ValueMapValue private String title;
+    public String getTitle() { return title; }
+}
+` }];
+  },
+  "osgi-service": (o) => slingGenerators["osgi-service"]({ name: o.name, pkg: aemPkg(o) }),
+  "sling-servlet": (o) => slingGenerators["sling-servlet"]({ name: o.name, pkg: aemPkg(o) }),
+  "component": (o) => {
+    const name = kebab(o.name), title = pascal(o.name).replace(/([a-z])([A-Z])/g, "$1 $2");
+    const dir = `ui.apps/src/main/content/jcr_root/apps/acme/components/${name}`;
+    return [
+      { path: `${dir}/.content.xml`, content:
+`<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0"
+    jcr:primaryType="cq:Component"
+    jcr:title="${title}"
+    componentGroup="Acme - Content"/>
+` },
+      { path: `${dir}/${name}.html`, content:
+`<sly data-sly-use.model="\${'${aemPkg(o)}.models.${pascal(o.name)}Model'}">
+    <div class="cmp-${name}">
+        <h2>\${model.title}</h2>
+    </div>
+</sly>
+` },
+      { path: `${dir}/_cq_dialog/.content.xml`, content:
+`<?xml version="1.0" encoding="UTF-8"?>
+<jcr:root xmlns:jcr="http://www.jcp.org/jcr/1.0" xmlns:cq="http://www.day.com/jcr/cq/1.0"
+    xmlns:sling="http://sling.apache.org/jcr/sling/1.0" xmlns:granite="http://www.adobe.com/jcr/granite/1.0"
+    jcr:primaryType="nt:unstructured" jcr:title="${title}" sling:resourceType="cq/gui/components/authoring/dialog">
+    <content jcr:primaryType="nt:unstructured" sling:resourceType="granite/ui/components/coral/foundation/container">
+        <items jcr:primaryType="nt:unstructured">
+            <title jcr:primaryType="nt:unstructured" sling:resourceType="granite/ui/components/coral/foundation/form/textfield"
+                fieldLabel="Title" name="./title"/>
+        </items>
+    </content>
+</jcr:root>
+` },
+    ];
+  },
+  "workflow-process": (o) => {
+    const C = pascal(o.name), pkg = aemPkg(o), dir = `core/src/main/java/${pkgPath(pkg)}/workflows`;
+    return [{ path: `${dir}/${C}Process.java`, content:
+`package ${pkg}.workflows;
+
+import com.adobe.granite.workflow.WorkflowSession;
+import com.adobe.granite.workflow.exec.WorkItem;
+import com.adobe.granite.workflow.exec.WorkflowProcess;
+import com.adobe.granite.workflow.metadata.MetaDataMap;
+import org.osgi.service.component.annotations.Component;
+
+@Component(service = WorkflowProcess.class, property = { "process.label=${C} Process" })
+public class ${C}Process implements WorkflowProcess {
+    @Override
+    public void execute(WorkItem workItem, WorkflowSession session, MetaDataMap args) {
+        String payloadPath = workItem.getWorkflowData().getPayload().toString();
+        // TODO: implement the workflow step
+    }
+}
+` }];
+  },
+};
+
+// ── Adobe Commerce PaaS (Magento 2, PHP) ──────────────────────────────────────
+function vendorModule(o: GenOptions): { v: string; m: string; dir: string; ns: string } {
+  const raw = o.pkg && o.pkg.includes("_") ? o.pkg
+    : o.name.includes("_") ? o.name
+    : `Acme_${pascal(o.name)}`;
+  const [vRaw, mRaw] = raw.split("_");
+  const v = pascal(vRaw), m = pascal(mRaw || "Module");
+  return { v, m, dir: `app/code/${v}/${m}`, ns: `${v}\\${m}` };
+}
+const commerceGenerators: Record<string, Generator> = {
+  "module": (o) => {
+    const { v, m, dir } = vendorModule(o);
+    return [
+      { path: `${dir}/registration.php`, content:
+`<?php
+use Magento\\Framework\\Component\\ComponentRegistrar;
+ComponentRegistrar::register(ComponentRegistrar::MODULE, '${v}_${m}', __DIR__);
+` },
+      { path: `${dir}/etc/module.xml`, content:
+`<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Module/etc/module.xsd">
+    <module name="${v}_${m}"/>
+</config>
+` },
+      { path: `${dir}/composer.json`, content:
+`{
+  "name": "${v.toLowerCase()}/module-${m.toLowerCase()}",
+  "type": "magento2-module",
+  "autoload": { "files": ["registration.php"], "psr-4": { "${v}\\\\${m}\\\\": "" } }
+}
+` },
+    ];
+  },
+  "plugin": (o) => {
+    const { m, dir, ns } = vendorModule(o); const C = pascal(o.name);
+    return [
+      { path: `${dir}/Plugin/${C}Plugin.php`, content:
+`<?php
+declare(strict_types=1);
+namespace ${ns}\\Plugin;
+
+class ${C}Plugin
+{
+    // Rename around/before/after per the intercepted method.
+    public function afterGetName(\\Magento\\Catalog\\Model\\Product $subject, $result)
+    {
+        return $result;
+    }
+}
+` },
+      { path: `${dir}/etc/di.xml`, content:
+`<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:ObjectManager/etc/config.xsd">
+    <type name="Magento\\Catalog\\Model\\Product">
+        <plugin name="${m.toLowerCase()}_${kebab(o.name)}" type="${ns}\\Plugin\\${C}Plugin"/>
+    </type>
+</config>
+` },
+    ];
+  },
+  "observer": (o) => {
+    const { dir, ns } = vendorModule(o); const C = pascal(o.name);
+    return [
+      { path: `${dir}/Observer/${C}Observer.php`, content:
+`<?php
+declare(strict_types=1);
+namespace ${ns}\\Observer;
+
+use Magento\\Framework\\Event\\Observer;
+use Magento\\Framework\\Event\\ObserverInterface;
+
+class ${C}Observer implements ObserverInterface
+{
+    public function execute(Observer $observer): void
+    {
+        // TODO: handle the event; $observer->getEvent()->getData(...)
+    }
+}
+` },
+      { path: `${dir}/etc/events.xml`, content:
+`<?xml version="1.0"?>
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="urn:magento:framework:Event/etc/events.xsd">
+    <event name="catalog_product_save_after">
+        <observer name="${kebab(o.name)}" instance="${ns}\\Observer\\${C}Observer"/>
+    </event>
+</config>
+` },
+    ];
+  },
+  "graphql-resolver": (o) => {
+    const { dir, ns } = vendorModule(o); const C = pascal(o.name);
+    return [
+      { path: `${dir}/Model/Resolver/${C}Resolver.php`, content:
+`<?php
+declare(strict_types=1);
+namespace ${ns}\\Model\\Resolver;
+
+use Magento\\Framework\\GraphQl\\Config\\Element\\Field;
+use Magento\\Framework\\GraphQl\\Query\\ResolverInterface;
+use Magento\\Framework\\GraphQl\\Schema\\Type\\ResolveInfo;
+
+class ${C}Resolver implements ResolverInterface
+{
+    public function resolve(Field $field, $context, ResolveInfo $info, ?array $value = null, ?array $args = null)
+    {
+        // TODO: return data for the ${camel(o.name)} query (use bound params in any DB access)
+        return [];
+    }
+}
+` },
+      { path: `${dir}/etc/schema.graphqls`, content:
+`type Query {
+    ${camel(o.name)}(id: Int!): ${C}Output @resolver(class: "${ns}\\\\Model\\\\Resolver\\\\${C}Resolver")
+}
+type ${C}Output { id: Int name: String }
+` },
+    ];
+  },
+  "controller": (o) => {
+    const { dir, ns } = vendorModule(o); const C = pascal(o.name);
+    return [{ path: `${dir}/Controller/Index/${C}.php`, content:
+`<?php
+declare(strict_types=1);
+namespace ${ns}\\Controller\\Index;
+
+use Magento\\Framework\\App\\Action\\HttpGetActionInterface;
+use Magento\\Framework\\Controller\\Result\\JsonFactory;
+
+class ${C} implements HttpGetActionInterface
+{
+    public function __construct(private JsonFactory $jsonFactory) {}
+    public function execute()
+    {
+        return $this->jsonFactory->create()->setData(['status' => 'ok']);
+    }
+}
+` }];
+  },
+};
+
+// ── Adobe App Builder — mesh + eventing (adds to the 'action' generator) ───────
+const appBuilderExtra: Record<string, Generator> = {
+  "mesh": (o) => {
+    const k = kebab(o.name);
+    return [{ path: `mesh.json`, content:
+`{
+  "meshConfig": {
+    "sources": [
+      {
+        "name": "${k}",
+        "handler": {
+          "graphql": { "endpoint": "https://REPLACE/graphql" }
+        }
+      }
+    ],
+    "plugins": [
+      { "rateLimit": { "config": [{ "type": "Query", "field": "*", "max": 100, "ttl": 60 }] } },
+      { "depthLimit": { "maxDepth": 8 } }
+    ]
+  }
+}
+` }];
+  },
+  "event-handler": (o) => {
+    const k = kebab(o.name);
+    return [
+      { path: `actions/${k}-events/index.js`, content:
+`const { Core } = require('@adobe/aio-sdk')
+const crypto = require('crypto')
+
+// I/O Events / webhook consumer. Register the webhook with 'require-adobe-auth: false'
+// and verify the signature yourself. Make handling idempotent.
+async function main (params) {
+  const logger = Core.Logger('${k}-events', { level: params.LOG_LEVEL || 'info' })
+  try {
+    if (!verifySignature(params)) {
+      return { statusCode: 401, body: { error: 'invalid signature' } }
+    }
+    const event = params.data || params
+    // TODO: idempotent handling (dedupe on event id); on failure return 5xx so the provider retries.
+    logger.info('handled event')
+    return { statusCode: 200, body: { received: true } }
+  } catch (error) {
+    logger.error(error)
+    return { statusCode: 500, body: { error: 'server error' } }
+  }
+}
+
+function verifySignature (params) {
+  const sig = (params.__ow_headers || {})['x-adobe-signature']
+  if (!sig || !params.EVENT_SIGNING_SECRET) return false
+  const body = params.__ow_body || JSON.stringify(params.data || {})
+  const expected = crypto.createHmac('sha256', params.EVENT_SIGNING_SECRET).update(body).digest('base64')
+  return crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))
+}
+
+exports.main = main
+` },
+    ];
+  },
+};
+
+// ── Adobe EDS ─────────────────────────────────────────────────────────────────
+const edsGenerators: Record<string, Generator> = {
+  "block": (o) => {
+    const k = kebab(o.name);
+    return [
+      { path: `blocks/${k}/${k}.js`, content:
+`export default function decorate(block) {
+  // EDS block decoration. 'block' is the block root element.
+  block.classList.add('${k}');
+  // TODO: transform authored rows into markup; sanitize any URL/text you read.
+}
+` },
+      { path: `blocks/${k}/${k}.css`, content:
+`.${k} {
+  /* block styles */
+}
+` },
+    ];
+  },
+};
+
+// ── EDS + Commerce (drop-in block) ────────────────────────────────────────────
+const edsCommerceGenerators: Record<string, Generator> = {
+  "dropin-block": (o) => {
+    const k = kebab(o.name);
+    return [
+      { path: `blocks/commerce-${k}/commerce-${k}.js`, content:
+`import { events } from '@dropins/tools/event-bus.js';
+
+export default async function decorate(block) {
+  block.classList.add('commerce-${k}');
+  // TODO: mount the relevant Commerce drop-in / render container and wire events.
+  // Never hardcode API keys — read from config; validate any query params.
+}
+` },
+      { path: `blocks/commerce-${k}/commerce-${k}.css`, content:
+`.commerce-${k} {
+  /* drop-in block styles */
+}
+` },
+    ];
+  },
+};
+
 export const GENERATORS: Record<string, Record<string, Generator>> = {
+  aem: aemGenerators,
   sling: slingGenerators,
   spring: springGenerators,
-  "app-builder": appBuilderGenerators,
+  "commerce-paas": commerceGenerators,
+  "app-builder": { ...appBuilderGenerators, ...appBuilderExtra },
+  eds: edsGenerators,
+  "eds-commerce": edsCommerceGenerators,
 };
 
 export function listTypes(stack: string): string[] {

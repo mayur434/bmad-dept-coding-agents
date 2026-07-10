@@ -162,9 +162,16 @@ npx ts-node scripts/run.ts --scaffold --engine spring --type rest-controller --n
 npx ts-node scripts/run.ts --scaffold --engine app-builder --type action     --name "order sync" --path . [--dry-run]
 ```
 
-Types: `sling` → osgi-service, sling-servlet, sling-filter, sling-model · `spring` → rest-controller, service,
-jpa-repository · `app-builder` → action. For custom/business logic beyond these, use the LLM path with the
-resource packs above.
+Types by stack:
+- `aem` → sling-model, osgi-service, sling-servlet, component (HTL + dialog), workflow-process
+- `sling` → osgi-service, sling-servlet, sling-filter, sling-model
+- `spring` → rest-controller (+DTO), service, jpa-repository (+entity)
+- `commerce-paas` → module, plugin, observer, graphql-resolver, controller
+- `app-builder` → action, mesh, event-handler (webhook consumer w/ signature verify + idempotency)
+- `eds` → block · `eds-commerce` → dropin-block
+
+`npx ts-node run.ts --list-types` prints the live list. For custom/business logic beyond these, use the LLM
+path with the resource packs (`resources/<stack>/`). Commerce SaaS is out of scope.
 
 ## Pre-flight
 
@@ -232,6 +239,8 @@ Analyze the user's initial prompt first. Skip any question whose answer is alrea
 
 | Signal in project | Platform |
 |-------------------|----------|
+| `pom.xml`/`bnd` with `org.apache.sling`/`org.apache.felix` (or `mdm`/`sam` dirs), **no** AEM markers | Sling-12 / Shaft |
+| `spring-boot-starter`/`org.springframework.boot` in `pom.xml`/`build.gradle`, or `@SpringBootApplication` | Spring Boot |
 | `ui.config/` exists | AEMaaCS |
 | `.cloudmanager/` or `dispatcher/src/` (SDK structure) | AEMaaCS |
 | `config.author/`, `config.publish/`, `config.dev/` runmode folders under `/apps` | AEM AMS |
