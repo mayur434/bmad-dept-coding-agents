@@ -14,10 +14,11 @@
 import { resolve, basename, join } from "path";
 import { existsSync } from "fs";
 import * as readline from "readline";
-import { TestFramework, DetectionStrategy, CoverageReport } from "./shared/base";
+import { TestFramework, DetectionStrategy, CoverageReport, CoverageGap } from "./shared/base";
 import { emitStandardOutputs } from "../../shared/output";
 import type { Finding, Severity } from "../../shared/core/types";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
+import { discoverReport, parseReport, runCoverage, CoverageResult } from "../../shared/coverage";
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -236,6 +237,7 @@ async function emitCoverageOutputs(report: CoverageReport, projectPath: string, 
       projectRoot: projectPath,
       extra: {
         "Coverage %": report.coveragePercent,
+        "Coverage source": (report as any).coverageSource ?? "estimate (filename match)",
         "Tested Files": report.testedFiles,
         "Total Source Files": report.totalSourceFiles,
       },
@@ -247,6 +249,51 @@ async function emitCoverageOutputs(report: CoverageReport, projectPath: string, 
   console.log(`\n📊 Report:     ${res.xlsxPath}`);
   if (res.mdPath) console.log(`📄 Markdown:   ${res.mdPath}`);
   if (res.changelogPath) console.log(`📝 CHANGE-LOG: ${res.changelogPath}`);
+}
+
+// ---------------------------------------------------------------------------
+// Real coverage (JaCoCo / Istanbul / Clover / LCOV) — overrides the estimate
+// ---------------------------------------------------------------------------
+function flagVal(name: string): string | null {
+  const i = process.argv.indexOf(name);
+  return i >= 0 && i + 1 < process.argv.length ? process.argv[i + 1] : null;
+}
+
+/** Optionally run the tool, then discover + parse a real coverage report. */
+function resolveRealCoverage(projectPath: string, engineId: string): CoverageResult | null {
+  const explicit = flagVal("--coverage-report");
+  if (process.argv.includes("--run-coverage")) {
+    console.log("   ⏱  Running the project's coverage tool (this builds/tests the project)...");
+    const rr = runCoverage(projectPath, engineId);
+    console.log(`      ${rr.message}`);
+  }
+  const reportPath = explicit ?? discoverReport(projectPath)?.path ?? null;
+  return reportPath ? parseReport(reportPath) : null;
+}
+
+/** Replace the filename-estimate coverage with real per-file line/branch numbers. */
+function applyRealCoverage(report: CoverageReport, cov: CoverageResult, projectPath: string): void {
+  const rel = (f: string) =>
+    f.startsWith(projectPath) ? f.slice(projectPath.length).replace(/^\/+/, "") : f.replace(/^.*\/((?:src|core|app|bundle|blocks|actions|scripts)\/.*)$/, "$1");
+  report.coveragePercent = cov.overall.linesPct;
+  report.totalSourceFiles = cov.files.length || report.totalSourceFiles;
+  report.testedFiles = cov.files.filter((f) => f.lines.pct >= 100).length;
+  report.untestedFiles = report.totalSourceFiles - report.testedFiles;
+  const fw = (report.gaps[0] && report.gaps[0].framework) || "unit";
+  report.gaps = cov.files
+    .filter((f) => f.lines.pct < 100)
+    .sort((a, b) => a.lines.pct - b.lines.pct)
+    .slice(0, 300)
+    .map((f) => ({
+      file: rel(f.file),
+      className: (f.file.split("/").pop() || "").replace(/\.[^.]+$/, ""),
+      method: null,
+      complexity: 0,
+      priority: (f.lines.pct < 50 ? "critical" : f.lines.pct < 75 ? "high" : f.lines.pct < 90 ? "medium" : "low") as CoverageGap["priority"],
+      reason: `Real coverage: ${f.lines.pct}% lines (${f.lines.covered}/${f.lines.total}), ${f.branches.pct}% branches — ${f.lines.total - f.lines.covered} uncovered line(s). Add tests for the uncovered paths.`,
+      framework: fw,
+    }));
+  (report as any).coverageSource = `real (${cov.tool})`;
 }
 
 // ---------------------------------------------------------------------------
@@ -307,6 +354,9 @@ async function main(): Promise<void> {
   switch (args.mode) {
     case "analyze": {
       const report = await engine.analyzeCoverage(projectPath, coverageOpts);
+      const cov = resolveRealCoverage(projectPath, engine.id);
+      if (cov) { applyRealCoverage(report, cov, projectPath); console.log(`   📈 Real coverage (${cov.tool}): ${cov.overall.linesPct}% lines, ${cov.overall.branchesPct}% branches`); }
+      else console.log(`   ℹ️  No coverage report found — filename-based estimate (use --run-coverage or --coverage-report <file>).`);
       console.log(`\n✓ Analysis complete`);
       console.log(`  Overall: ${report.coveragePercent}% covered (${report.testedFiles}/${report.totalSourceFiles} files)`);
       console.log(`  Gaps found: ${report.gaps.length}`);
@@ -324,6 +374,8 @@ async function main(): Promise<void> {
       break;
     case "full": {
       const report = await engine.analyzeCoverage(projectPath, coverageOpts);
+      const cov = resolveRealCoverage(projectPath, engine.id);
+      if (cov) { applyRealCoverage(report, cov, projectPath); console.log(`  📈 Real coverage (${cov.tool}): ${cov.overall.linesPct}% lines, ${cov.overall.branchesPct}% branches`); }
       console.log(`  Coverage: ${report.coveragePercent}% — ${report.gaps.length} gaps found`);
       await engine.generateTests(projectPath, coverageOpts);
       await emitCoverageOutputs(report, projectPath, args);

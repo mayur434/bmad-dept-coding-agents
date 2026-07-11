@@ -112,7 +112,25 @@ Proceed with the user's chosen mode.
 1. Run `npx ts-node scripts/run.ts --mode analyze --path <PROJECT_ROOT> [--engine <ENGINE>]`
 2. Engine auto-detects platform if not specified
 3. Scanner inventories source files and maps existing tests
-4. Outputs coverage gap report (Excel + JSON summary)
+4. Outputs coverage gap report (standardized Excel + Markdown + CHANGE-LOG)
+
+**Real coverage (accurate line/branch %):** by default the metric is a fast
+filename/class estimate. To get *real* coverage, either point at an existing
+report or run the tool:
+
+```bash
+# use an existing report (JaCoCo / Istanbul json / Clover / LCOV — auto-detected)
+npx ts-node scripts/run.ts --mode analyze --engine <ENGINE> --path <PROJECT> --coverage-report <path>
+
+# or run the project's coverage tool first (needs its toolchain: Maven/Gradle, Jest/nyc, PHPUnit)
+npx ts-node scripts/run.ts --mode analyze --engine <ENGINE> --path <PROJECT> --run-coverage
+```
+
+When a report is found, `Coverage %` becomes real line coverage, gaps become the
+files below 100% (with exact line/branch numbers + uncovered-line counts), and
+the Run Info sheet records `Coverage source: real (<tool>)`. Auto-discovered
+locations: `**/target/site/jacoco/jacoco.xml`, `**/coverage/coverage-summary.json`,
+`**/coverage/lcov.info`, `**/clover.xml`.
 
 ### Mode: Generate (Tier 2 — the LLM writes the tests to 100%)
 
