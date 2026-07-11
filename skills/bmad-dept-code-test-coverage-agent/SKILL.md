@@ -114,16 +114,37 @@ Proceed with the user's chosen mode.
 3. Scanner inventories source files and maps existing tests
 4. Outputs coverage gap report (Excel + JSON summary)
 
-### Mode: Generate (Tier 2 only)
+### Mode: Generate (Tier 2 — the LLM writes the tests to 100%)
 
-1. Read coverage gaps from prior analysis (or run Tier 1 first)
-2. For each priority gap:
-   a. Read the source file
-   b. Identify testable units (public methods, API contracts)
-   c. Check project test conventions (framework, naming, directory structure)
-   d. Generate test file following platform patterns
-   e. Validate generated code compiles
-3. Output: generated test files placed in correct directories
+The static engine finds the gaps; **you (the LLM) generate the tests.** For each gap:
+
+1. Run Tier 1 first (or read the prior gap report) for the ranked list of untested files.
+2. **Load the stack's test-generation pack** — `resources/test-generation/<stack>.md` (mapping below). It gives the
+   exact framework + dependencies, test location & naming, the setup/mock boilerplate, a worked example, and the
+   **"Reaching 100%" checklist**.
+3. For each gap, read the source file and write the test that satisfies the pack's 100% checklist — a test per
+   public method **plus** a case for every branch/condition, every thrown/caught exception, boundary + null/empty
+   inputs, and the stack's **security-negative** cases. Private methods are covered via their public callers.
+4. Write each test to the pack's location convention (Java → `src/test/java/<same package>/`, PHP →
+   `…/Test/Unit/`, JS → `test/`).
+5. **Validate:** run the tests + the coverage tool named in the pack (JaCoCo / PHPUnit-coverage / Jest
+   `--coverage` with a 100% threshold) and iterate on any file below 100% using the checklist.
+
+**Stack → pack:**
+
+| Engine | Pack | Framework |
+|--------|------|-----------|
+| `aem` (AEMaaCS / AMS) | `resources/test-generation/aem.md` | JUnit 5 + AEM Mocks (`AemContext`) |
+| `sling` | `resources/test-generation/sling.md` | JUnit 5 + Sling/OSGi Mocks (`SlingContext`) |
+| `spring` | `resources/test-generation/spring.md` | JUnit 5 + Spring Test / MockMvc |
+| `commerce` (PaaS) | `resources/test-generation/commerce-paas.md` | PHPUnit + Magento TestFramework / MFTF |
+| `commerce-saas` | `resources/test-generation/commerce-saas.md` | Jest + jsdom (mocked GraphQL / drop-ins) |
+| `app-builder` | `resources/test-generation/app-builder.md` | Jest (mocked `@adobe/aio-sdk`) |
+| `eds` | `resources/test-generation/eds.md` | Jest + jsdom |
+| `eds-commerce` | `resources/test-generation/eds-commerce.md` | Jest + jsdom + mocked `@dropins` |
+
+> **100% means 100% of the checklist** — every branch, error path, edge case, and security-negative case in the
+> pack — not just line coverage. Line coverage is the floor, not the goal.
 
 ### Mode: Full (Tier 1 + Tier 2)
 
