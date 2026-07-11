@@ -14,6 +14,7 @@ import { edsReportConfig } from "./config";
 import { EdsAuditScanner } from "./lib/scanner/index";
 import { emitStandardOutputs } from "../../../../shared/output";
 import { fromLegacyFindingsMap } from "../../../../shared/core/types";
+import { scanEdsAst } from "./ast-scan";
 
 export class EdsAuditEngine extends BaseAuditEngine {
   readonly PLATFORM_ID = "eds";
@@ -86,6 +87,31 @@ export async function main(): Promise<void> {
 
   const engine = new EdsAuditEngine(projectPath);
   const findings = engine.scan();
+
+  // AST precision pass (tree-sitter JS) — supersede regex duplicates.
+  try {
+    const astFindings = await scanEdsAst(projectPath);
+    let added = 0, superseded = 0;
+    for (const af of astFindings) {
+      const cat = af.category || "Security";
+      for (const [c, items] of Object.entries(findings)) {
+        const arr = items as any[];
+        const idx = arr.findIndex((it) => it.file === af.file && it.line === af.line && /secur|xss|inject|eval|secret|command|credential/i.test(it.type + " " + c));
+        if (idx >= 0) { arr.splice(idx, 1); superseded++; }
+      }
+      ((findings as any)[cat] ||= []).push({
+        module: "AST", file: af.file || "", line: af.line || 0, type: af.title,
+        description: af.description || "", code: af.code || "", severity: af.severity,
+        recommendation: af.recommendation || "", effort: af.effort || "M", impact: af.impact || "",
+        confidence: "AST-verified", ruleId: af.ruleId, justification: `tree-sitter AST match (${af.ruleId})`,
+      } as any);
+      added++;
+    }
+    console.log(`🌳 AST precision pass: +${added} finding(s) (${superseded} regex duplicate(s) superseded)`);
+  } catch (e: any) {
+    console.log(`⚠️  AST pass skipped: ${e.message}`);
+  }
+
   const total = Object.values(findings).reduce((n, a) => n + a.length, 0);
   console.log(`🔍 EDS scan: ${total} finding(s)`);
 

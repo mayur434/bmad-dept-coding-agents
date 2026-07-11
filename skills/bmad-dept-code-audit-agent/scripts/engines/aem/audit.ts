@@ -28,6 +28,7 @@ import { generatePdfReport } from './lib/report-pdf';
 import { detectPlatform, PlatformDetectionResult } from './lib/scanner/platform-detect';
 import { emitStandardOutputs } from '../../../../shared/output';
 import { fromLegacyFindingsMap } from '../../../../shared/core/types';
+import { scanAemAst } from './ast-scan';
 
 interface Config {
   project?: { path?: string; name?: string };
@@ -193,6 +194,36 @@ async function main(): Promise<void> {
   });
 
   const { findings, stats } = await scanner.scan();
+
+  // AST precision pass (tree-sitter Java) — supersede regex duplicates, recompute stats.
+  try {
+    const astFindings = await scanAemAst(projectPath);
+    let added = 0, superseded = 0;
+    for (const af of astFindings) {
+      const cat = af.category || 'Security';
+      for (const [c, items] of Object.entries(findings)) {
+        const arr = items as any[];
+        const idx = arr.findIndex((it) => it.file === af.file && it.line === af.line && /secur|inject|xss|sql|crypt|resolver|leak|catch|secret|credential/i.test(it.type + ' ' + c));
+        if (idx >= 0) { arr.splice(idx, 1); superseded++; }
+      }
+      (findings[cat] ||= []).push({
+        module: 'AST', file: af.file || '', line: af.line || 0, type: af.title,
+        description: af.description || '', code: af.code || '', severity: af.severity,
+        recommendation: af.recommendation || '', effort: af.effort || 'M', impact: af.impact || '',
+        confidence: 'AST-verified', ruleId: af.ruleId, justification: `tree-sitter AST match (${af.ruleId})`,
+        platform: 'both',
+      } as any);
+      added++;
+    }
+    // recompute stats so the legacy report totals stay correct
+    const sc: Record<string, number> = {};
+    let total = 0;
+    for (const items of Object.values(findings)) for (const it of items as any[]) { sc[it.severity] = (sc[it.severity] || 0) + 1; total++; }
+    stats.severityCounts = sc; stats.totalFindings = total; stats.categories = Object.keys(findings).length;
+    console.log(`🌳 AST precision pass: +${added} finding(s) (${superseded} regex duplicate(s) superseded)`);
+  } catch (e: any) {
+    console.log(`⚠️  AST pass skipped: ${e.message}`);
+  }
 
   // Print summary
   console.log('\n' + '─'.repeat(60));
