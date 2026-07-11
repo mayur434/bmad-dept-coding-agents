@@ -12,6 +12,7 @@ import { BRDAnalysisEngine } from './lib/brd_analyzer';
 import { ImpactAnalyzer } from './lib/impact';
 import { emitStandardOutputs } from '../../../../shared/output';
 import { fromLegacyFindingsMap } from '../../../../shared/core/types';
+import { scanCommerceAst } from './ast-scan';
 
 interface Config {
   project?: { path?: string; name?: string };
@@ -296,6 +297,37 @@ async function main(): Promise<void> {
     if (patchEnabled) {
       const patchFindings = engine.analyzePatch(patchConfig);
       mergeFindings(patchFindings);
+    }
+  }
+
+  // Phase 2b: AST precision pass (tree-sitter PHP) — high-confidence structural
+  // findings that supersede the noisier regex equivalents at the same location.
+  if (projectPath && codeAuditEnabled) {
+    try {
+      const astFindings = await scanCommerceAst(projectPath);
+      let added = 0, superseded = 0;
+      for (const af of astFindings) {
+        const cat = af.category || 'Security';
+        // Supersede a regex finding at the same file:line in a security-ish category.
+        for (const [c, items] of Object.entries(allFindings)) {
+          const idx = items.findIndex(
+            (it) => it.file === af.file && it.line === af.line && /secur|inject|xss|sql|crypt|eval|command|secret|credential/i.test(it.type + ' ' + c)
+          );
+          if (idx >= 0) { items.splice(idx, 1); superseded++; }
+        }
+        (allFindings[cat] ||= []).push({
+          module: 'AST', file: af.file || '', line: af.line || 0,
+          type: af.title, description: af.description || '', code: af.code || '',
+          severity: af.severity, recommendation: af.recommendation || '', effort: af.effort || 'M',
+          impact: af.impact || '', confidence: 'AST-verified',
+          ruleId: af.ruleId,
+          justification: `tree-sitter AST match (${af.ruleId})`,
+        } as Finding);
+        added++;
+      }
+      console.log(`\n🌳 AST precision pass: +${added} finding(s) (${superseded} regex duplicate(s) superseded)`);
+    } catch (e: any) {
+      console.log(`⚠️  AST pass skipped: ${e.message}`);
     }
   }
 

@@ -232,6 +232,7 @@ export function fromLegacyAuditFinding(
     code: f.code,
     severity: normalizeSeverity(f.severity),
     confidence: f.confidence,
+    ruleId: (f as { ruleId?: string }).ruleId,
     recommendation: f.recommendation,
     impact: f.impact || f.justification,
     effort: f.effort,
