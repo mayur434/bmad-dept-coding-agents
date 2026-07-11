@@ -1,10 +1,10 @@
 # EDS + Commerce Hybrid Audit Engine
 
-## Status: Placeholder
+## Status: Implemented
 
-This engine will provide static analysis for EDS storefronts with Commerce dropins.
+Provides static analysis for EDS storefronts with Commerce dropins (regex scanner + the EDS JS tree-sitter AST precision pass, reusing `../eds/ast-scan`), emitting the platform report plus the shared standardized report.
 
-## Planned Capabilities
+## Capabilities
 
 - All EDS checks (block structure, JS quality, performance)
 - Commerce dropin integration validation
@@ -14,12 +14,16 @@ This engine will provide static analysis for EDS storefronts with Commerce dropi
 - API mesh / catalog service integration patterns
 - Dropin customization anti-patterns
 
-## To Implement
+## Usage
 
-Create `audit.ts` in this directory with a `main()` function that accepts:
+Run via the unified dispatcher (auto-detects EDS+Commerce, or force with `--engine eds-commerce`):
+
+```bash
+npx ts-node scripts/run.ts --path /path/to/eds-commerce-project --engine eds-commerce
+```
+
+`audit.ts` implements the engine (`main()`) and accepts:
 - `--path` — project root
 - `--name` — project name
 - `--output` — output directory
 - `--config` — config JSON path (optional)
-
-Follow the same pattern as `engines/commerce/audit.ts`.

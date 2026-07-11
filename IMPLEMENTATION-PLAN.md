@@ -2,27 +2,35 @@
 
 > Goal: extend the 4 in-scope BMAD "dca" agents to **100% coverage** of the company's tech stack,
 > with **standardized outputs** (CHANGE-LOG.md + `<agent>-<branch>-<timestamp>-agent-report.xlsx` +
-> a standard branch cut from the production/shared branch), identical per stack across every project.
+> an optional standard branch (`--create-branch`) cut from the production/shared branch), identical per
+> stack across every project.
 >
 > Grounded in an on-disk audit of the module (not the README). Status legend: ✅ real · ⚙️ partial ·
 > 🩹 scaffold/not wired · ❌ absent.
+>
+> The 4 agents are: **Audit**, **Generation**, **Impact Analysis**, **Test Coverage**. (There is no
+> separate scan-agent — the former scan capability now lives as the Audit agent's **Scan Only** action.)
 
 ---
 
-## 1. Reality check — what actually exists on disk (README oversells)
+## 1. Reality check — the kickoff baseline (since delivered)
 
-The module is **100% TypeScript** (2413 `.ts`, **0 Python**; run via `npx ts-node`). Deps: `exceljs`,
-`pdfkit` (AEM), `mammoth` (.docx), `fast-glob`. Actual maturity:
+The module is **entirely TypeScript** (no Python; run via `npx ts-node`). Runtime deps: `exceljs`,
+`fast-glob`, `mammoth` (.docx), `web-tree-sitter` + `tree-sitter-wasms` (AST, WASM — no native build),
+plus `pdfkit` for the AEM legacy PDF report. The table below is the **kickoff baseline** that motivated
+this build, alongside the **delivered** state.
 
-| Agent | Truth on disk |
-|-------|---------------|
-| **Audit** | Only genuinely production-grade agent. **AEM** engine (aemcs 96 + aemams 48 LLM rules, Cloud/AMS auto-detect) and **Commerce** engine (56 scan fns + SQL-dump/BRD/bug/patch) are real. **EDS / EDS+Commerce** have real scanner code but the engine class has **no `main()`** and is never instantiated → Tier-1 silently **no-ops**. **App Builder** = Tier-2 rules only, no scanner, not in registry. **Sling/Shaft & Spring Boot = absent.** Java scanning is regex/text heuristics, AEM-coupled (needs `pom.xml` + `ui.apps/core`). |
-| **Generation** | **LLM-only by design.** Rich knowledge packs (AEMaaCS/AMS/Commerce/App-Builder) but the TS generator is an explicit **stub** ("Not yet implemented") → no deterministic output, no report/changelog. |
-| **Impact Analysis** | **~Entirely scaffold.** `run.ts` prints "TODO"; every engine `create()` throws; **zero input ingestion** — no Proofhub, no BRD/.docx, no Google-Doc reader anywhere. `exceljs` declared but unused. |
-| **Test Coverage** | Tier-1 is a **filename-existence ratio** (no JaCoCo/PHPUnit-cov/nyc). `generateTests()` returns `[]` on every engine. **No report file ever written.** |
-| **Reports** | **Three duplicate ExcelJS generators** (`audit/scripts/shared/report-excel.ts` used only by EDS; `engines/aem/lib/report.ts`; `engines/commerce/lib/report.ts`), each with its own `styles.ts`, divergent sheets, **three** naming schemes. **None** match the required naming. **No `CHANGE-LOG.md` writer anywhere. No branch-creation step.** `skills/shared/` holds only an orphaned `token-budget/` nothing imports. |
+| Agent | At kickoff (baseline) | Now (delivered) |
+|-------|-----------------------|-----------------|
+| **Audit** | Only genuinely production-grade agent. **AEM** and **Commerce** engines were real; **EDS / EDS+Commerce** had scanner code but no `main()` (Tier-1 no-op); **App Builder** was Tier-2 rules only, not in registry; **Sling/Shaft & Spring Boot absent.** Java scanning was regex-only. | **8 engines registered** (`aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce`), all emitting the standardized report. New engines (`sling, spring, app-builder, commerce-saas`) built natively on the shared tree-sitter AST harness; legacy engines (`aem, commerce, eds, eds-commerce`) keep their platform report **and** add an AST precision pass. EDS/eds-commerce `main()` added. **Scan Only** is an Audit action (menu `SC`). |
+| **Generation** | **LLM-only.** Rich knowledge packs but the TS generator was an explicit **stub** ("Not yet implemented") — no deterministic output, no report/changelog. | **Deterministic scaffolder** (`scripts/scaffold/`) with **24 types across all 8 stacks** (incl. `commerce-saas`) + the LLM/MCP path with zero-config MCP auto-provisioning (`--setup`). Every scaffold emits the standardized report + CHANGE-LOG. |
+| **Impact Analysis** | **~Entirely scaffold.** `run.ts` printed "TODO"; every `create()` threw; **zero input ingestion** — no Proofhub, no BRD reader. | **Input-driven**: `--bugs` (Proofhub CSV) + `--brd` (.docx via mammoth / .md/.txt) → generic tracer (`scripts/analysis/tracer.ts`) → reverse-dependency blast radius → standardized report with a unique **Input Traceability** sheet. 8 stack profiles. |
+| **Test Coverage** | Tier-1 was a **filename-existence ratio** (no JaCoCo/PHPUnit-cov/nyc); `generateTests()` returned `[]`; **no report file written.** | Tier-1 gap analysis for all **8 engines** + **real line/branch coverage** (JaCoCo/Istanbul/Clover/LCOV, opt-in via `--coverage-report`/`--run-coverage`). Tier-2 test generation is **LLM-driven by design** (per-stack packs under `resources/test-generation/`). Emits the standardized report. |
+| **Reports** | **Three duplicate ExcelJS generators**, divergent sheets, three naming schemes, none matching the required naming. **No `CHANGE-LOG.md` writer, no branch step.** `skills/shared/` held only an orphaned `token-budget/`. | **One shared `StandardExcelReport`** (`skills/shared/report/`, 15-col Summary contract) + a git-diffable **Markdown twin** + a `CHANGE-LOG.md` writer + an optional `dca/<agent>-<stack>-<ts>` **branch cut** — all in `skills/shared/`, called by all 4 agents via `emitStandardOutputs`. Legacy AEM/Commerce/EDS engines additionally keep their own platform-specific Excel (so a legacy run writes **two** xlsx). |
 
-**Consequence:** this is much closer to a *build* than an *extend*. Only Audit-for-AEM and Audit-for-Commerce are load-bearing today.
+**Consequence:** at kickoff this was much closer to a *build* than an *extend* — only Audit-for-AEM and
+Audit-for-Commerce were load-bearing. **That build is now delivered:** all 4 agents cover all 8 engine
+stacks with the standardized outputs.
 
 ---
 
@@ -44,6 +52,13 @@ The module is **100% TypeScript** (2413 `.ts`, **0 Python**; run via `npx ts-nod
 | 10 | **Spring Boot** custom middleware | Java (17/21, Jakarta) |
 | 11 | **Adobe EDS** + EDS×Commerce (PaaS/SaaS) storefront | JS blocks/drop-ins |
 
+> **These 11 in-scope variants are delivered through 8 engine stacks** (canonical engine IDs, used by
+> `--engine` and `module.yaml`): `aem`, `commerce`, `commerce-saas`, `sling`, `spring`, `app-builder`,
+> `eds`, `eds-commerce`. `aem` serves both **AEMaaCS and AEM AMS** (auto-detected, or `--platform
+> aemcs|aemams|both`); the four **App Builder** variants are all served by the single `app-builder`
+> engine; rows 3/4 map to `commerce`/`commerce-saas`; row 11 maps to `eds`/`eds-commerce`. (On disk the
+> `eds-commerce` engine directory is `eds_commerce` with an underscore.)
+
 **Locked (2026-07-09):** ① Tooling stays **TypeScript** (extend, no Python rewrite). ② Deep per-stack LLM
 context lives in **each agent's own `resources/`** (self-contained; accepted duplication). ③ **EDS is in
 scope & critical.** ④ Commerce = **both PaaS and SaaS**.
@@ -53,58 +68,69 @@ scope & critical.** ④ Commerce = **both PaaS and SaaS**.
 
 ---
 
-## 3. Gap matrix (stack × agent)
+## 3. Coverage matrix (stack × agent) — delivered
+
+All cells are ✅ delivered. The 11 in-scope variants below are served by the 8 engine stacks named in §2.
 
 | Stack | Audit | Generation | Impact | Test Coverage |
 |-------|-------|-----------|--------|---------------|
-| AEMaaCS | ✅ (regex, not AST) | ⚙️ LLM-rich, no generator | 🩹 detects, `create()` throws | ⚙️ filename-match only |
-| AEM AMS | ✅ (aem engine, AMS mode) | ⚙️ LLM-rich (deepest pack) | ❌ conflated w/ single aem engine | ⚙️ no AMS/Cloud split |
-| Commerce PaaS | ✅ generic (no PaaS mode) | ⚙️ LLM-rich, no generator | 🩹 detects, throws | ⚙️ strong scan, no report, no cov% |
-| Commerce SaaS | ❌ | ❌ | ❌ | ❌ |
-| App Builder — API Mesh | ⚙️ 2 rules, no Tier-1, not in registry | ⚙️ LLM, not in registry | ❌ | ❌ |
-| App Builder — Middleware | ⚙️ 12 generic rules | ⚙️ LLM-moderate | ❌ | ❌ |
-| App Builder — Eventing | ❌ | ⚙️ mentioned only | ❌ | ❌ |
-| App Builder — Apps (UIX) | ⚙️ 27 rules, no Tier-1 | ⚙️ LLM-rich | ❌ | ❌ |
-| Sling-12 / Shaft | ❌ (only inside aem engine) | ❌ | ❌ | ❌ |
-| Spring Boot | ❌ | ❌ | ❌ | ❌ |
-| EDS / EDS+Commerce | 🩹 scanner exists, not wired | ⚙️ (via gen) | ❌ | ⚙️ eds engine partial |
+| AEMaaCS | ✅ regex + Java AST | ✅ scaffolders + LLM/MCP | ✅ `aem` profile | ✅ gap + real JaCoCo |
+| AEM AMS | ✅ `aem` engine, AMS mode (`--platform aemams`) | ✅ `aem` + `ams` pack | ✅ `aem` profile (AEMaaCS+AMS) | ✅ gap + real JaCoCo |
+| Commerce PaaS | ✅ regex + PHP AST | ✅ 5 scaffolders | ✅ `commerce-paas` profile | ✅ 7 frameworks + real Clover |
+| Commerce SaaS | ✅ `commerce-saas` engine (JS AST) | ✅ 2 scaffolders (catalog-query, storefront-block) | ✅ `commerce-saas` profile | ✅ Jest (real Istanbul) |
+| App Builder — API Mesh | ✅ `app-builder` engine | ✅ `mesh` scaffolder | ✅ `app-builder` profile | ✅ Jest |
+| App Builder — Middleware | ✅ JS AST + config rules | ✅ `action` scaffolder | ✅ | ✅ Jest |
+| App Builder — Eventing | ✅ APPB-EVT rules | ✅ `event-handler` scaffolder | ✅ | ✅ Jest |
+| App Builder — Apps (UIX) | ✅ UI-extensibility rule packs | ✅ LLM/MCP path | ✅ | ✅ |
+| Sling-12 / Shaft | ✅ pure Java AST | ✅ 4 scaffolders | ✅ `sling` profile | ✅ Sling Mocks pack |
+| Spring Boot | ✅ Java AST + config | ✅ 3 scaffolders | ✅ `spring` profile | ✅ Spring Test pack |
+| EDS / EDS+Commerce | ✅ regex + JS AST (`eds`, `eds-commerce`) | ✅ `block`, `dropin-block` | ✅ `eds` / `eds-commerce` profiles | ✅ Jest + jsdom packs |
 
 ---
 
 ## 4. Standard outputs spec (identical per stack, every project)
 
-### A. `CHANGE-LOG.md` (new shared writer — nothing exists today)
-Keep-a-Changelog style; each agent run appends one dated entry:
-`## [<agent>] <stack> — <branch> — <YYYY-MM-DD HH:MM:SS>` then **Summary**, **Findings/Gaps** (counts by
-severity), **Files created/modified** (path list), **Details** (bulleted changes), **Report**: link to the xlsx.
+### A. `CHANGE-LOG.md` (shared writer — `skills/shared/git/changelog.ts`)
+Keep-a-Changelog flavored: a `# CHANGE-LOG` header plus a `<!-- dca:entries -->` marker; each run splices one
+entry **right after the marker (newest first)**. Entry header:
+`## <YYYYMMDD_HHMMSS> — `<agent>` — <stack|engine> — <project>` then bullets: **Branch** (branch `x` from `y`),
+**Summary**, **Findings** (`N total (CRITICAL n, HIGH n, …)`), **Report** (the xlsx filename), **Files changed**,
+**Details**. Defaults to `<projectRoot>/CHANGE-LOG.md`.
 
-### B. `<agent-name>-<branch-name>-<timestamp>-agent-report.xlsx`
-One **shared** ExcelJS generator (`skills/shared/report/`) replacing the 3 duplicates. `branch-name` from
-`git rev-parse --abbrev-ref HEAD` (`/`→`-`); timestamp `YYYYMMDD_HHMMSS`. **Deterministic sheet set** per stack:
+### B. `<agent>-<branch>-<timestamp>-agent-report.xlsx`
+One **shared** ExcelJS generator (`skills/shared/report/standard-report.ts`, `StandardExcelReport`). `branch`
+is the sanitized current git branch (`/`→`-`, else `nobranch`); `timestamp` is local `YYYYMMDD_HHMMSS`.
+**Fixed sheet order:**
 
 1. **Run Info** — agent, engine, stack, project, source branch, working branch, timestamp, tool versions, severity counts.
-2. **Summary** *(primary sheet — the required columns, byte-identical per stack across projects)*:
-   | ID | Title | Description | Tech Stack | Category / Module | Code Reference (file:line) | Severity | Confidence | Rule ID | Recommendation / Fix | Impact Analysis | Effort | Dev Comments | Owner | Status |
-3. **Severity Breakdown** (pivot/chart).
-4. **Per-category detail** sheets (stack-specific, fixed order).
-5. **Recommendations / Fix Plan**.
-6. **(Impact agent only)** Input Traceability — one row per Proofhub bug / BRD requirement → impacted symbols/files → blast radius.
+2. **Summary** *(the contract sheet — 15 columns, order is part of the contract; do not reorder without a version bump)*:
+   | ID | Title | Description | Tech Stack | Category / Module | Code Reference | Severity | Confidence | Rule ID | Recommendation / Fix | Impact Analysis | Effort | Dev Comments | Owner | Status |
+3. **Severity Breakdown**.
+4. **By Category**.
+5. **Recommendations** *(only when recommendations are supplied)*.
+6. **Input Traceability** *(only when a finding carries `inputRef` — i.e. the Impact agent; absent for a pure audit)*. One row per Proofhub bug / BRD requirement → impacted file → blast radius.
+
+A git-diffable **Markdown twin** (`<agent>-<branch>-<timestamp>-agent-report.md`, reduced 9-column Summary) is
+written alongside the xlsx by default. All three outputs are emitted through the single entry point
+`skills/shared/output/emit.ts::emitStandardOutputs`.
 
 > Required columns (Title, Description, Code Reference, Severity, Recommendation/Fix, Impact Analysis, Dev
-> Comments, Status) are a guaranteed subset; extras add richness. Column set is fixed **per stack** so the
-> same stack yields an identical file shape everywhere.
+> Comments, Status) are a guaranteed subset of the 15-column contract; the same contract yields an identical
+> file shape everywhere. (Legacy AEM/Commerce/EDS engines additionally keep their own platform-specific
+> multi-sheet Excel alongside the standardized report.)
 
-### C. Standard branch
-Before writing changes, the agent cuts a standard working branch from the **production/shared** branch
-(default assumption: `main`) named e.g. `dca/<agent>-<stack>-<YYYYMMDD_HHMMSS>` — *exact source branch &
-naming convention pending your confirmation.* Shared git helper (no release agent exists to host this).
+### C. Standard branch (opt-in)
+When `--create-branch` is passed, `maybeCutStandardBranch` cuts a standard working branch
+`dca/<agent>-<stack>-<YYYYMMDD_HHMMSS>` from the first existing of `production → main → master → develop`
+(or a single `--source-branch <name>`), so the run's report + CHANGE-LOG land on a fresh branch. All git ops
+are best-effort / non-fatal and degrade gracefully outside a repo.
 
 ---
 
 ## 5. Per-agent knowledge context (honoring "per-agent `resources/`")
 
-Per your choice, each agent keeps its own `resources/<stack>/` pack. To prevent 4× drift, I'll **author each
-stack canonically once, then tailor per agent** (audit=rule anatomy+severity; generation=templates/snippets;
+Per your choice, each agent keeps its own `resources/<stack>/` pack. To prevent 4× drift, each stack was
+**authored canonically once, then tailored per agent** (audit=rule anatomy+severity; generation=templates/snippets;
 impact=dependency-edge taxonomy; test=framework mapping+coverage targets). Depth target per stack (detect
 signals · good/bad code · severity · remediation · gen template · impact-edge · test-framework):
 
@@ -117,14 +143,18 @@ signals · good/bad code · severity · remediation · gen template · impact-ed
 - **Spring Boot** — auto-config/stereotypes, Spring Data JPA, `application.yml` profiles, actuator, Spring Security, validation, Kafka/RabbitMQ, `@WebMvcTest`/`@DataJpaTest`/MockMvc/Testcontainers, Maven **and** Gradle.
 - **EDS / EDS×Commerce** — blocks, drop-ins, Core Web Vitals, storefront-events, PaaS/SaaS backends.
 
+> Note the engine-key ↔ resource-dir naming: the generation agent's `aem` engine draws on `resources/aemcs`
+> + `resources/ams`; `commerce-paas` → `resources/commerce`; `sling` → `resources/sling-shaft`; `spring` →
+> `resources/spring-boot`. The audit agent splits AEM rules into `rule-packs/aemcs/` and `rule-packs/aemams/`.
+
 ---
 
-## 6. Shared infrastructure work (prerequisite for standard outputs)
+## 6. Shared infrastructure (delivered — prerequisite for standard outputs)
 
-- **`skills/shared/report/`** — one ExcelJS generator + markdown + styles (promoted from the audit `shared`), delete the 3 duplicates.
-- **`skills/shared/git/`** — helpers: filename (`<agent>-<branch>-<timestamp>`), timestamp formatter, `CHANGE-LOG.md` writer, standard-branch creator (branch from production/shared).
-- **Unified `BaseEngine` + registry contract** — collapse the 4 divergent registry/base shapes so shared helpers have one integration seam; fixes the EDS `main()` no-op as the reference contract.
-- Wire the shared report+changelog+branch into **all four** agents (impact & test-coverage emit nothing today).
+- ✅ **`skills/shared/report/`** — one `StandardExcelReport` + Markdown twin + styles (the 15-col Summary contract). Legacy AEM/Commerce/EDS reports are **preserved alongside** the standardized one (breadth), not deleted.
+- ✅ **`skills/shared/git/`** — helpers: report filename (`<agent>-<branch>-<timestamp>`), `YYYYMMDD_HHMMSS` timestamp, `CHANGE-LOG.md` writer, standard-branch creator (`dca/<agent>-<stack>-<ts>` from production/shared).
+- ✅ **Shared output/report/git layer as the single integration seam** — rather than one unified `BaseEngine`, every agent keeps its own registry (audit `engines/registry.ts`, impact `scripts/engines/profiles.ts`, test-coverage `engines/registry.ts`, generation `GENERATORS` map) but funnels all outputs through `emitStandardOutputs`. The EDS `main()` no-op was fixed as part of adopting the contract.
+- ✅ **Wired into all four agents** — impact & test-coverage (which emitted nothing before) now emit the full standard output set, as do audit and generation.
 
 ---
 
@@ -133,35 +163,35 @@ signals · good/bad code · severity · remediation · gen template · impact-ed
 | Phase | Work |
 |-------|------|
 | **0 — Decisions & spec** | ✅ **DONE** — decisions locked (TS-extend · per-agent resources · EDS in-scope · Commerce PaaS+SaaS · foundation-first · true-AST-now). Summary schema + naming finalized. |
-| **1 — Shared infra** | ✅ **DONE & VERIFIED** — `skills/shared/{core,report,git,output,ast}` built; StandardExcelReport (15-col contract), CHANGE-LOG writer, `<agent>-<branch>-<timestamp>` naming, standard-branch cutter, tree-sitter AST. Wired into **impact + test-coverage** (both emitted nothing before). Verified: typecheck clean, AST smoke, output-pipeline smoke, both agents run end-to-end. Audit + generation adopt the shared report during **their** phases (3 & 6) — engines must move to the unified contract first (audit has 3 legacy generators; generation's is a stub). |
-| **2 — Per-stack knowledge** | Author/deepen `resources/<stack>/` across agents: new App Builder (mesh/middleware/eventing/apps), Spring Boot, Sling-generic; **Shaft** filled from PPT KB; Commerce SaaS. |
-| **3 — Audit → full stack** | 🟡 **IN PROGRESS** — ✅ **Sling/Shaft**, ✅ **Spring Boot**, ✅ **App Builder** DONE & VERIFIED (all on the standardized report). Shared AST rule libraries built: **`skills/shared/java/`** (Java harness + 9 generic rules; backs Sling `engines/sling/` 13 rules + Spring `engines/spring/` 10 rules incl. nested-YAML config) and **`skills/shared/js/`** (JS/TS harness + 3 generic rules; backs App Builder `engines/app-builder/` 9 rules — JS AST + app.config.yaml/.env/mesh config). All registered + auto-detected; Tier-2 packs authored/cross-referenced; SKILL.md updated. ✅ **Legacy engines unified** — AEM, Commerce, EDS, eds_commerce all now emit the standardized `audit-<branch>-<timestamp>-agent-report.xlsx` + CHANGE-LOG via `fromLegacyFindingsMap` (legacy rich reports preserved alongside); EDS/eds_commerce `main()` added (their Tier-1 previously never ran). **So all 7 audit engines produce the identical report shape.** ✅ **App Builder eventing** (APPB-EVT-001/002) + Confidence on all findings. ✅ **Commerce SaaS engine DONE** — `engines/commerce-saas/` (JS AST + JSON/config scan: CSAAS-SEC-001 private-cred-in-storefront, CSAAS-CFG-001 config-secret, CSAAS-CFG-002 hardcoded endpoint/env-id, CSAAS-SEC-003 Data-Connection webhook signature) + `rule-packs/commerce-saas/`, registered + auto-detected via SaaS markers. **AUDIT COMPLETE for all 9 stacks.** Depth enhancement still open: XML-config AST scanning (di.xml/.content.xml/Spring XML). |
-| **✅ 36/36 COMPLETE** | **All 4 agents now cover all 9 company tech stacks** (incl. Commerce SaaS across audit/generation/impact/test-coverage). Deliverable: `DCA-Agent-Coverage.xlsx`. |
-| **Legacy engines → AST (precision)** | 🟡 IN PROGRESS — ✅ **PHP AST harness** `skills/shared/php/` (7 generic rules: secret, SQLi-via-`.`-concat, eval, cmd-injection, weak-hash, XSS-echo-superglobal, unserialize) — verified to ignore comments/log-strings that regex false-positives on. ✅ **Commerce engine AST-augmented** (`engines/commerce/ast-scan.ts` + `ObjectManager` rule): runs after the regex scan, **supersedes regex duplicates** at the same file:line, ruleIds flow to the report. ✅ **AEM engine AST-augmented** (`engines/aem/ast-scan.ts`: generic Java rules + admin-resolver + resolver-leak; stats recomputed post-merge). ✅ **EDS engine AST-augmented** (`engines/eds/ast-scan.ts`: generic JS rules + DOM-XSS from URL). ✅ **eds_commerce AST-augmented** too (reuses `engines/eds/ast-scan.ts` with stackId). **All 4 legacy engines now run an AST precision pass.** **Regex retirement decision:** investigated — the regex security scans (e.g. Commerce `scanHardcodedEnvValues`) also cover **XML + phtml + pattern variants** that the AST rules don't, so physically deleting them would *lose coverage*. The **runtime supersede is the correct, safe retirement** (removes duplicate findings at overlapping file:line; AST wins) — regex kept for breadth. |
-| **Standard branch (output C) — uniform** | ✅ `maybeCutStandardBranch` (`skills/shared/output`) wired into **all 4 dispatchers** (audit at dispatcher level covering every engine + flag-strip to avoid double-cut; test-coverage/generation/impact directly). `--create-branch [--source-branch <name>]` cuts `dca/<agent>-<stack>-<timestamp>` from production/shared (candidates: production→main→master→develop) so the run's report + CHANGE-LOG land on a fresh branch. Verified on a git fixture (single branch, cut from `main`). **Completes the 3 standard outputs contract across every agent.** |
-| **Conversational mode-advisor** | ✅ `skills/shared/preflight/` — detects the current LLM/model (env), sizes the project vs the context window, and recommends **Static (Tier-1) / LLM (Tier-2) / Hybrid**. Wired into all 4 `run.ts` (`--preflight` advisory-only, `--no-preflight` skip; prints on every run). Conversational "Preflight" section added to all 4 SKILL.md so the host LLM (Copilot/Claude/Cursor) surfaces "current LLM + recommendation" before running. |
-| **4 — Impact Analysis** | ✅ **DONE & VERIFIED** — input subsystem (`scripts/inputs/`: Proofhub CSV with auto-detected columns + BRD `.docx`/`.md`/`.txt` via mammoth) → generic tracer (`scripts/analysis/tracer.ts`: symbol extraction → file scoring → reverse-dependency blast radius → risk scoring) → standardized report with **Input Traceability** sheet. 7 stack profiles covering all 8 stacks (`scripts/engines/profiles.ts`; aem=AEMaaCS+AMS), auto-detect + `--engine`. SKILL.md rewritten. Verified on Spring (blast radius correct) + Commerce/PHP. Heuristic (identifier/reverse-ref), not type-resolved data-flow — evidence listed per finding. |
-| **5 — Test Coverage** | 🟡 **IN PROGRESS** — ✅ gap-analysis engines for all 9 stacks (registered + auto-detected, standardized report). ✅ **LLM test-generation packs authored for all 8 stack-frameworks** (`resources/test-generation/{aem,sling,spring,commerce-paas,commerce-saas,app-builder,eds,eds-commerce}.md`) — framework+deps, test location/naming, setup/mock boilerplate, worked example, and a **"Reaching 100%" checklist** (every branch/error/edge + security-negative). SKILL.md "Generate" mode rewritten to drive the LLM from these packs (static finds gaps → LLM writes tests to 100%). **Design:** test generation is LLM-driven (per user), not static. ✅ **Real coverage integration DONE** — `skills/shared/coverage/` parses **JaCoCo XML, Istanbul json (summary+final), Clover XML, LCOV** (all 4 verified) + report discovery + an opt-in runner (`--run-coverage`: mvn/gradle-jacoco, jest/nyc, phpunit-clover). Wired into `run.ts`: with `--coverage-report`/`--run-coverage`/auto-discovered report, `Coverage %` becomes real line coverage, gaps become files <100% with exact line/branch numbers; falls back to the filename estimate (labeled `Coverage source`). |
-| **6 — Generation** | 🟡 **IN PROGRESS** — ✅ deterministic **scaffolder** built (`scripts/scaffold/`): Sling/Shaft (osgi-service, sling-servlet, sling-filter, sling-model), Spring Boot (rest-controller+DTO, service, jpa-repository+entity), App Builder (action+test). Wired into `run.ts --scaffold`; generates real idiomatic files (javac-valid modulo external deps) + emits the standardized generation report + CHANGE-LOG; supports `--dry-run`/`--force`. LLM/MCP path preserved for complex generation. ✅ **COMPLETE for all stacks except Commerce SaaS** — deterministic scaffolders now cover `aem` (sling-model, osgi-service, sling-servlet, component+dialog, workflow-process), `commerce-paas` (module, plugin, observer, graphql-resolver, controller — **php -l clean**), `app-builder` (action, mesh, event-handler w/ signature-verify+idempotency), `eds` (block), `eds-commerce` (dropin-block), plus sling/spring. Tier-2 packs for every stack (`resources/{sling-shaft,spring-boot,eds,eds-commerce,...}/`). SKILL.md: Step-0 detection for Sling/Spring + full scaffolder list. |
-| **7 — Shaft finalize & harden** | Full Shaft rule/gen/test packs from PPT across all agents; end-to-end verify identical A/B/C outputs per stack on real projects; update `module.yaml`/`module-help.csv`/`marketplace.json`. |
+| **1 — Shared infra** | ✅ **DONE & VERIFIED** — `skills/shared/{core,report,git,output,ast}` built; StandardExcelReport (15-col contract), CHANGE-LOG writer, `<agent>-<branch>-<timestamp>` naming, standard-branch cutter, tree-sitter AST. Wired into **impact + test-coverage** (both emitted nothing before). Verified: typecheck clean, AST smoke, output-pipeline smoke, both agents run end-to-end. Audit + generation adopt the shared report during **their** phases (3 & 6). |
+| **2 — Per-stack knowledge** | ✅ **DONE** — `resources/<stack>/` packs authored across agents: App Builder (mesh/middleware/eventing/apps + UI-extensibility), Spring Boot, Sling/Shaft (filled from the PPT KB), Commerce SaaS, plus the AEMaaCS/AMS/Commerce packs. Audit rule-packs exist for all stacks (`aemcs, aemams, commerce, commerce-saas, eds, eds-commerce, sling-shaft, spring-boot, app-builder`). |
+| **3 — Audit → full stack** | ✅ **DONE & VERIFIED** — **Sling/Shaft**, **Spring Boot**, **App Builder**, **Commerce SaaS** all built on the standardized report. Shared AST rule libraries: **`skills/shared/java/`** (Java harness + 9 generic rules; backs Sling + Spring incl. nested-YAML config) and **`skills/shared/js/`** (JS/TS harness + 3 generic rules; backs App Builder — JS AST + app.config.yaml/.env/mesh config). All registered + auto-detected; Tier-2 packs authored/cross-referenced; SKILL.md updated. **Legacy engines unified** — AEM, Commerce, EDS, eds_commerce all now emit the standardized `audit-<branch>-<timestamp>-agent-report.xlsx` + CHANGE-LOG via `fromLegacyFindingsMap` (legacy rich reports preserved alongside); EDS/eds_commerce `main()` added (their Tier-1 previously never ran). **So all 8 audit engines produce the identical report shape.** **App Builder eventing** (APPB-EVT-001/002) + Confidence on all findings. **Commerce SaaS engine** — `engines/commerce-saas/` (JS AST + JSON/config scan: CSAAS-SEC-001 private-cred-in-storefront, CSAAS-CFG-001 config-secret, CSAAS-CFG-002 hardcoded endpoint/env-id, CSAAS-SEC-003 Data-Connection webhook signature) + `rule-packs/commerce-saas/`, registered + auto-detected via SaaS markers. **AUDIT COMPLETE across all 8 engine stacks.** Depth enhancement still open: XML-config AST scanning (di.xml/.content.xml/Spring XML). |
+| **✅ 36/36 COMPLETE** | **All 4 agents cover all in-scope stacks** (4 agents × 9 tech-stack variants = 36 coverage cells), delivered via the **8 engine stacks** (`aem` serves AEMaaCS + AMS), incl. Commerce SaaS across audit/generation/impact/test-coverage. Deliverable: `DCA-Agent-Coverage.xlsx`. |
+| **Legacy engines → AST (precision)** | ✅ **DONE** — **PHP AST harness** `skills/shared/php/` (7 generic rules: secret, SQLi-via-`.`-concat, eval, cmd-injection, weak-hash, XSS-echo-superglobal, unserialize) — verified to ignore comments/log-strings that regex false-positives on. **Commerce engine AST-augmented** (`engines/commerce/ast-scan.ts` + `ObjectManager` rule): runs after the regex scan, **supersedes regex duplicates** at the same file:line, ruleIds flow to the report. **AEM engine AST-augmented** (`engines/aem/ast-scan.ts`: generic Java rules + admin-resolver + resolver-leak; stats recomputed post-merge). **EDS engine AST-augmented** (`engines/eds/ast-scan.ts`: generic JS rules + DOM-XSS from URL). **eds_commerce AST-augmented** too (reuses `engines/eds/ast-scan.ts` with stackId). **All 4 legacy engines now run an AST precision pass.** **Regex retirement decision:** the regex security scans also cover **XML + phtml + pattern variants** the AST rules don't, so the **runtime supersede is the correct, safe retirement** (AST wins at overlapping file:line; regex kept for breadth). |
+| **Standard branch (output C) — uniform** | ✅ `maybeCutStandardBranch` (`skills/shared/output`) wired into **all 4 dispatchers** (audit at dispatcher level covering every engine + flag-strip to avoid double-cut; test-coverage/generation/impact directly). `--create-branch [--source-branch <name>]` cuts `dca/<agent>-<stack>-<timestamp>` from production/shared (candidates: production→main→master→develop) so the run's report + CHANGE-LOG land on a fresh branch. Verified on a git fixture. **Completes the 3 standard outputs contract across every agent.** |
+| **Conversational mode-advisor** | ✅ `skills/shared/preflight/` — detects the current LLM/model (env), sizes the project vs the context window, and recommends **Static (Tier-1) / LLM (Tier-2) / Hybrid**. Wired into all 4 `run.ts` (`--preflight` advisory-only, `--no-preflight` skip; prints on every run). Conversational "Preflight" section added to all 4 SKILL.md. |
+| **4 — Impact Analysis** | ✅ **DONE & VERIFIED** — input subsystem (`scripts/inputs/`: Proofhub CSV via `--bugs` with keyword-auto-detected columns + BRD via `--brd`, `.docx` through mammoth and any other extension as `.md`/`.txt`) → generic tracer (`scripts/analysis/tracer.ts`: symbol extraction → file scoring → reverse-dependency blast radius → risk scoring) → standardized report with the unique **Input Traceability** sheet. **8 stack profiles** covering all stacks (`scripts/engines/profiles.ts`; `aem` = AEMaaCS+AMS), auto-detect + `--engine`. At least one of `--bugs`/`--brd` is required. SKILL.md rewritten. Verified on Spring (blast radius correct) + Commerce/PHP. Heuristic (identifier/reverse-ref), not type-resolved data-flow — evidence listed per finding. |
+| **5 — Test Coverage** | ✅ **DONE** (Tier-2 generation is LLM-driven by design) — gap-analysis engines for all **8 stacks** (registered + auto-detected, standardized report). **LLM test-generation packs authored for all 8 stack-frameworks** (`resources/test-generation/{aem,sling,spring,commerce-paas,commerce-saas,app-builder,eds,eds-commerce}.md`) — framework+deps, test location/naming, setup/mock boilerplate, worked example, and a **"Reaching 100%" checklist**. SKILL.md "Generate" mode drives the LLM from these packs (static finds gaps → LLM writes tests to 100%); `engine.generateTests()` is intentionally a stub returning `[]`. **Real coverage integration DONE** — `skills/shared/coverage/` parses **JaCoCo XML, Istanbul json (summary+final), Clover XML, LCOV** (all 4 verified) + report discovery + an opt-in runner (`--run-coverage`: mvn/gradle-jacoco, jest/nyc, phpunit-clover). With `--coverage-report`/`--run-coverage`/auto-discovered report, `Coverage %` becomes real line coverage and gaps become files <100% with exact line/branch numbers; otherwise falls back to the filename estimate (labeled `Coverage source`). |
+| **6 — Generation** | ✅ **DONE** — deterministic **scaffolder** (`scripts/scaffold/`, the `GENERATORS` map is the source of truth) covering **all 8 stacks with 24 types**: `aem` (sling-model, osgi-service, sling-servlet, component, workflow-process), `sling` (osgi-service, sling-servlet, sling-filter, sling-model), `spring` (rest-controller, service, jpa-repository), `commerce-paas` (module, plugin, observer, graphql-resolver, controller — **php -l clean**), `commerce-saas` (catalog-query, storefront-block), `app-builder` (action, mesh, event-handler w/ signature-verify+idempotency), `eds` (block), `eds-commerce` (dropin-block). Wired into `run.ts --scaffold`; generates real idiomatic files + emits the standardized generation report + CHANGE-LOG; supports `--dry-run`/`--force`/`--list-types`. **Zero-config MCP auto-provisioning** (`--setup`: `.mcp.json`, `.bmad/mcp-registry.toml`, `.env`, `.gitignore`) + AEM structure `--detect`. LLM/MCP Tier-2 path preserved for complex generation, with `--list-templates`. |
+| **7 — Shaft finalize & harden** | 🟡 **IN PROGRESS** — extend Shaft rule/gen/test packs from the PPT KB across all agents; end-to-end verify identical A/B/C outputs per stack on real projects; **refresh the registries** — `module-help.csv` ("List Engines" row still names only commerce/aem/eds), the `module.yaml` agent-level description, `customize.toml`, and SKILL.md front-matter still carry pre-8-stack framing (e.g. "42+ categories", "Commerce SaaS out of scope") and must be updated to the delivered 8-stack reality. |
 
 ---
 
-## 8. Open decisions (with my proposed defaults)
+## 8. Decisions — now resolved
 
-1. **Java analysis depth** — default: match the existing **regex/heuristic** approach (like the AEM engine) for consistency now; offer a later AST upgrade (tree-sitter-java / JVM linters) for Spring/Sling deep graphs. *Confirm or ask for AST now.*
-2. **Proofhub export format** (CSV/JSON/REST?) and **BRD source** (Google Docs API vs exported `.docx`) — **need real sample files + field mapping** (bug-id/module/description → code symbols). Blocks Phase 4.
-3. **Branch/git policy** — exact **production/shared source branch** name + standard branch **naming convention**. Blocks the Phase 1 branch helper. Default assumed: source `main`, new `dca/<agent>-<stack>-<timestamp>`.
-4. **Registry unification now?** — default **yes** (prerequisite refactor; blast radius across all agents but enables shared outputs).
-5. **Generation execution model** — keep **LLM-only** (current) or build the deterministic scaffolder the stub promises. Affects deterministic CHANGE-LOG/report for gen.
-6. **Sling/Shaft specifics** — exact Sling/Felix/Oak versions + "sling-12" mapping, build system (bnd/feature-model/content-package), repo layout, whether SAM & MDM are separate bundles.
-7. **Report columns per stack** — confirm the §4.B schema; name any stack-specific mandatory extras.
+1. **Java analysis depth** — ✅ **RESOLVED: true AST now.** `web-tree-sitter` (WASM, no native build) via shared harnesses `skills/shared/{java,js,php}`. New engines are AST-native; legacy engines add an AST precision pass that supersedes regex duplicates. Regex kept for breadth (XML/phtml/pattern variants AST rules don't cover).
+2. **Proofhub export + BRD source** — ✅ **RESOLVED.** `--bugs` = Proofhub CSV (custom RFC-4180 parser, headers keyword-auto-detected: id/title/description/module/priority/status). `--brd` = `.docx` via mammoth (raw text) or any other extension read as UTF-8 text (`.md`/`.txt`). Google Docs must be exported to `.docx`/`.txt` first (Docs API OAuth out of scope). *Residual:* a `ColumnMap` override exists in code but is not wired to a CLI flag.
+3. **Branch/git policy** — ✅ **RESOLVED.** Opt-in `--create-branch` cuts `dca/<agent>-<stack>-<YYYYMMDD_HHMMSS>` from the first existing of `production → main → master → develop` (or a single `--source-branch <name>`); non-fatal outside a repo.
+4. **Registry unification** — ✅ **RESOLVED (pragmatically).** No single `BaseEngine`; instead every agent funnels through the shared output/report/git layer (`emitStandardOutputs`) while keeping its own registry.
+5. **Generation execution model** — ✅ **RESOLVED: both.** Deterministic scaffolder (Tier-1, 24 types / 8 stacks) **and** LLM/MCP (Tier-2) with zero-config MCP auto-provisioning (`--setup`).
+6. **Sling/Shaft specifics** — ✅ **Delivered as the `sling` engine** (pure Java AST, `rule-packs/sling-shaft`, `resources/sling-shaft`). *Residual (Phase 7):* confirm exact Sling/Felix/Oak versions + build system + whether SAM & MDM are separate bundles.
+7. **Report columns per stack** — ✅ **RESOLVED.** The 15-column Summary contract (§4.B) is frozen; order is part of the contract. Same shape every stack, every project.
 
 ---
 
-## 9. What I need from you to unblock the build
-1. **Proofhub** — a real exported bug list (sample file) + which fields matter.
-2. **BRD** — a sample Google Doc / Word BRD + whether Google Docs API access is available.
-3. **Branch policy** — production/shared source branch name + naming convention.
-4. **Sling/Shaft** — versions + build system + repo/module layout (or a sample repo).
-5. Priority/sequencing preference (foundation-first vs a specific stack end-to-end first).
+## 9. Remaining inputs / residuals
+1. **Proofhub** — a real exported sample to tune the column-keyword mapping (the parser auto-detects headers today; the `ColumnMap` override is not yet CLI-exposed).
+2. **BRD** — confirm that exporting Google Docs to `.docx`/`.txt` first is acceptable (direct Docs API access is out of scope).
+3. **Branch policy** — confirm the real production/shared branch name if it isn't one of `production/main/master/develop` (else pass `--source-branch`).
+4. **Sling/Shaft** — versions + build system + SAM/MDM bundle layout (or a sample repo) to finalize Phase 7.
+5. **Registry refresh** — sign-off to update `module-help.csv` / `module.yaml` agent description / `customize.toml` / SKILL.md so their prose matches the delivered 4-agent, 8-stack reality.

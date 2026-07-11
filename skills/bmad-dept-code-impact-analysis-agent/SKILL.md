@@ -49,8 +49,12 @@ cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
 ## Consent: Ask Analysis Mode
 
 **Direct-intent triggers (skip the question, go straight):**
-- "trace dependencies" / "what uses X" / "dependency chain" → Static trace
-- "upgrade risk" / "what breaks if" / "blast radius" → AI-assisted analysis
+- "trace dependencies" / "what uses X" / "dependency chain" → run the tracer, present the traceability as-is
+- "upgrade risk" / "what breaks if" / "blast radius" → run the tracer, then have the LLM interpret the blast radius
+
+Both intents run the **same deterministic tracer** — these are natural-language intent phrases, not CLI flags, and
+they differ only in how much the LLM interprets the result afterward. STATIC vs LLM/HYBRID is an advisory from
+preflight, not a switch that changes tracer behaviour.
 
 **Ambiguous triggers (ask which mode):**
 - "impact analysis" / "analyze impact" / "check impact"
@@ -61,10 +65,10 @@ When the intent is ambiguous, ask using the interactive question picker. Use the
 question: "What are you trying to understand?"
 options:
   - label: "What's connected to this?"
-    description: "I'll trace the dependency chain and show you what touches what. Fast and light (~1.4K tokens)."
+    description: "I'll run the tracer and show you what touches what. Fast and light — deterministic, no AI inference."
     recommended: true
   - label: "What could break?"
-    description: "I'll assess the risk — how likely things are to break and what to watch out for. Uses ~22K tokens."
+    description: "I'll run the same tracer, then interpret the risk — how likely things are to break and what to watch out for. Uses more tokens."
 ```
 
 **Important:** Always recommend "What's connected to this?" as default. It answers the connectivity question without needing AI inference.
@@ -74,11 +78,14 @@ Proceed with the user's chosen mode.
 ## Workflow
 
 1. **Collect inputs** — a Proofhub CSV export (`--bugs`) and/or a BRD (`--brd`). At least one is required.
-   - Proofhub columns are auto-detected by header keyword (Task ID / Title / Description / Priority / Labels);
-     the run log prints the resolved mapping so a mismatched export is obvious. BRDs are split into
-     requirements by headings / numbered sections. Google Docs → export to `.docx` or `.txt` first.
-2. **Resolve the stack** — auto-detected, or `--engine <id>` (see `--list-engines`). Supported:
-   `commerce-paas`, `app-builder`, `spring`, `sling`, `aem` (AEMaaCS + AMS), `eds`, `eds-commerce`
+   - Proofhub columns are auto-detected by header keyword (Task/Bug ID, Title, Description, Module/Label,
+     Priority, Status — the first header containing the keyword wins, so this is not a fixed schema); the run
+     log prints the resolved mapping so a mismatched export is obvious. `.docx` BRDs are read as raw text (via
+     mammoth); any other extension (`.md`/`.txt`) is read as UTF-8 text. BRDs are split into requirements by
+     Markdown/numbered headings, REQ/FR/NFR/US/BR ids, or `Label:` lines (falling back to blank-line paragraphs
+     when no heading is found). Google Docs → export to `.docx` or `.txt` first.
+2. **Resolve the stack** — auto-detected, or `--engine <id>` (see `--list-engines`). Supported (8):
+   `commerce-paas`, `commerce-saas`, `app-builder`, `spring`, `sling`, `aem` (AEMaaCS + AMS), `eds`, `eds-commerce`
    (aliases: `aemcs`/`aemams` → `aem`, `commerce` → `commerce-paas`).
 3. **Trace** — for each bug/requirement the engine extracts candidate symbols (class names, file/module names,
    paths), scores source files by filename + content match, then computes the **reverse-dependency blast
@@ -95,12 +102,15 @@ npx ts-node run.ts --list-engines
 
 ## Output
 
-`impact-<branch>-<timestamp>-agent-report.xlsx` (+ markdown twin) and `CHANGE-LOG.md`, via the shared
-standardized report. Key sheet: **Input Traceability** — one row per (input item → impacted file) with
-Input ID, type (bug/requirement), impacted title, code reference, severity, impact analysis (symbols matched
-+ blast radius), and recommendation. Plus Summary, Severity Breakdown, By Category, and Recommendations sheets.
-Every input item appears — items with no code match are flagged **"Needs manual review"** (INFO) so nothing is
-silently dropped.
+`impact-<branch>-<timestamp>-agent-report.xlsx` (+ markdown twin) and an appended `CHANGE-LOG.md`, via the shared
+standardized report (written to `--output` or the default `<project>/impact-reports`). Key sheet:
+**Input Traceability** — one row per (input item → impacted file) with Input ID, Input Type (bug/requirement),
+impacted title, code reference, severity, impact analysis (symbols matched + blast radius), and recommendation.
+Plus Run Info, Summary, Severity Breakdown, By Category, and Recommendations sheets. Every input item appears —
+items with no code match are flagged **"Needs manual review"** (INFO) so nothing is silently dropped.
+
+Pass `--create-branch` (optionally with `--source-branch <name>`) to first cut the standard working branch
+`dca/impact-<stack>-<timestamp>` from `production`/`main`/`master`/`develop` before the outputs are written.
 
 > **Note on fidelity:** tracing is heuristic (symbol/identifier matching + reverse-reference), not full
 > type-resolved data-flow — it favors recall and always lists its evidence (matched symbols) so a reviewer can

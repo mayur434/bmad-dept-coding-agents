@@ -10,7 +10,7 @@
         "date": { "type": "string", "format": "date-time" },
         "platform": {
           "type": "string",
-          "enum": ["aemcs", "commerce", "eds", "eds-commerce"]
+          "enum": ["aemcs", "aemams", "commerce", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
         },
         "scope": { "type": "string" },
         "version": { "type": "string" }

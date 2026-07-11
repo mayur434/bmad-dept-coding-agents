@@ -1,6 +1,6 @@
 [skill]
 name = "bmad-dept-code-generation-agent"
-description = "AI-driven code generation for AEMaaCS (MCP), AEM AMS (LLM skills), and Adobe Commerce (Magento 2). Produces production-ready code following platform best practices, security standards, and scalable architecture."
+description = "AI-driven code generation for AEM (AEMaaCS with MCP + AEM AMS), Apache Sling/Shaft, Spring Boot, Adobe Commerce (PaaS & SaaS), App Builder, EDS, and EDS+Commerce. Produces production-ready code following platform best practices, security standards, and scalable architecture."
 version = "1.1.0"
 
 [skill.tools]

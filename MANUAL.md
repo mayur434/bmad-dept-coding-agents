@@ -26,10 +26,16 @@ npx bmad-method install \
   --yes
 ```
 
-After install, run deps:
+After install, run deps (Node.js v20.12+). Install the **shared foundation FIRST** — every agent imports `skills/shared/` — then each agent's `scripts/` you intend to use:
 ```bash
+# shared foundation (required by every agent) — install first
+cd .claude/skills/shared && npm install
+
+# then each agent you use, e.g. the auditor
 cd .claude/skills/bmad-dept-code-audit-agent/scripts && npm install
 ```
+
+The four agent folders are `bmad-dept-code-audit-agent`, `bmad-dept-code-generation-agent`, `bmad-dept-code-impact-analysis-agent`, and `bmad-dept-code-test-coverage-agent`.
 
 ### Update (after pushing changes to this repo)
 
@@ -51,8 +57,9 @@ npx bmad-method install \
   --yes
 ```
 
-Then reinstall deps:
+Then reinstall deps (shared foundation first, then each agent's `scripts/`):
 ```bash
+cd .claude/skills/shared && npm install
 cd .claude/skills/bmad-dept-code-audit-agent/scripts && npm install
 ```
 
@@ -80,29 +87,60 @@ npx bmad-method uninstall --directory .
 
 ## Repository Structure
 
+The suite ships **4 agents** and one shared foundation. Module version (3.0.0) lives only in `.claude-plugin/marketplace.json`.
+
 ```
 bmad-dept-code-agent/
 ├── README.md
 ├── MANUAL.md                        ← This file
+├── IMPLEMENTATION-PLAN.md
+├── PROMPTS.md
+├── DCA-Agent-Coverage.xlsx          ← Coverage deliverables (built by tools/)
+├── DCA-Agent-Coverage.pdf
+├── DCA-Test-Commands.xlsx
+├── .claude-plugin/
+│   └── marketplace.json             ← Plugin manifest (module version)
+├── tools/
+│   └── coverage-report/             ← build-xlsx.js, build-pdf.js, build-test-commands.js
 └── skills/                          ← --custom-source points here
-    ├── module.yaml                  ← Module identity
-    ├── module-help.csv              ← Menu entries
-    └── bmad-dept-code-audit-agent/       ← Skill folder
-        ├── SKILL.md                 ← Agent instructions (most important)
-        ├── GUIDE.md                 ← Human docs
-        ├── customize.toml           ← Commands, activation keywords
-        ├── assets/                  ← Copies of module.yaml + help.csv
-        ├── resources/               ← Rule packs, scoring models
-        ├── templates/               ← Report templates
-        └── scripts/                 ← TypeScript scanner
-            ├── run.ts               ← Dispatcher entry point
-            ├── package.json
-            ├── tsconfig.json
-            ├── engines/
-            │   ├── registry.ts
-            │   └── commerce/        ← Full Commerce engine
-            └── shared/
-                └── base.ts
+    ├── module.yaml                  ← Module identity + config variables
+    ├── module-help.csv              ← Menu entries (13-column CSV)
+    ├── shared/                      ← @bmad/dca-shared — install deps FIRST
+    │   ├── ast/ core/ coverage/ git/ java/ js/ php/
+    │   ├── output/ preflight/ report/ token-budget/
+    │   ├── index.ts
+    │   └── package.json · tsconfig.json
+    ├── bmad-dept-code-audit-agent/            ← Auditor 🔍
+    ├── bmad-dept-code-generation-agent/       ← Generator ⚡
+    ├── bmad-dept-code-impact-analysis-agent/  ← Impact Analyst 💥
+    └── bmad-dept-code-test-coverage-agent/    ← Test Coverage 🧪
+```
+
+Every agent folder shares the same layout (the audit agent is shown expanded):
+
+```
+bmad-dept-code-audit-agent/
+├── SKILL.md                 ← Agent instructions (most important)
+├── GUIDE.md                 ← Human docs
+├── customize.toml           ← Commands, activation keywords, script paths
+├── assets/                  ← Copies of module.yaml + module-help.csv
+├── resources/               ← Rule packs, scoring models
+├── templates/               ← Report templates
+└── scripts/                 ← TypeScript Tier-1 scanner
+    ├── run.ts               ← Dispatcher entry point
+    ├── package.json
+    ├── tsconfig.json
+    ├── shared/
+    └── engines/             ← 8 registered engines
+        ├── registry.ts
+        ├── aem/
+        ├── commerce/
+        ├── commerce-saas/
+        ├── sling/
+        ├── spring/
+        ├── app-builder/
+        ├── eds/
+        └── eds_commerce/    ← underscore on disk; canonical ID is `eds-commerce`
 ```
 
 ---
@@ -177,7 +215,7 @@ full = "scan+skill"
 |------|-----------|---------|
 | Repo | `bmad-<purpose>` | `bmad-dept-code-agent` |
 | Skill folder | `bmad-<purpose>-agent` | `bmad-dept-code-audit-agent` |
-| Module code | 2-4 chars | `aca` |
+| Module code | 2-4 chars | `dca` |
 | Engine dirs | lowercase, underscores | `eds_commerce` |
 | Engine IDs | lowercase, hyphens | `eds-commerce` |
 
@@ -194,4 +232,4 @@ full = "scan+skill"
 - [ ] `assets/` — contains copies of module.yaml + module-help.csv
 - [ ] TypeScript compiles clean (`npx tsc --noEmit`)
 
-Then fill in each file following sections 2.1–2.8 above.
+Then fill in each file following the **Creating a New Module** guidance above.

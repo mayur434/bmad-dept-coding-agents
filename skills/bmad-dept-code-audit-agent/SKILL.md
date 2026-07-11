@@ -1,22 +1,34 @@
 ---
 name: bmad-dept-code-audit-agent
-description: "Two-tier code auditor (part of BMAD DEPT Code Agent suite). Tier 1: deterministic TypeScript/Node.js static analysis (42+ categories, Excel report). Tier 2: LLM-driven deep semantic analysis for Commerce, AEMaaCS, EDS, Adobe App Builder (API Mesh, Commerce UI Extensibility, AEM UI Extensibility), and hybrid projects."
+description: "Two-tier code auditor — the Audit agent of the 4-agent BMAD DEPT Code Agent suite (audit, generation, impact-analysis, test-coverage). Tier 1: deterministic TypeScript/Node.js static analysis (tree-sitter AST + regex, zero tokens) across 8 stacks — Commerce (PaaS), Sling/Shaft, Spring Boot, App Builder, Commerce SaaS, AEM (AEMaaCS + AMS), EDS, and EDS+Commerce. Tier 2: LLM-driven deep semantic analysis via per-stack rule packs. Emits a standardized Excel report + Markdown twin + CHANGE-LOG."
 ---
 
 # BMAD DEPT Code Agent — Audit Skill
 
 ## Purpose
 
-Two-tier code audit system for enterprise projects including AEM as a Cloud Service (AEMaaCS), Adobe Commerce (Magento), Edge Delivery Services (EDS), EDS+Commerce hybrid implementations, and Adobe App Builder (API Mesh, Commerce Admin UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute).
+The **Audit** agent — one of the four agents in the BMAD DEPT Code Agent suite (audit, generation, impact-analysis, test-coverage). It is a two-tier code audit system spanning **8 stacks**:
+
+- **AEM** — AEM as a Cloud Service (AEMaaCS) + AEM AMS
+- **Adobe Commerce (PaaS)** — Magento 2
+- **Adobe Commerce SaaS** — Catalog Service / Live Search / storefront drop-ins
+- **Apache Sling / Shaft** (sling-12)
+- **Spring Boot** custom middleware
+- **Adobe App Builder** — I/O Runtime, API Mesh, Commerce UI Extensibility, AEM UI Extensibility
+- **Edge Delivery Services (EDS)**
+- **EDS + Commerce** hybrid
+
+> The former standalone `scan-agent` has been retired. Its deterministic-scan capability now lives here as this agent's **Scan Only** action (Tier 1 only).
 
 ### Tier 1 — Deterministic Static Analysis (TypeScript/Node.js)
 
-Fast, reproducible scan using `scripts/run.ts`. Produces an enterprise Excel report with:
-- 42-category code audit (security, performance, deprecated APIs, etc.)
-- Database dump analysis (schema, indexes, integrity)
-- BRD impact analysis (new requirements, feature enhancements)
-- Bug cascade & severity analysis (from Excel bug reports)
-- Patch/upgrade breaking change analysis
+Fast, reproducible scan using `scripts/run.ts` — tree-sitter AST + regex, **zero tokens**. Auto-detects the stack (or takes `--engine`) and emits the standardized workbook. The four **new** engines (sling, spring, app-builder, commerce-saas) are built natively on the shared tree-sitter harness and emit **only** the standardized report; the four **legacy** engines (aem, commerce, eds, eds-commerce) keep their original regex scanner plus an AST precision pass and **also** emit the standardized report — so a legacy run writes two `.xlsx` files.
+
+The **Commerce** engine additionally accepts optional inputs for a richer run:
+- Database dump analysis (`--db`, schema/indexes/integrity)
+- BRD impact analysis (`--brd`, repeatable)
+- Bug cascade & severity analysis (`--bugs`, from `.xlsx` bug reports)
+- Patch/upgrade breaking-change analysis (configured in `config.json`)
 
 **Invocation:** `npx ts-node scripts/run.ts --path <PROJECT_ROOT>`
 
@@ -124,14 +136,18 @@ npx ts-node {this_skill_path}/scripts/run.ts [flags]
 | _(always)_ | `--path` | Current workspace root (auto-detect) |
 | _(always)_ | `--engine` | Auto-detect from project signals, or from user's mention of "commerce" / "AEM" / "EDS" |
 | "name it X" / "call it X" / "project name X" | `--name` | Extract quoted or mentioned name |
-| "DB dump at /path" / "database /path" / "with DB" | `--db` | Extract file path. If user says "with database" but no path → **ask for path** |
-| "BRD from /path" / "requirements /path" / "with BRD" | `--brd` | Extract file path. Repeatable. If no path → **ask** |
-| "bug report /path" / "bugs /path" / "with bugs" | `--bugs` | Extract file path (.xlsx). If no path → **ask** |
-| "only X module" / "scan X and Y modules" | `--module` | Comma-separated module names |
-| "only X namespace" / "Custom namespace" | `--namespace` | Namespace string |
-| "skip code audit" / "BRD only" / "just BRD" | `--no-code-audit` | Flag set (no value) |
-| "export JSON" / "JSON output" / "for CI" / "machine-readable" | `--json` | Flag set (no value) |
+| "DB dump at /path" / "database /path" / "with DB" | `--db` | Extract file path (Commerce engine). If user says "with database" but no path → **ask for path** |
+| "BRD from /path" / "requirements /path" / "with BRD" | `--brd` | Extract file path (Commerce engine). Repeatable. If no path → **ask** |
+| "bug report /path" / "bugs /path" / "with bugs" | `--bugs` | Extract file path (.xlsx, Commerce engine). If no path → **ask** |
+| "only X module" / "scan X and Y modules" | `--module` | Comma-separated module names (aem/commerce engines) |
+| "only X namespace" / "Custom namespace" | `--namespace` | Namespace string (Commerce engine) |
+| "skip code audit" / "BRD only" / "just BRD" | `--no-code-audit` | Flag set (no value) — Commerce engine |
+| "export JSON" / "JSON output" / "for CI" / "machine-readable" | `--json` | Flag set (no value) — aem/commerce engines |
 | "output to /dir" / "save report at /dir" | `--output` | Directory path |
+| "as markdown" / "as PDF" / "all formats" | `--format` | `excel` \| `md` \| `pdf` \| `all` (honored by the AEM legacy report; default `excel`) |
+| "AEMaaCS rules" / "AMS rules" / "cloud vs AMS" | `--platform` | `aemcs` \| `aemams` \| `both` (AEM engine only; else auto-detected) |
+| "cut a working branch" / "on a new branch" | `--create-branch` | Flag set — cuts `dca/audit-<stack>-<timestamp>` before writing outputs |
+| "branch from production/main" | `--source-branch` | Branch name to cut from (default tries production, main, master, develop) |
 
 ### Compound Resolution
 
@@ -213,9 +229,9 @@ npx ts-node {this_skill_path}/scripts/run.ts --list-engines
 
 ### Mode A: Script-Only (Tier 1)
 
-Use when the user wants a quick deterministic report. Build the command using the **Prompt → CLI Resolution** rules above and execute it.
+Use when the user wants a quick deterministic report (the **Scan Only** action). Build the command using the **Prompt → CLI Resolution** rules above and execute it.
 
-Output: Excel report in engine's `output/` directory.
+Output: the standardized `audit-<branch>-<timestamp>-agent-report.xlsx` + Markdown twin, plus an appended `CHANGE-LOG.md`. New engines default the output to `<project>/audit-reports/`; legacy engines (aem, commerce, eds, eds-commerce) additionally write their own platform-specific multi-sheet Excel.
 
 ### Mode B: Deep Analysis (Tier 2)
 
@@ -246,7 +262,8 @@ Scan the workspace to determine which Adobe platform(s) are in use:
 | Commerce | `app/code/`, `composer.json` with `magento/`, `etc/module.xml` |
 | Commerce SaaS | `@adobe/magento-storefront-event*`, `Magento-Environment-Id`, `catalog-service.adobe.io`/`commerce.adobe.io`, Live Search — and **no** `app/code` |
 | EDS | `scripts/`, `blocks/`, `helix-query.yaml`, `fstab.yaml`, `paths.json` |
-| EDS+Commerce | EDS signals + Commerce dropin references, `commerce-` prefixed blocks || App Builder | `app.config.yaml`, `.aio` file, `@adobe/aio-sdk` in `package.json`, `dx/excshell/1` or `dx/asset-compute/worker/1` in config |
+| EDS+Commerce | EDS signals + Commerce dropin references, `commerce-`/`product-` prefixed blocks |
+| App Builder | `app.config.yaml`, `.aio` file, `@adobe/aio-sdk` in `package.json`, `dx/excshell/1` or `dx/asset-compute/worker/1` in config |
 | App Builder — Commerce UI Ext | `commerce/backend-ui/1` in `app.config.yaml`, `@adobe/uix-guest` in `package.json` |
 | App Builder — AEM UI Ext | `aem/cf-console-admin/1`, `aem/cf-editor/1`, `aem/universal-editor/1`, `aem/experience-hub/1`, or `aem/assets-view/1` in config |
 | App Builder — API Mesh | `meshConfig` in JSON files, `aio api-mesh` usage |
@@ -257,6 +274,7 @@ Based on detected platform, load rules from `resources/rule-packs/<platform>/`.
 | Platform | Rule pack files |
 |----------|----------------|
 | AEMaaCS | `rule-packs/aemcs/` |
+| AEM AMS | `rule-packs/aemams/` |
 | Sling-12 / Shaft | `rule-packs/sling-shaft/` (Tier-1 AST engine at `scripts/engines/sling/`) |
 | Spring Boot | `rule-packs/spring-boot/` (Tier-1 AST + config engine at `scripts/engines/spring/`) |
 | Commerce | `rule-packs/commerce/` |
@@ -300,7 +318,7 @@ For each file in scope, apply platform-specific rules from the loaded rule pack:
 
 ### Step 4: Generate Report
 
-Use templates from `templates/` to produce the final audit report in the requested format (markdown or JSON).
+The primary deliverable is the standardized workbook `audit-<branch>-<timestamp>-agent-report.xlsx` (with its Markdown twin and an appended `CHANGE-LOG.md`), emitted by the shared output layer. The legacy narrative templates under `templates/` (`report-markdown.md`, `report-json.md`) remain available as optional Tier-2 documentation aids for shaping the LLM's written summary — they are not the main report.
 
 ### Step 5: Actionable Recommendations
 
@@ -312,14 +330,15 @@ Beyond findings, generate:
 
 ## Configuration
 
-The skill reads configuration from environment variables when available:
+Module-level settings (from `module.yaml`):
 
-| Variable | Purpose | Default |
-|----------|---------|---------|
-| `AUDIT_SEVERITY_THRESHOLD` | Minimum severity to report | `low` |
-| `AUDIT_MAX_FILES` | Max files to analyze per run | `500` |
-| `AUDIT_CONFIDENCE_MIN` | Minimum confidence to include finding | `0.6` |
-| `AUDIT_OUTPUT_FORMAT` | Report format (`markdown` or `json`) | `markdown` |
+| Setting | Purpose | Default |
+|---------|---------|---------|
+| `audit_output` | Where audit reports are stored | `{output_folder}/audit-reports` |
+| `audit_engine` | Default engine (or `auto` to auto-detect) | `auto` |
+| `audit_namespace` | Custom module namespace for Commerce projects | `Custom` |
+
+Engine-level configuration lives in `scripts/engines/commerce/config.json` (Commerce thresholds and patch-upgrade analysis; see **Patch Analysis** above). Other engines take their behavior from CLI flags.
 
 ## Tools Required
 
@@ -327,12 +346,15 @@ The skill reads configuration from environment variables when available:
 
 ## Output
 
-The skill produces a structured audit report containing:
-- Executive summary with risk score
-- Findings grouped by severity (critical, high, medium, low)
-- Each finding includes: location, rule violated, explanation, remediation suggestion, confidence score
-- Platform-specific recommendations
-- Summary statistics
+Every run emits the standardized outputs via the shared output layer:
+
+- **`audit-<branch>-<timestamp>-agent-report.xlsx`** — sheets in fixed order: Run Info, Summary, Severity Breakdown, By Category, Recommendations (when present). The Summary sheet is the 15-column contract: ID, Title, Description, Tech Stack, Category / Module, Code Reference, Severity, Confidence, Rule ID, Recommendation / Fix, Impact Analysis, Effort, Dev Comments, Owner, Status.
+- **`audit-<branch>-<timestamp>-agent-report.md`** — a git-diffable Markdown twin (reduced Summary table).
+- **`CHANGE-LOG.md`** — appended at the project root with agent/stack/branches/timestamp, severity counts, and the report filename.
+- **Optional standard branch** `dca/audit-<stack>-<timestamp>` — cut from production/main/master/develop only when `--create-branch` is passed.
+- **Legacy engines only** (aem, commerce, eds, eds-commerce) additionally write their own platform-specific multi-sheet Excel (and `.md`/`.pdf`/`.json` via `--format`/`--json`).
+
+Each finding carries: location, rule violated, severity, confidence, remediation, impact, and effort — grouped by severity and category, with platform-specific recommendations.
 
 ## Post-Audit Actions
 
@@ -350,4 +372,4 @@ After an audit has been run (Excel or markdown report exists), the user may ask 
 | "show current audit config" | Read and display `config.json` |
 | "update thresholds: god_class_lines=600, fat_constructor_deps=12" | Update `config.json` thresholds section |
 
-**Report location:** Look for the latest `.xlsx` or `.md` file in `{this_skill_path}/scripts/engines/{engine}/output/`
+**Report location:** Look for the latest `audit-<branch>-<timestamp>-agent-report.xlsx` (or its `.md` twin) in the configured `audit_output` directory — by default `{project-root}/audit-reports/` (new engines) or the engine's `--output` directory. The appended `CHANGE-LOG.md` at the project root also lists every report by filename.

@@ -4,11 +4,17 @@ All supported prompts grouped by **Agent** and **Platform**. Only implemented fe
 
 Legend: ✅ Implemented | 🔲 Planned (not yet available)
 
+> **Suite at a glance.** The module ships **4 agents** — Code Audit, Code Generation, Impact Analysis, and Test Coverage — across **8 stacks**: AEM (AEMaaCS + AEM AMS), Adobe Commerce PaaS, Adobe Commerce SaaS, Sling / Shaft (sling-12), Spring Boot, Adobe App Builder, EDS, and EDS + Commerce.
+>
+> The former standalone *scan-agent* is retired. Its deterministic Tier‑1 scan is now the **Code Audit agent's "Scan Only" action** (`scan`). Every agent run emits the standardized `<agent>-<branch>-<timestamp>-agent-report.xlsx` (plus a Markdown twin) and appends `CHANGE-LOG.md`. Add `--create-branch` to also cut a `dca/<agent>-<stack>-<timestamp>` working branch (from `production`/`main`/`master`/`develop`, or `--source-branch <name>`).
+
 ---
 
 ## 1. Code Audit Agent (`bmad-dept-code-audit-agent`)
 
-### Adobe Commerce ✅
+Tier 1 is a deterministic TypeScript scanner (tree-sitter AST + regex, zero tokens); Tier 2 is LLM semantic analysis driven by the per-stack rule packs. `scan` = Tier 1 only, `deep audit` = Tier 2 only, `full audit` = both.
+
+### Adobe Commerce (PaaS) ✅
 
 | Action | Prompt |
 |--------|--------|
@@ -50,12 +56,14 @@ Legend: ✅ Implemented | 🔲 Planned (not yet available)
 | Named scan | `scan my AEM project and name it "Client Name"` |
 | Specify path | `scan my AEM project at D:\path\to\project` |
 | Explicit engine | `scan --engine aem --path /path/to/project` |
-| Platform filter (ACS only) | `scan my AEM Cloud Service project` |
+| Platform filter (Cloud only) | `scan my AEM Cloud Service project` |
 | Platform filter (AMS only) | `scan my AEM AMS project` |
 | Format: Excel (default) | `scan my AEM project --format excel` |
 | Format: Markdown | `scan my AEM project --format md` |
 | Format: PDF | `scan my AEM project --format pdf` |
 | Format: All three | `scan my AEM project --format all` |
+
+> The AEM engine internally resolves the platform (`aemcs` / `aemams` / `both`) and applies the matching rule pack; force it with `--platform aemcs|aemams|both`.
 
 **Tier 2 — Deep Audit (LLM semantic analysis):**
 
@@ -78,10 +86,12 @@ Legend: ✅ Implemented | 🔲 Planned (not yet available)
 
 | Format | Flag | Description |
 |--------|------|-------------|
-| Excel (default) | `--format excel` | `.xlsx` with 16 sheets (Executive Summary + 15 categories) |
+| Excel (default) | `--format excel` | `.xlsx` with up to 16 sheets (Executive Summary + up to 15 category sheets, one per category with findings) |
 | Markdown | `--format md` | `.md` with severity tables, tech stack, action plan |
 | PDF | `--format pdf` | Styled `.pdf` with category breakdowns & recommendations |
 | All three | `--format all` | Generates `.xlsx` + `.md` + `.pdf` in one run |
+
+> The multi-sheet workbook above (up to 16 sheets) is the AEM engine's platform-specific report. Alongside it, **every** run also writes the standardized `audit-<branch>-<timestamp>-agent-report.xlsx` (Run Info · Summary · Severity Breakdown · By Category) plus a Markdown twin, and appends `CHANGE-LOG.md`. (AEM, Commerce, EDS, and EDS+Commerce are legacy engines, so they emit both the platform report **and** the standardized report.)
 
 **AEM Scan Categories (15):**
 
@@ -118,23 +128,74 @@ Legend: ✅ Implemented | 🔲 Planned (not yet available)
 | Export as PDF | `generate the report as PDF` |
 | Export all formats | `generate reports in all formats` |
 
-### EDS 🔲
+### Adobe Commerce SaaS ✅
+
+Catalog Service / Live Search / storefront drop-ins (JS tree-sitter AST + config).
 
 | Action | Prompt |
 |--------|--------|
-| Scan | `scan my EDS site` |
-| Deep audit | `deep audit this EDS project` |
+| Quick scan | `scan my Commerce SaaS storefront` |
+| Deep audit | `deep audit my Commerce SaaS project` |
+| Explicit engine | `scan --engine commerce-saas --path /path/to/project` |
 
-### EDS + Commerce 🔲
+### Sling / Shaft (sling-12) ✅
+
+Apache Sling / Felix / Oak middleware (pure Java tree-sitter AST).
+
+| Action | Prompt |
+|--------|--------|
+| Quick scan | `scan my Sling project` / `scan my Shaft project` |
+| Deep audit | `deep audit my sling-12 middleware` |
+| Full audit | `full audit my Sling project` |
+| Explicit engine | `scan --engine sling --path /path/to/project` |
+
+### Spring Boot ✅
+
+Spring Boot custom middleware (Java tree-sitter AST + config parse).
+
+| Action | Prompt |
+|--------|--------|
+| Quick scan | `scan my Spring Boot project` |
+| Deep audit | `deep audit my Spring Boot service` |
+| Full audit | `full audit my Spring Boot app` |
+| Explicit engine | `scan --engine spring --path /path/to/project` |
+
+### Adobe App Builder ✅
+
+I/O Runtime actions, API Mesh, eventing, UI extensibility (JS tree-sitter AST + config).
+
+| Action | Prompt |
+|--------|--------|
+| Quick scan | `scan my App Builder project` |
+| Deep audit | `deep audit my App Builder actions` |
+| Explicit engine | `scan --engine app-builder --path /path/to/project` |
+
+### EDS ✅
+
+Edge Delivery Services (legacy regex scanner + JS AST pass).
+
+| Action | Prompt |
+|--------|--------|
+| Quick scan | `scan my EDS site` |
+| Deep audit | `deep audit this EDS project` |
+| Full audit | `full audit my EDS project` |
+
+### EDS + Commerce ✅
+
+EDS + Commerce hybrid storefront (legacy regex scanner + EDS JS AST pass).
 
 | Action | Prompt |
 |--------|--------|
 | Scan | `scan my EDS Commerce project` |
 | Full audit | `full audit my EDS+Commerce site` |
 
+> **List engines:** `what engines are available?` prints all 8 registered engines (`aem`, `commerce`, `commerce-saas`, `sling`, `spring`, `app-builder`, `eds`, `eds-commerce`). With no `--engine`, the stack is auto-detected.
+
 ---
 
 ## 2. Code Generation Agent (`bmad-dept-code-generation-agent`)
+
+Two paths: deterministic **scaffolders** (correct-by-construction, zero tokens) and an **LLM/MCP** path for custom logic. `list scaffolder types` prints every deterministic scaffolder per stack; `set up MCP for this project` provisions the AEM MCP servers (`.mcp.json`, `.bmad/mcp-registry.toml`, `.env`).
 
 ### AEMaaCS ✅ (MCP-powered)
 
@@ -159,7 +220,7 @@ Legend: ✅ Implemented | 🔲 Planned (not yet available)
 | Deploy cloud | `generate Hero Banner and deploy to cloud dev` |
 | Scaffold only | `just scaffold the component, don't deploy` |
 
-### AEM AMS ✅ (LLM skills, no MCP)
+### AEM AMS ✅ (LLM skills path)
 
 | Action | Prompt |
 |--------|--------|
@@ -171,7 +232,9 @@ Legend: ✅ Implemented | 🔲 Planned (not yet available)
 | Deploy local | `build and deploy to local AEM instance` |
 | Deploy AMS | `deploy to AMS dev environment` |
 
-### Adobe Commerce ✅
+### Adobe Commerce (PaaS) ✅
+
+Deterministic scaffolders cover module, plugin, observer, GraphQL resolver, and controller; the LLM path covers the richer scopes below.
 
 | Action | Prompt |
 |--------|--------|
@@ -193,34 +256,97 @@ Legend: ✅ Implemented | 🔲 Planned (not yet available)
 | Unit tests | `generate unit tests for the OrderExportService` |
 | Deploy | `enable the module and run setup:upgrade` |
 
-### EDS 🔲
+### Adobe Commerce SaaS ✅
 
-_Not yet supported by code generation agent._
+Scaffolders: `catalog-query`, `storefront-block`.
 
-### EDS + Commerce 🔲
+| Action | Prompt |
+|--------|--------|
+| Catalog query | `create a Catalog Service query for product search` |
+| Storefront block | `scaffold a storefront drop-in block for product cards` |
 
-_Not yet supported by code generation agent._
+### Sling / Shaft ✅
+
+Scaffolders: `osgi-service`, `sling-servlet`, `sling-filter`, `sling-model` (default package `com.acme.shaft`).
+
+| Action | Prompt |
+|--------|--------|
+| OSGi service | `create a Sling OSGi service called OrderSync` |
+| Sling servlet | `generate a Sling servlet for order status` |
+| Sling filter | `create a Sling filter for request logging` |
+| Sling Model | `generate a Sling Model for the Order resource` |
+
+### Spring Boot ✅
+
+Scaffolders: `rest-controller`, `service`, `jpa-repository` (default package `com.acme.app`).
+
+| Action | Prompt |
+|--------|--------|
+| REST controller | `create a Spring REST controller for Orders` |
+| Service | `generate a Spring service class for order processing` |
+| JPA repository | `create a JPA repository for the Order entity` |
+
+### Adobe App Builder ✅
+
+Scaffolders: `action`, `mesh`, `event-handler`.
+
+| Action | Prompt |
+|--------|--------|
+| Runtime action | `create an App Builder action called order-sync` |
+| API Mesh | `scaffold an API Mesh configuration` |
+| Event handler | `generate an event handler for commerce events` |
+
+### EDS ✅
+
+Scaffolder: `block`.
+
+| Action | Prompt |
+|--------|--------|
+| Block | `create an EDS block called cards` |
+
+### EDS + Commerce ✅
+
+Scaffolder: `dropin-block`.
+
+| Action | Prompt |
+|--------|--------|
+| Drop-in block | `create an EDS commerce drop-in block for product details` |
 
 ---
 
 ## 3. Impact Analysis Agent (`bmad-dept-code-impact-analysis-agent`)
 
-### All Platforms 🔲 (Workflow TODO — activation defined)
+### All Stacks ✅ (input-driven)
+
+The impact agent is **input-driven**, not scanner-driven. Give it a Proofhub bug/task export (`--bugs`, CSV) and/or a BRD document (`--brd`; `.docx`, `.md`, or `.txt` — export Google Docs to one of these first). **At least one input is required.** It normalizes each bug/requirement, maps it onto impacted source files, computes a reverse-dependency **blast radius**, scores risk, and emits an **Input Traceability** report. Every input item appears in the output — items with no code match still produce an INFO "needs manual review" row. The stack is auto-detected (or force it with `--engine`).
 
 | Action | Prompt |
 |--------|--------|
-| Change impact | `what's the impact if I change this class?` |
-| Blast radius | `evaluate blast radius of modifying the Checkout module` |
-| Upgrade risk | `assess risk for upgrading from 2.4.6 to 2.4.7` |
-| Dependency trace | `trace all dependencies of the Payment module` |
-| Breaking changes | `check what breaks if I remove this interface` |
-| Patch risk | `what's the risk of applying this patch?` |
+| Impact from bugs | `trace the impact of these bugs: /path/to/bugs.csv` |
+| Impact from BRD | `analyze the impact of this BRD: /path/to/requirements.docx` |
+| Combined (bugs + BRD) | `trace impact from bugs /path/bugs.csv and BRD /path/spec.docx` |
+| Named stack | `run impact analysis on my Spring Boot project using /path/bugs.csv` |
+| Blast radius (intent phrase) | `what's the blast radius of the bugs in /path/bugs.csv?` |
+| Upgrade risk (intent phrase) | `assess upgrade risk from the requirements in /path/spec.docx` |
+
+> "Blast radius" and "upgrade risk" are natural-language intent phrases only — they still route through the single tracer and **require** a bug export or BRD. There is no standalone `--trace` or `--upgrade-risk` flag.
+
+**Post-analysis:**
+
+| Action | Prompt |
+|--------|--------|
+| Summary | `summarize the impacted files` |
+| Filter severity | `show only the CRITICAL and HIGH impacted files` |
+| Unmatched inputs | `which inputs had no code match?` |
+| Traceability | `show the input-to-code traceability` |
 
 ---
 
 ## 4. Test Coverage Agent (`bmad-dept-code-test-coverage-agent`)
 
-### All Platforms 🔲 (Scaffolded — engines TODO)
+### All Stacks ✅
+
+Tier 1 does deterministic gap analysis and can report **real** line/branch coverage by parsing JaCoCo, Istanbul, LCOV, or Clover reports — either an existing report (`--coverage-report`) or one produced on demand (`--run-coverage`, which shells out to Maven/Gradle JaCoCo, Jest/nyc, or PHPUnit). Tier 2 test generation is written by the LLM per the stack pack (not by the CLI). The stack is auto-detected (or `--engine`).
 
 **Coverage Analysis (Tier 1):**
 
@@ -230,10 +356,12 @@ _Not yet supported by code generation agent._
 | Show gaps | `show untested code` |
 | Module scope | `analyze test coverage for the Checkout module` |
 | File scope | `what's the test coverage for src/Model/OrderProcessor.php` |
+| Real coverage (run tool) | `run the coverage tool and report real line/branch coverage` |
+| Real coverage (existing report) | `analyze coverage from my JaCoCo report at target/site/jacoco/jacoco.xml` |
 | Test plan | `create test plan` |
 | Priority gaps | `show highest-priority untested code` |
 
-**Test Generation (Tier 2):**
+**Test Generation (Tier 2 — LLM):**
 
 | Action | Prompt |
 |--------|--------|
@@ -257,15 +385,14 @@ _Not yet supported by code generation agent._
 
 | Action | Prompt |
 |--------|--------|
-| Coverage report | `show test coverage report` |
-| Export gaps | `export coverage gaps as JSON` |
+| Coverage report | `show the test coverage report` |
 | Progress | `how much test coverage did we gain?` |
 
 ---
 
-## CLI-Backed Prompts (Commerce Engine)
+## CLI-Backed Prompts (Commerce Audit Engine)
 
-These prompts trigger the TypeScript scanner under the hood. The agent auto-resolves project path, engine, and flags — **you never need to type CLI commands**.
+These prompts trigger the Commerce TypeScript scanner under the hood. The agent auto-resolves project path, engine, and flags — **you never need to type CLI commands**.
 
 ### Basic Scans
 
@@ -308,23 +435,31 @@ These prompts trigger the TypeScript scanner under the hood. The agent auto-reso
 | "scan with database" (no path) | "Path to your DB dump file (.sql)?" |
 | "run BRD analysis" (no path) | "Path to your BRD document?" |
 | "scan with bugs" (no path) | "Path to your bug report (.xlsx)?" |
-| "audit this" (ambiguous mode) | "Which mode? Scanner / Deep Audit / Full?" |
+| "audit this" (ambiguous mode) | "Which mode? Scan Only / Deep Audit / Full?" |
 
 ### Utility
 
 | Prompt | What It Does |
 |--------|-------------|
-| `what engines are available?` | Lists all registered audit engines |
+| `what engines are available?` | Lists all 8 registered audit engines |
 | `show current audit config` | Displays active configuration |
 
 ---
 
 ## Platform × Agent Support Matrix
 
-| Platform | Code Audit | Code Generation | Impact Analysis | Scan |
-|----------|:----------:|:---------------:|:---------------:|:----:|
-| **Adobe Commerce** | ✅ | ✅ (LLM) | 🔲 | 🔲 |
-| **AEMaaCS** | 🔲 | ✅ (MCP) | 🔲 | 🔲 |
-| **AEM AMS** | 🔲 | ✅ (LLM) | 🔲 | 🔲 |
-| **EDS** | 🔲 | 🔲 | 🔲 | 🔲 |
-| **EDS + Commerce** | 🔲 | 🔲 | 🔲 | 🔲 |
+| Platform / Stack | Code Audit | Code Generation | Impact Analysis | Test Coverage |
+|------------------|:----------:|:---------------:|:---------------:|:-------------:|
+| **Adobe Commerce (PaaS)** | ✅ | ✅ (scaffolders + LLM) | ✅ | ✅ |
+| **Adobe Commerce SaaS** | ✅ | ✅ (scaffolders) | ✅ | ✅ |
+| **AEMaaCS** † | ✅ | ✅ (MCP) | ✅ | ✅ |
+| **AEM AMS** † | ✅ | ✅ (LLM) | ✅ | ✅ |
+| **Sling / Shaft (sling-12)** | ✅ | ✅ (scaffolders) | ✅ | ✅ |
+| **Spring Boot** | ✅ | ✅ (scaffolders) | ✅ | ✅ |
+| **Adobe App Builder** | ✅ | ✅ (scaffolders) | ✅ | ✅ |
+| **EDS** | ✅ | ✅ (scaffolders) | ✅ | ✅ |
+| **EDS + Commerce** | ✅ | ✅ (scaffolders) | ✅ | ✅ |
+
+> † AEMaaCS and AEM AMS are both served by the single `aem` engine (platform auto-resolved to `aemcs`/`aemams`/`both`).
+>
+> The standalone *scan-agent* column has been removed: deterministic scanning is the Code Audit agent's **Scan Only** action.

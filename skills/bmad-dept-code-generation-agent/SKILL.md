@@ -1,6 +1,6 @@
 ---
 name: bmad-dept-code-generation-agent
-description: "AI-driven code generation agent (part of BMAD DEPT Code Agent suite). Generates production-ready code for AEMaaCS (MCP), AEM AMS (LLM skills), Adobe Commerce (Magento 2), and Adobe App Builder (API Mesh, Commerce Admin UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute) following platform best practices, security standards, and scalable architecture."
+description: "AI-driven code generation agent (one of the four agents in the BMAD DEPT Code Agent suite). Generates production-ready code across 8 engine stacks — AEM (AEMaaCS via MCP + AEM AMS via LLM skills), Apache Sling/Shaft, Spring Boot, Adobe Commerce PaaS (Magento 2), Adobe Commerce SaaS, Adobe App Builder (API Mesh, Commerce Admin UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute), Edge Delivery Services, and EDS+Commerce — via deterministic scaffolders and LLM/MCP generation, following platform best practices, security standards, and scalable architecture."
 ---
 
 # BMAD DEPT Code Agent — Generation Skill
@@ -21,8 +21,8 @@ Generates all layers of an Adobe Commerce project: Modules, Plugins, Observers, 
 ### Platform Support:
 - **AEMaaCS** — Full MCP integration (remote + local), Cloud Manager, SDK validation
 - **AEM AMS** — LLM skills-based generation, project scanning, Maven + CI/CD deploy, no MCP
-- **Sling-12 / Shaft** — LLM patterns (`resources/sling-shaft/`) + **deterministic scaffolder** (`--scaffold --engine sling`): OSGi services, Sling servlets/filters, Sling Models, SAM/MDM/connector patterns. Java/Apache Sling, JDK 8+, no MCP
-- **Spring Boot** — LLM patterns (`resources/spring-boot/`) + **deterministic scaffolder** (`--scaffold --engine spring`): REST controllers+DTOs, services, JPA repos+entities, security config. Java 17/21 + Jakarta, Maven or Gradle, no MCP
+- **Sling-12 / Shaft** — LLM patterns (`resources/sling-shaft/`) + **deterministic scaffolder** (`--scaffold --engine sling`): OSGi services, Sling servlets, Sling filters, Sling Models. Java/Apache Sling, JDK 8+, no MCP
+- **Spring Boot** — LLM patterns (`resources/spring-boot/`) + **deterministic scaffolder** (`--scaffold --engine spring`): REST controllers+DTOs, services, JPA repos+entities. Java 17/21 + Jakarta, Maven or Gradle, no MCP
 - **Adobe Commerce** — LLM skills-based generation, module scaffolding, PHP best practices, Magento 2 architecture
 - **Adobe App Builder** — Serverless platform on Adobe I/O Runtime encompassing all extensibility services:
   - Core App Builder — Headless actions, React Spectrum SPA, `aio` CLI, `app.config.yaml`
@@ -32,6 +32,9 @@ Generates all layers of an Adobe Commerce project: Modules, Plugins, Observers, 
   - Experience Cloud Shell SPA (`dx/excshell/1`)
   - Asset Compute Workers (`dx/asset-compute/worker/1`)
   - MCP integration via Commerce App Builder MCP server
+- **Adobe Commerce SaaS** — LLM patterns (`resources/commerce-saas/`) + **deterministic scaffolder** (`--scaffold --engine commerce-saas`): Catalog Service / Live Search queries, storefront drop-in blocks. JS, no MCP
+- **Edge Delivery Services (EDS)** — LLM patterns (`resources/eds/`) + **deterministic scaffolder** (`--scaffold --engine eds`): blocks. JS, no MCP
+- **EDS + Commerce** — LLM patterns (`resources/eds-commerce/`) + **deterministic scaffolder** (`--scaffold --engine eds-commerce`): drop-in storefront blocks. JS, no MCP
 
 ## MCP Integration (Zero-Config, Pre-Configured)
 
@@ -45,9 +48,10 @@ npx ts-node {skill_path}/scripts/run.ts --setup --path {project_root}
 ```
 
 This creates (without user intervention):
-- `.mcp.json` — all MCP server entries (Adobe remote + community local)
+- `.mcp.json` — all MCP server entries (Adobe remote + community local); the merge is idempotent (existing server keys are preserved)
 - `.bmad/mcp-registry.toml` — capability-to-server mapping
-- `.env` — local SDK connection defaults (if not already present)
+- `.env` — local SDK connection defaults (`AEM_HOST=localhost:4502`, `admin`/`admin`) if not already present
+- `.gitignore` — appends `.env` and `.bmad/` so secrets and local config are not committed
 
 **The consumer does nothing.** The agent self-provisions on first use.
 
@@ -153,7 +157,10 @@ This skill activates when the user asks to:
 ### Deterministic scaffolder (fast path for common artifacts)
 
 For standard, repeatable artifacts prefer the deterministic scaffolder — it generates real files and emits the
-standardized generation report + CHANGE-LOG:
+standardized outputs: a timestamped Excel report in `generation-reports/`
+(`generation-<branch>-<timestamp>-agent-report.xlsx`) plus an appended `CHANGE-LOG.md`, and can optionally cut a
+`dca/generation-<stack>-<timestamp>` working branch (`--create-branch`, from production/main/master/develop or
+`--source-branch <name>`):
 
 ```bash
 npx ts-node scripts/run.ts --list-types
@@ -162,16 +169,21 @@ npx ts-node scripts/run.ts --scaffold --engine spring --type rest-controller --n
 npx ts-node scripts/run.ts --scaffold --engine app-builder --type action     --name "order sync" --path . [--dry-run]
 ```
 
-Types by stack:
+Types by stack (8 stacks, 24 scaffolder types — the live source of truth is the `GENERATORS` map in
+`scripts/scaffold/generators.ts`):
 - `aem` → sling-model, osgi-service, sling-servlet, component (HTL + dialog), workflow-process
 - `sling` → osgi-service, sling-servlet, sling-filter, sling-model
 - `spring` → rest-controller (+DTO), service, jpa-repository (+entity)
 - `commerce-paas` → module, plugin, observer, graphql-resolver, controller
+- `commerce-saas` → catalog-query, storefront-block
 - `app-builder` → action, mesh, event-handler (webhook consumer w/ signature verify + idempotency)
 - `eds` → block · `eds-commerce` → dropin-block
 
 `npx ts-node run.ts --list-types` prints the live list. For custom/business logic beyond these, use the LLM
-path with the resource packs (`resources/<stack>/`). Commerce SaaS is out of scope.
+path with the resource packs. Note the `--engine` key is not always the resource-pack directory name:
+`aem` → `resources/aemcs/` + `resources/ams/`, `commerce-paas` → `resources/commerce/`, `sling` →
+`resources/sling-shaft/`, `spring` → `resources/spring-boot/`; `commerce-saas`, `app-builder`, `eds`, and
+`eds-commerce` map directly to their like-named `resources/` packs.
 
 ## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
 
@@ -225,7 +237,7 @@ Before generating code:
 Analyze the user's initial prompt first. Skip any question whose answer is already clear from the prompt. Ask remaining questions in one batch:
 
 ```
-1. �️ Platform?
+1. 🏗️ Platform?
    → [AEMaaCS / AEM AMS]
    (Skip if project structure makes it obvious — see detection rules below)
 

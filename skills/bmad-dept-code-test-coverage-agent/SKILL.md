@@ -1,29 +1,34 @@
 ---
 name: bmad-dept-code-test-coverage-agent
-description: "Two-tier test coverage agent (part of BMAD DEPT Code Agent suite). Tier 1: deterministic TypeScript/Node.js coverage analysis (gap detection, dependency mapping, coverage report). Tier 2: LLM-driven test generation producing platform-specific unit, integration, and functional tests."
+description: "Two-tier test coverage agent (part of BMAD DEPT Code Agent suite). Tier 1: deterministic TypeScript/Node.js coverage analysis (gap detection, filename estimate + optional real line/branch coverage, coverage report). Tier 2: LLM-driven test generation producing platform-specific unit, integration, and functional tests."
 ---
 
 # BMAD DEPT Code Agent — Test Coverage Skill
 
 ## Purpose
 
-Two-tier test coverage system for enterprise projects including Adobe Commerce (Magento), AEM as a Cloud Service (AEMaaCS), Edge Delivery Services (EDS), and EDS+Commerce hybrid implementations.
+Two-tier test coverage system for enterprise Adobe projects across 8 stacks: AEM (AEMaaCS + AEM AMS), Adobe Commerce PaaS (Magento 2), Adobe Commerce SaaS, Apache Sling / Shaft (sling-12), Spring Boot, Adobe App Builder, Edge Delivery Services (EDS), and EDS + Commerce hybrid implementations.
+
+This is one of the four agents in the BMAD DEPT Code Agent suite (audit, generation, impact-analysis, test-coverage). Its Tier-1 gap analysis, real-coverage parsing, standardized report, CHANGE-LOG, and optional branch-cut are shared with the other three agents.
 
 ### Tier 1 — Deterministic Coverage Analysis (TypeScript/Node.js)
 
-Fast, reproducible analysis using `scripts/run.ts`. Produces a coverage report with:
-- Testable unit inventory (classes, methods, functions, templates)
-- Existing test mapping (which source files have tests, which don't)
-- Coverage gap identification (untested public methods, critical paths without coverage)
-- 6-factor priority scoring (complexity, revenue path, plugin/observer, public API, git churn, fan-in)
-- Platform-specific test pattern detection across 7 framework types
-- Multi-strategy detection (filename, namespace, annotation — or combined)
-- Interactive mode for guided framework/strategy selection
+Fast, reproducible analysis using `scripts/run.ts` (auto-detects one of the 8 stacks or `--engine`). Produces a coverage report with:
+- Testable unit inventory (source files discovered by fast-glob across the detected stack)
+- Existing test mapping — which source files have tests, which don't, matched by basename (stripping `Test`/`Tests`/`IT`/`ITCase`-style suffixes)
+- Coverage gap identification — every unmatched source file is a gap; sorted by priority and sliced to the top 100
+- Complexity estimate — cyclomatic estimate by counting branch keywords (`if`/`else`/`switch`/`case`/`catch`/`for`/`while`/`?:`), driving priority and effort (S/M/L)
+- **Coverage % is a filename ESTIMATE by default** (tested source basenames ÷ total source basenames), labeled `Coverage source: estimate (filename match)`
+- Optional **real** line/branch coverage that overrides the estimate when a JaCoCo/Istanbul/LCOV/Clover report is present or produced (`--coverage-report` / `--run-coverage`)
+
+**Commerce (PaaS) engine only** — the richest engine adds: 7 framework types, multi-strategy detection, a 6-factor priority model, and an interactive picker (see below). The other 7 engines run the same filename-based gap analysis and each hardcode a single framework tag; they ignore `--frameworks`/`--strategy`.
 
 **Invocation:**
 ```bash
 npx ts-node scripts/run.ts --mode analyze --path <PROJECT_ROOT>
+# Commerce-only multi-framework analysis:
 npx ts-node scripts/run.ts --mode analyze --path <PROJECT_ROOT> --frameworks unit,mftf,api-functional
+# Commerce-only interactive framework/strategy picker:
 npx ts-node scripts/run.ts --interactive --path <PROJECT_ROOT>
 ```
 
@@ -35,6 +40,8 @@ AI-driven test creation using platform patterns and project conventions:
 - Produces functional/API tests for endpoints and services
 - Mocks dependencies following platform best practices
 - Validates generated tests compile and follow naming conventions
+
+**Note:** Tier 2 is NOT implemented in the CLI — every engine's `generateTests()` is a stub returning `[]`, so `--mode generate` writes no files and emits no report. The tests are written by **you (the LLM)** following this skill and the per-stack packs under `resources/test-generation/<stack>.md`.
 
 **Invocation:** Activated via BMAD skill workflow (coverage gaps → test generation)
 
@@ -115,7 +122,7 @@ Proceed with the user's chosen mode.
 4. Outputs coverage gap report (standardized Excel + Markdown + CHANGE-LOG)
 
 **Real coverage (accurate line/branch %):** by default the metric is a fast
-filename/class estimate. To get *real* coverage, either point at an existing
+filename estimate. To get *real* coverage, either point at an existing
 report or run the tool:
 
 ```bash
@@ -126,15 +133,21 @@ npx ts-node scripts/run.ts --mode analyze --engine <ENGINE> --path <PROJECT> --c
 npx ts-node scripts/run.ts --mode analyze --engine <ENGINE> --path <PROJECT> --run-coverage
 ```
 
-When a report is found, `Coverage %` becomes real line coverage, gaps become the
-files below 100% (with exact line/branch numbers + uncovered-line counts), and
-the Run Info sheet records `Coverage source: real (<tool>)`. Auto-discovered
-locations: `**/target/site/jacoco/jacoco.xml`, `**/coverage/coverage-summary.json`,
-`**/coverage/lcov.info`, `**/clover.xml`.
+When a report is found, `Coverage %` becomes real line coverage, `testedFiles`
+become the files at 100%, gaps become every file below 100% (sorted ascending,
+top 300, with exact covered/total line + branch counts and re-bucketed priority:
+`<50` critical, `<75` high, `<90` medium, else low), and the Run Info sheet
+records `Coverage source: real (<tool>)`. Auto-discovered locations, most-reliable
+first: `**/coverage/coverage-summary.json`, `**/coverage/coverage-final.json`,
+`**/coverage/lcov.info`, `**/target/site/jacoco/jacoco.xml`,
+`**/build/reports/jacoco/**.xml`, `**/clover.xml` (`node_modules` and `vendor`
+ignored).
 
 ### Mode: Generate (Tier 2 — the LLM writes the tests to 100%)
 
-The static engine finds the gaps; **you (the LLM) generate the tests.** For each gap:
+The static engine finds the gaps; **you (the LLM) generate the tests.** The CLI
+`--mode generate` only calls the `generateTests()` stub (returns `[]`, emits nothing);
+the real work is this workflow. For each gap:
 
 1. Run Tier 1 first (or read the prior gap report) for the ranked list of untested files.
 2. **Load the stack's test-generation pack** — `resources/test-generation/<stack>.md` (mapping below). It gives the
@@ -166,14 +179,19 @@ The static engine finds the gaps; **you (the LLM) generate the tests.** For each
 
 ### Mode: Full (Tier 1 + Tier 2)
 
-1. Run Tier 1 analysis to identify gaps
+1. Run Tier 1 analysis to identify gaps (this is the only part the CLI performs; `--mode full` analyzes + calls the generate stub + emits the analyze report)
 2. Present top-priority gaps to user for confirmation
-3. Generate tests for confirmed gaps (Tier 2)
+3. Generate tests for confirmed gaps (Tier 2 — you, the LLM)
 4. Summary report: what was generated, where placed, remaining gaps
 
 ## Platform-Specific Behavior
 
-### Adobe Commerce (Magento 2)
+The **Commerce (PaaS)** engine is by far the richest (multi-framework + 6-factor scoring + detection strategies).
+The other 7 engines run the same filename-based gap analysis and each **hardcode a single framework tag** — `unit`
+for `aem`/`sling`/`spring`/`eds`/`eds-commerce`, `js` for `app-builder`/`commerce-saas` — and ignore
+`--frameworks`/`--strategy`.
+
+### Adobe Commerce (Magento 2 / PaaS) — engine `commerce`
 - **7 testing frameworks supported:**
   - `unit` — PHPUnit unit tests (`app/code/**/Test/Unit/`)
   - `integration` — PHPUnit integration tests (`dev/tests/integration/`)
@@ -183,41 +201,67 @@ The static engine finds the gaps; **you (the LLM) generate the tests.** For each
   - `static` — Static analysis presence (PHPCS, PHPStan, PHPMD)
   - `performance` — Load tests (JMeter, Gatling, k6)
 - **Detection strategies:** `filename` (path conventions), `namespace` (PSR-4 mapping), `annotation` (`@covers`/`@group`), or `all` (combined)
-- **Priority scoring:** complexity × revenue-path × plugin/observer × public-API × git-churn × fan-in
+- **6-factor priority scoring:** complexity × revenue-path × plugin/interceptor × observer/event-handler × public-API (`@api`) × git-churn × dependency fan-in
 - Mocking: PHPUnit mocks + ObjectManager isolation
 - Patterns: Repository tests, Plugin tests, Observer tests, ViewModel tests
 
-### AEMaaCS
-- Test framework: JUnit 5 + Sling Mocks + AEM Mocks
+### Adobe Commerce SaaS — engine `commerce-saas`
+- Test framework: Jest + jsdom (ESM, `jest.unstable_mockModule`, mocked GraphQL / `@dropins`)
+- Single framework tag: `js`; `--frameworks`/`--strategy` are ignored
+- Patterns: catalog-service / Live Search query tests, storefront drop-in block tests
+
+### AEM (AEMaaCS + AEM AMS) — engine `aem`
+- Test framework: JUnit 5 + wcm.io AEM Mocks (`AemContext`) + Mockito (Sling Mocks available)
 - Unit tests: `src/test/java/` mirroring source package
 - Integration tests: `it.tests/` module
 - UI tests: `ui.tests/` module
 - Mocking: AemContext, SlingContext, MockSlingHttpServletRequest
 - Patterns: Sling Model tests, Servlet tests, OSGi service tests, Workflow tests
 
-### EDS
-- Test framework: Mocha/Jest
-- Unit tests: `test/` or `__tests__/` directories
-- Patterns: Block tests, DOM manipulation tests, fetch mock tests
+### Apache Sling / Shaft (sling-12) — engine `sling`
+- Test framework: JUnit 5 + Apache Sling/OSGi Mocks (`SlingContext`/`OsgiContext`) + Mockito
+- Unit tests: `src/test/java/` mirroring source package
+- Patterns: OSGi service tests, Sling Servlet/Filter tests, Sling Model tests
 
-### EDS + Commerce
-- Combines EDS test patterns with Commerce API mocking
-- Additional: Dropin component tests, Commerce API integration tests
+### Spring Boot — engine `spring`
+- Test framework: JUnit 5 + Spring Test (`@WebMvcTest`/`@DataJpaTest`/`@SpringBootTest`, MockMvc) + Mockito + spring-security-test + Testcontainers
+- Unit tests: `src/test/java/` mirroring source package
+- Patterns: REST controller (MockMvc) tests, service tests, JPA repository (`@DataJpaTest`) tests
+
+### Adobe App Builder — engine `app-builder`
+- Test framework: Jest (mocked `@adobe/aio-sdk` + global `fetch`, Istanbul coverage)
+- Single framework tag: `js`; `--frameworks`/`--strategy` are ignored
+- Patterns: I/O Runtime action tests, event-handler tests, API Mesh resolver tests
+
+### Edge Delivery Services (EDS) — engine `eds`
+- Test framework: Jest + jsdom + Babel
+- Unit tests: `test/` directories
+- Patterns: Block `decorate()` tests, DOM manipulation tests, fetch mock tests
+
+### EDS + Commerce — engine `eds-commerce`
+- Combines EDS test patterns with Commerce drop-in mocking (Jest + jsdom + Babel + mocked `@dropins` / `configs.js` / `fetch`)
+- Additional: drop-in component tests, Commerce API integration tests
+- On disk the engine directory is `eds_commerce` (underscore) while the canonical engine ID is `eds-commerce` (hyphen)
 
 ## Output Formats
 
-- **Coverage Report:** Excel workbook with sheets per module + summary
-- **Gap List:** JSON array of untested units with priority scores
-- **Generated Tests:** Source files placed in correct test directories
-- **Summary:** Markdown report of actions taken
+Standard outputs are written to `<project>/test-coverage-reports/` (or `--output`) via the shared
+`emitStandardOutputs` (agent id `test-coverage`):
+
+- **Coverage Report:** standardized Excel workbook named `test-coverage-<branch>-<timestamp>-agent-report.xlsx` — Summary sheet (15-column contract) + Input-Traceability sheet + a Run-Info sheet carrying `Coverage %`, `Coverage source` (`estimate (filename match)` or `real (<tool>)`), `Tested Files`, `Total Source Files`
+- **Markdown report:** `test-coverage-<branch>-<timestamp>-agent-report.md` — git-diffable twin of the Excel findings
+- **CHANGE-LOG.md:** appended at `<projectRoot>/CHANGE-LOG.md` with a one-line summary — `Coverage analysis: N% (tested/total files); K gap(s).`
+- **Generated Tests:** source files placed in the pack's test directories — written by you (the LLM), not the CLI
+- **Optional standard git branch:** `dca/test-coverage-<stack>-<timestamp>` cut from production/main/master/develop, only when `--create-branch` is passed
 
 ## Commands Reference
 
 | Trigger | Action |
 |---------|--------|
 | `analyze test coverage` | Tier 1 — gap analysis only |
-| `analyze coverage --interactive` | Tier 1 with guided framework/strategy prompt |
-| `analyze coverage --frameworks unit,mftf` | Tier 1 scoped to specific frameworks |
+| `analyze coverage --run-coverage` | Tier 1 + run the project coverage tool for real line/branch % |
+| `analyze coverage --interactive` | Tier 1 with guided framework/strategy prompt (Commerce only) |
+| `analyze coverage --frameworks unit,mftf` | Tier 1 scoped to specific frameworks (Commerce only) |
 | `generate tests` | Tier 2 — LLM generates tests for known gaps |
 | `full test coverage` | Tier 1 + Tier 2 combined |
 | `generate tests for <file/module>` | Targeted generation for specific scope |
@@ -230,10 +274,18 @@ The static engine finds the gaps; **you (the LLM) generate the tests.** For each
 |------|-------------|
 | `--mode <analyze\|generate\|full>` | Operation mode (default: analyze) |
 | `--path <dir>` | Project root (default: .) |
-| `--engine <engine>` | Platform engine (auto-detect if omitted) |
-| `--frameworks <list>` | Comma-separated: unit,integration,mftf,api-functional,js,static,performance |
-| `--strategy <strategy>` | Detection: filename, namespace, annotation, all (default: all) |
-| `--interactive` | Prompt which frameworks/strategy to use |
-| `--module <name>` | Scope to specific module/package |
-| `--output <dir>` | Output directory for reports |
+| `--engine <engine>` | One of: aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce (auto-detect if omitted) |
+| `--name <name>` | Report title / project name override |
+| `--module <name>` | Scope to specific module/package (Commerce `app/code/<module>`) |
+| `--output <dir>` | Output directory for reports (default `<project>/test-coverage-reports`) |
+| `--frameworks <list>` | Comma-separated: unit,integration,mftf,api-functional,js,static,performance — **Commerce only** |
+| `--strategy <strategy>` | Detection: filename, namespace, annotation, all (default: all) — **Commerce only** |
+| `--interactive` | Prompt which frameworks/strategy to use — **Commerce only** |
+| `--coverage-report <file>` | Parse an existing JaCoCo/Istanbul/LCOV/Clover report for real line/branch % |
+| `--run-coverage` | Run the project's coverage tool first (Maven/Gradle JaCoCo, Jest/nyc/c8, PHPUnit-clover), then parse it |
+| `--create-branch` | Cut standard branch `dca/test-coverage-<stack>-<timestamp>` before writing outputs |
+| `--source-branch <name>` | Source branch for `--create-branch` (default candidates: production, main, master, develop) |
+| `--preflight` | Print the model/context + STATIC/LLM/HYBRID advisory and exit |
+| `--no-preflight` | Suppress the preflight advisory that otherwise prints on every run |
 | `--list-engines` | List available engines |
+| `--help` | Print usage and exit |

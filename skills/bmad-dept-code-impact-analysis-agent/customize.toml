@@ -1,6 +1,6 @@
 [skill]
 name = "bmad-dept-code-impact-analysis-agent"
-description = "Code impact analysis for Commerce, AEMaaCS, and EDS projects. Evaluates blast radius, traces dependency chains, assesses risk for changes, upgrades, and patches."
+description = "Code impact analysis for Adobe Commerce (PaaS & SaaS), AEM (AEMaaCS & AMS), Apache Sling/Shaft, Spring Boot, App Builder, EDS, and EDS+Commerce projects. Evaluates blast radius, traces dependency chains, assesses risk for changes, upgrades, and patches."
 version = "1.0.0"
 
 [skill.tools]
@@ -15,5 +15,3 @@ package = "scripts/package.json"
 
 [skill.commands]
 analyze = "npx ts-node scripts/run.ts"
-trace = "npx ts-node scripts/run.ts --trace"
-upgrade-risk = "npx ts-node scripts/run.ts --upgrade-risk"

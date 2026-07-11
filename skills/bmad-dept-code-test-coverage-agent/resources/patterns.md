@@ -71,9 +71,9 @@ ui.tests/        ← Cypress/Playwright UI tests
 ## Edge Delivery Services
 
 ### Test Framework
-- Mocha + Chai (default) or Jest
+- Jest (the DCA EDS test-generation pack standardizes on Jest + Babel)
 - jsdom for DOM testing
-- sinon for stubs/mocking
+- `jest.fn()` / `jest.spyOn()` for stubs & mocking
 
 ### Directory Conventions
 ```
@@ -98,7 +98,7 @@ project/
 - Event handlers → test event dispatch/handling
 
 ### Mocking
-- `sinon.stub(window, 'fetch')` or jest `jest.fn()`
+- `jest.spyOn(window, 'fetch')` / `jest.fn()`
 - `jsdom` for `document` context
 - Custom fixtures for block HTML input
 

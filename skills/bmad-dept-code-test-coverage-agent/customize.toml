@@ -1,6 +1,6 @@
 [skill]
 name = "bmad-dept-code-test-coverage-agent"
-description = "Test coverage analyzer and generator for Commerce, AEMaaCS, EDS, and hybrid projects. Tier 1: deterministic coverage analysis via TypeScript scanner (gap detection, coverage mapping). Tier 2: LLM-driven test generation (unit, integration, functional tests following platform patterns)."
+description = "Test coverage analyzer and generator for Adobe Commerce (PaaS & SaaS), AEM (AEMaaCS & AMS), Apache Sling/Shaft, Spring Boot, App Builder, EDS, and EDS+Commerce hybrid projects. Tier 1: deterministic coverage analysis via TypeScript scanner (gap detection, coverage mapping). Tier 2: LLM-driven test generation (unit, integration, functional tests following platform patterns)."
 version = "1.0.0"
 
 [skill.tools]
@@ -16,10 +16,15 @@ package = "scripts/package.json"
 [skill.commands]
 # Tier 1: Analyze existing test coverage (auto-detects platform)
 analyze = "npx ts-node scripts/run.ts --mode analyze"
-# Tier 1 with explicit engine
+# Tier 1 with explicit engine (all 8 registered engines)
 analyze-commerce = "npx ts-node scripts/run.ts --mode analyze --engine commerce"
+analyze-commerce-saas = "npx ts-node scripts/run.ts --mode analyze --engine commerce-saas"
 analyze-aem = "npx ts-node scripts/run.ts --mode analyze --engine aem"
+analyze-sling = "npx ts-node scripts/run.ts --mode analyze --engine sling"
+analyze-spring = "npx ts-node scripts/run.ts --mode analyze --engine spring"
+analyze-app-builder = "npx ts-node scripts/run.ts --mode analyze --engine app-builder"
 analyze-eds = "npx ts-node scripts/run.ts --mode analyze --engine eds"
+analyze-eds-commerce = "npx ts-node scripts/run.ts --mode analyze --engine eds-commerce"
 # Tier 2: LLM generates tests for uncovered code
 generate = "skill"
 # Combined: analyze gaps then generate missing tests
