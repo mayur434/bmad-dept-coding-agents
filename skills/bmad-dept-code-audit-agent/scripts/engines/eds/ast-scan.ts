@@ -25,10 +25,10 @@ const ruleDomXss: JsRule = (ctx, add) => {
 
 const EDS_AST_RULES: JsRule[] = [...GENERIC_JS_RULES, ruleDomXss];
 
-/** Run the AST pass over EDS block/script JS. */
-export async function scanEdsAst(projectPath: string): Promise<Finding[]> {
+/** Run the AST pass over EDS block/script JS. Reused by the eds-commerce engine. */
+export async function scanEdsAst(projectPath: string, stackId = "eds"): Promise<Finding[]> {
   const scanner = new JsAstScanner(projectPath, EDS_AST_RULES, {
-    stackId: "eds",
+    stackId,
     include: "{blocks,scripts,styles,tools}/**/*.{js,mjs}",
   });
   const { findings } = await scanner.scan();
