@@ -173,6 +173,22 @@ Types by stack:
 `npx ts-node run.ts --list-types` prints the live list. For custom/business logic beyond these, use the LLM
 path with the resource packs (`resources/<stack>/`). Commerce SaaS is out of scope.
 
+## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
+
+The moment this command is triggered from an AI assistant (GitHub Copilot, Claude, Cursor, or any LLM), run the
+preflight and tell the user — in one line — **which LLM they're on** and **whether to use the deterministic
+scaffolder or the LLM/MCP path**:
+
+```bash
+npx ts-node scripts/run.ts --scaffold --engine {stack} --type {type} --name {Name} --path {project} --preflight
+```
+
+It prints the detected **model + context window**, the **project size**, the **fit** (% of the window), and a
+**recommendation** — favour the **deterministic scaffolder** (Tier-1) for standard artifacts (no token cost,
+repeatable) and the **LLM/MCP** path (Tier-2) for custom/business logic, especially when the project fits the
+window. Surface it like: *"You're on `<model>` (~`<ctx>`). I recommend the **<scaffolder|LLM>** path here. Proceed?"*
+(the advisory also prints on every scaffold run unless `--no-preflight`).
+
 ## Pre-flight
 
 Before generating code:

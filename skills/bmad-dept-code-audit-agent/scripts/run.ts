@@ -16,6 +16,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { detectPlatform, getEngine, listEngines } from "./engines/registry";
+import { runPreflight, renderPreflight } from "../../shared/preflight";
 
 function parseArgs(argv: string[]): { engine?: string; path?: string; format?: string; listEngines: boolean; help: boolean; remaining: string[] } {
   const result = { engine: undefined as string | undefined, path: undefined as string | undefined, format: undefined as string | undefined, listEngines: false, help: false, remaining: [] as string[] };
@@ -111,6 +112,13 @@ async function main(): Promise<void> {
       console.error(`     ${eid.padEnd(15)} ${desc}`);
     }
     process.exit(1);
+  }
+
+  // ── Conversational preflight: current LLM + Static-vs-LLM recommendation ──
+  if (projectPath && !process.argv.includes("--no-preflight")) {
+    console.log(renderPreflight(runPreflight(projectPath), { agent: "audit", stack: engineId }));
+    console.log("");
+    if (process.argv.includes("--preflight")) return;
   }
 
   // Build forwarded argv for the engine

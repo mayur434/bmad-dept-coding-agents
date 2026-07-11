@@ -9,6 +9,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { scaffold, GENERATORS, listTypes } from "./scaffold";
+import { runPreflight, renderPreflight } from "../../shared/preflight";
 
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(SKILL_ROOT, "assets");
@@ -195,6 +196,10 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     console.log(`⚡ Scaffolding ${stack}/${type} "${name}" into ${projectRoot}\n`);
+    if (!args.includes("--no-preflight")) {
+      console.log(renderPreflight(runPreflight(projectRoot), { agent: "generation", stack }) + "\n");
+      if (args.includes("--preflight")) return;
+    }
     await scaffold({
       stack, type, name,
       pkg: flag(args, "--package"),

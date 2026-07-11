@@ -17,6 +17,7 @@ import * as readline from "readline";
 import { TestFramework, DetectionStrategy, CoverageReport } from "./shared/base";
 import { emitStandardOutputs } from "../../shared/output";
 import type { Finding, Severity } from "../../shared/core/types";
+import { runPreflight, renderPreflight } from "../../shared/preflight";
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -270,6 +271,11 @@ async function main(): Promise<void> {
   if (!engine) {
     console.error("❌ Could not detect platform engine. Use --engine to specify.");
     process.exit(1);
+  }
+
+  if (!process.argv.includes("--no-preflight")) {
+    console.log(renderPreflight(runPreflight(projectPath), { agent: "test-coverage", stack: engine.id }) + "\n");
+    if (process.argv.includes("--preflight")) return;
   }
 
   // Interactive prompt if requested (or if no frameworks specified for Commerce)

@@ -50,6 +50,25 @@ This skill activates when the user asks to:
 - Produce a coverage report
 - Generate tests for specific files or components
 
+## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
+
+The moment this command is triggered from an AI assistant (GitHub Copilot, Claude, Cursor, or any LLM), run the
+preflight and tell the user — in one line — **which LLM they're on** and **whether to lean on the Static engine
+or the LLM**:
+
+```bash
+npx ts-node scripts/run.ts --path {project} [--engine {engine}] --preflight
+```
+
+It prints the detected **model + context window**, the **project size** (files/LOC/tokens), the **fit** (% of the
+window), and a **recommendation** — **STATIC** (Tier-1 deterministic coverage engine) when the project is large,
+**LLM** (Tier-2 test generation) when it comfortably fits, or **HYBRID**. Surface it like:
+*"You're on `<model>` (~`<ctx>` context). This project is ~`<pct>%` of your window → I recommend **<mode>**. Proceed?"*
+then run the full command (the advisory also prints on every normal run unless `--no-preflight`).
+
+**Rule of thumb:** run the Static (Tier-1) engine to find coverage gaps deterministically, then use the LLM
+(Tier-2) to generate the missing tests. Lean more on the LLM only when the project fits the window.
+
 ## Pre-flight: Auto-install Dependencies
 
 Before ANY command execution, silently run:
@@ -71,18 +90,18 @@ Do NOT ask the user. Do NOT print install output unless it fails.
 When the intent is ambiguous, ask using the interactive question picker. Use the `vscode_askQuestions` tool:
 
 ```
-question: "What would you like me to do?"
+question: "What would you like me to help with?"
 options:
-  - label: "Find gaps"
-    description: "Scan your code and show what's missing tests. Fast, no AI tokens used (~1.8K)."
+  - label: "Show me what's missing"
+    description: "I'll map your code against existing tests and highlight the gaps. Almost no tokens used (~1.8K)."
     recommended: true
-  - label: "Generate tests"
-    description: "Write tests for uncovered code using AI. Uses ~32K tokens."
-  - label: "Both"
-    description: "Find gaps then generate tests for the top priorities. Uses ~34K tokens."
+  - label: "Write tests for me"
+    description: "I'll generate test files for uncovered code following your project's patterns. Uses ~32K tokens."
+  - label: "Find gaps, then write tests"
+    description: "I'll identify what's missing and write tests for the top priorities. Uses ~34K tokens."
 ```
 
-**Important:** Always recommend "Find gaps" as default. Users often just need visibility into what's untested before deciding what to generate.
+**Important:** Always recommend "Show me what's missing" as default. Users often just need visibility into what's untested before deciding what to generate.
 
 Proceed with the user's chosen mode.
 

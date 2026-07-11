@@ -51,6 +51,25 @@ This skill activates when the user asks to:
 - Analyze patch upgrade impact
 - Export audit findings
 
+## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
+
+The moment this command is triggered from an AI assistant (GitHub Copilot, Claude, Cursor, or any LLM), run the
+preflight and tell the user — in one line — **which LLM they're on** and **whether to lean on the Static engine
+or the LLM**:
+
+```bash
+npx ts-node scripts/run.ts --path {project} [--engine {engine}] --preflight
+```
+
+It prints the detected **model + context window**, the **project size** (files/LOC/tokens), the **fit** (% of the
+window), and a **recommendation** — **STATIC** (Tier-1 deterministic engine) when the project is large, **LLM**
+(Tier-2 semantic) when it comfortably fits, or **HYBRID**. Surface it like:
+*"You're on `<model>` (~`<ctx>` context). This project is ~`<pct>%` of your window → I recommend **<mode>**. Proceed?"*
+then run the full command (the advisory also prints on every normal run unless `--no-preflight`).
+
+**Rule of thumb:** always run the Static (Tier-1) engine to scan — it's deterministic, repeatable, and costs no
+tokens — and use the LLM (Tier-2) to interpret/deepen the findings. Lean more on the LLM only when the project fits the window.
+
 ## Pre-flight: Auto-install Dependencies
 
 Before running any audit, check if Node dependencies are installed. If not, install them automatically:

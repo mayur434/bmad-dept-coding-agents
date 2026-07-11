@@ -22,6 +22,7 @@ import { readProofhubCsv, describeMapping } from "./inputs/proofhub";
 import { readBrd } from "./inputs/brd";
 import { traceImpact } from "./analysis/tracer";
 import { PROFILES, profileById, detectProfile } from "./engines/profiles";
+import { runPreflight, renderPreflight } from "../../shared/preflight";
 
 interface Args {
   path: string;
@@ -104,6 +105,10 @@ async function main(): Promise<void> {
   }
   console.log(`💥 Impact Analysis — ${profile.name}`);
   console.log(`   Project: ${basename(projectPath)}   Inputs: ${items.length}`);
+  if (!process.argv.includes("--no-preflight")) {
+    console.log("\n" + renderPreflight(runPreflight(projectPath), { agent: "impact", stack: profile.id }));
+    if (process.argv.includes("--preflight")) return;
+  }
   console.log("\n🔎 Tracing impacted code...");
 
   const { findings, sourceCount, matchedItems } = traceImpact(projectPath, items, profile);
