@@ -96,8 +96,7 @@ your-project/                          ← Your Adobe Commerce / AEM / EDS proje
 │       ├── bmad-dept-code-audit-agent/
 │       ├── bmad-dept-code-generation-agent/
 │       ├── bmad-dept-code-test-coverage-agent/
-│       ├── bmad-dept-code-impact-analysis-agent/
-│       └── bmad-dept-code-scan-agent/
+│       └── bmad-dept-code-impact-analysis-agent/
 ├── .bmad/
 │   └── mcp-registry.toml             ← MCP server config (Code Gen)
 ├── .mcp.json                          ← IDE MCP connections
@@ -120,8 +119,7 @@ bmad-dept-code-agent/                  ← This repository (the custom module)
     ├── bmad-dept-code-audit-agent/
     ├── bmad-dept-code-generation-agent/
     ├── bmad-dept-code-test-coverage-agent/
-    ├── bmad-dept-code-impact-analysis-agent/
-    └── bmad-dept-code-scan-agent/
+    └── bmad-dept-code-impact-analysis-agent/
 ```
 
 Each agent folder follows the same structure:

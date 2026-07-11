@@ -218,20 +218,7 @@ _Not yet supported by code generation agent._
 
 ---
 
-## 4. Scan Agent (`bmad-dept-code-scan-agent`)
-
-### All Platforms 🔲 (Workflow TODO — activation defined)
-
-| Action | Prompt |
-|--------|--------|
-| Quick scan | `scan my project code` |
-| Static analysis | `run static analysis on this codebase` |
-| Find violations | `find code violations` |
-| Quality check | `check code quality quickly` |
-
----
-
-## 5. Test Coverage Agent (`bmad-dept-code-test-coverage-agent`)
+## 4. Test Coverage Agent (`bmad-dept-code-test-coverage-agent`)
 
 ### All Platforms 🔲 (Scaffolded — engines TODO)
 

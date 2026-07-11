@@ -3,7 +3,7 @@ BMAD DEPT Code Agent,_meta,,,,,,,,,false,https://github.com/mayur434/bmad-dept-c
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,Code Audit,AU,Run two-tier code audit (TypeScript scanner + AI deep analysis).,audit,,anytime,,,false,{audit_output},audit report|excel report
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,Scan Only,SC,Run Tier 1 deterministic TypeScript scanner only.,scan,,anytime,,,false,{audit_output},excel report
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,Deep Audit,DA,Run Tier 2 AI semantic analysis only.,deep-audit,,anytime,bmad-dept-code-audit-agent:scan,,false,{audit_output},markdown report
-BMAD DEPT Code Agent,bmad-dept-code-audit-agent,List Engines,LE,Show available audit engines (commerce/aem/eds).,list-engines,,anytime,,,false,,engine list
+BMAD DEPT Code Agent,bmad-dept-code-audit-agent,List Engines,LE,Show available audit engines (aem/commerce/commerce-saas/sling/spring/app-builder/eds/eds-commerce).,list-engines,,anytime,,,false,,engine list
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,AEM Scan,AS,Run Tier 1 scanner on AEM project (15 categories: security/performance/architecture/cloud-readiness/dependencies).,scan,--engine aem --path {project_path},anytime,,,false,{audit_output},excel report (16 sheets)
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,AEM Deep Audit,AD,Run Tier 2 LLM deep semantic analysis on AEM project (4-pass: structural/pattern/cross-file/scoring).,deep-audit,--engine aem,anytime,bmad-dept-code-audit-agent:scan,,false,{audit_output},markdown report
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,AEM Full Audit,AF,Run full AEM audit (Tier 1 scanner + Tier 2 LLM) producing Excel + deep analysis report.,audit,--engine aem --path {project_path},anytime,,,false,{audit_output},excel report|markdown report
@@ -12,9 +12,8 @@ BMAD DEPT Code Agent,bmad-dept-code-audit-agent,AEM Scan (MD),AM,Run Tier 1 AEM 
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,AEM Scan (PDF),AP,Run Tier 1 AEM scanner with PDF output.,scan,--engine aem --path {project_path} --format pdf,anytime,,,false,{audit_output},pdf report
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,AEM Scan (All),AA,Run Tier 1 AEM scanner generating Excel + Markdown + PDF.,scan,--engine aem --path {project_path} --format all,anytime,,,false,{audit_output},excel report|markdown report|pdf report
 BMAD DEPT Code Agent,bmad-dept-code-audit-agent,AEM Full Audit (All),FA,Run full AEM audit (Tier 1 + Tier 2) in all formats.,audit,--engine aem --path {project_path} --format all,anytime,,,false,{audit_output},excel report|markdown report|pdf report
-BMAD DEPT Code Agent,bmad-dept-code-scan-agent,Code Scan,CS,Run fast deterministic static analysis scan.,scan,,anytime,,,false,{audit_output},excel report
-BMAD DEPT Code Agent,bmad-dept-code-scan-agent,Quick Scan,QS,Run quick scan mode.,scan-quick,,anytime,,,false,{audit_output},scan report
-BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Generate Code,GC,Generate production-ready code from specifications (AEM + Commerce).,generate,,anytime,,,false,,generated code
+BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Generate Code,GC,Generate production-ready code (AEM/Sling/Spring/Commerce PaaS+SaaS/App Builder/EDS) via scaffolders or LLM/MCP.,generate,,anytime,,,false,,generated code
+BMAD DEPT Code Agent,bmad-dept-code-generation-agent,List Scaffolders,LS,List deterministic scaffolder types per stack.,list-types,,anytime,,,false,,scaffolder list
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Scaffold,SF,Scaffold a new AEM component or Commerce module.,scaffold,,anytime,,,false,,scaffolded files
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Module,CM,Scaffold a new Adobe Commerce module (registration + module.xml + composer.json).,generate,--scope module,anytime,,,false,,module files
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Plugin,CP,Generate a plugin (interceptor) with di.xml registration.,generate,--scope plugin,anytime,,,false,,plugin + di.xml
@@ -30,6 +29,10 @@ BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Queue,CQ,Generate 
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce DB Schema,CD,Generate db_schema.xml with tables/indexes/constraints.,generate,--scope db-schema,anytime,,,false,,db_schema.xml
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Repository,RE,Generate full CRUD repository pattern (interface + model + resource + collection).,generate,--scope repository,anytime,,,false,,repository files
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Tests,CT,Generate unit/integration tests for Commerce classes.,generate,--scope tests,anytime,,,false,,test files
-BMAD DEPT Code Agent,bmad-dept-code-impact-analysis-agent,Impact Analysis,IA,Analyze blast radius and risk of code changes.,analyze,,anytime,,,false,{audit_output},impact report
-BMAD DEPT Code Agent,bmad-dept-code-impact-analysis-agent,Dependency Trace,DT,Trace dependency chains for a target.,trace,,anytime,,,false,{audit_output},dependency map
-BMAD DEPT Code Agent,bmad-dept-code-impact-analysis-agent,Upgrade Risk,UR,Assess risk for upgrades and patches.,upgrade-risk,,anytime,,,false,{audit_output},risk report
+BMAD DEPT Code Agent,bmad-dept-code-impact-analysis-agent,Impact from Bugs,IB,Trace the impact of a Proofhub bug export (blast radius + traceability).,analyze,--bugs {proofhub_csv} --path {project_path},anytime,,,false,{audit_output},impact report
+BMAD DEPT Code Agent,bmad-dept-code-impact-analysis-agent,Impact from BRD,IR,Trace the impact of a BRD document (.docx/.md/.txt) on the codebase.,analyze,--brd {brd_doc} --path {project_path},anytime,,,false,{audit_output},impact report
+BMAD DEPT Code Agent,bmad-dept-code-impact-analysis-agent,Impact Bugs+BRD,IX,Combined impact analysis from a bug export and a BRD.,analyze,--bugs {proofhub_csv} --brd {brd_doc} --path {project_path},anytime,,,false,{audit_output},impact report
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Coverage Analyze,TA,Analyze test-coverage gaps (Tier 1); real line/branch coverage when a report is present.,analyze,--mode analyze --path {project_path},anytime,,,false,{audit_output},coverage report
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Real Coverage,TR,Run the project coverage tool (JaCoCo/Jest/PHPUnit) and report real line/branch %.,analyze,--mode analyze --run-coverage --path {project_path},anytime,,,false,{audit_output},coverage report
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Generate Tests,TG,Generate tests to 100% (Tier 2 LLM) for the coverage gaps.,generate,--mode generate --path {project_path},anytime,,,false,,test files
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Full Coverage,TF,Analyze gaps then generate tests to 100%.,full,--mode full --path {project_path},anytime,,,false,{audit_output},coverage report|test files

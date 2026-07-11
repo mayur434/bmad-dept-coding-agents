@@ -1,8 +1,8 @@
 code: dca
 name: "BMAD DEPT Code Agent"
-header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe platforms"
-subheader: "Code audit, generation, test coverage, impact analysis, and scanning for Commerce, AEM, EDS"
-description: "Multi-agent AI suite for Commerce, AEMaaCS, EDS, and hybrid projects"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
 default_selected: false
 recommendedModules: [bmm]
 requiredModules: [core]
@@ -12,35 +12,28 @@ agents:
     name: Auditor
     title: Code Audit Specialist
     icon: "🔍"
-    description: "Enterprise code auditor. Performs deterministic static analysis (42+ categories) and AI-driven semantic analysis across Commerce, AEM, and EDS platforms."
-    team: software-development
-
-  - code: bmad-dept-code-scan-agent
-    name: Scanner
-    title: Code Scan Specialist
-    icon: "📡"
-    description: "Fast deterministic code scanner for Commerce, AEMaaCS, EDS, and hybrid projects. Performs static analysis and produces structured reports (Excel/JSON)."
+    description: "Enterprise code auditor. Deterministic tree-sitter AST + regex static analysis and AI-driven semantic analysis across AEMaaCS/AMS, Commerce PaaS/SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, and EDS (+ EDS+Commerce). Emits a standardized Excel report + CHANGE-LOG."
     team: software-development
 
   - code: bmad-dept-code-generation-agent
     name: Generator
     title: Code Generation Specialist
     icon: "⚡"
-    description: "AI-driven code generation for AEMaaCS (MCP), AEM AMS, and Adobe Commerce (Magento 2). Produces production-ready code following platform patterns, security standards, and scalable architecture."
+    description: "Deterministic scaffolders + LLM/MCP generation for AEMaaCS/AMS, Commerce PaaS/SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, and EDS — production-ready code following each platform's standards and security patterns."
     team: software-development
 
   - code: bmad-dept-code-impact-analysis-agent
     name: Impact Analyst
     title: Code Impact Analysis Specialist
     icon: "💥"
-    description: "Code impact analysis for Commerce, AEMaaCS, and EDS projects. Evaluates blast radius, traces dependency chains, assesses risk for changes, upgrades, and patches."
+    description: "Impact analysis from a Proofhub bug export or a BRD document (Word/Markdown). Traces impacted code, computes reverse-dependency blast radius, and scores risk across all supported stacks; emits an Input-Traceability report."
     team: software-development
 
   - code: bmad-dept-code-test-coverage-agent
     name: Test Coverage
     title: Test Coverage Specialist
     icon: "🧪"
-    description: "Two-tier test coverage agent. Tier 1: deterministic coverage gap analysis (scanner). Tier 2: LLM-driven test generation following platform-specific patterns (PHPUnit, JUnit, Mocha/Jest)."
+    description: "Two-tier test coverage. Tier 1: gap analysis + real line/branch coverage (JaCoCo/Istanbul/Clover/LCOV). Tier 2: LLM test generation to 100% per framework (JUnit + AEM/Sling Mocks, Spring Test/MockMvc, PHPUnit/MFTF, Jest)."
     team: software-development
 
 # Configuration variables
@@ -52,7 +45,7 @@ audit_output:
 audit_engine:
   prompt: "Default audit engine (auto-detects if not set)?"
   default: "auto"
-  single-select: ["auto", "commerce", "aem", "eds", "eds-commerce"]
+  single-select: ["auto", "aem", "commerce", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
 
 audit_namespace:
   prompt: "Custom module namespace for Commerce projects?"
@@ -62,15 +55,20 @@ directories:
   - "{audit_output}"
 
 post-install-notes: |
-  BMAD DEPT Code Agent installed.
+  BMAD DEPT Code Agent installed (audit · generation · impact · test-coverage).
 
   Quick usage:
-    Ask: "audit my project" or "scan my project" or "generate a component"
+    Ask: "audit my project", "generate a component", "analyze impact of these bugs",
+         or "analyze test coverage" — the agent auto-detects the stack.
 
-  Tier 1 (TypeScript scanner):
-    npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts --path . --engine commerce
+  Install dependencies (Node.js v20.12+):
+    # the shared foundation (required by every agent) FIRST:
+    cd .claude/skills/shared && npm install
+    # then each agent you use:
+    cd .claude/skills/bmad-dept-code-audit-agent/scripts && npm install
 
-  Tier 2 (AI deep analysis):
-    Triggered automatically when you ask the agent to audit.
+  Tier 1 (deterministic scanner), e.g. audit:
+    npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts --path .
 
-  Prerequisites: Node.js v20.12+, cd scripts && npm install
+  Engines (auto-detected): aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce.
+  Tier 2 (AI deep analysis) triggers automatically when you ask the agent to run.

@@ -1,8 +1,8 @@
 code: dca
 name: "BMAD DEPT Code Agent"
 header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe platforms"
-subheader: "Code audit, generation, impact analysis, and scanning for Commerce, AEM, EDS"
-description: "Multi-agent AI suite for Commerce, AEMaaCS, EDS, and hybrid projects"
+subheader: "Code audit, generation, impact analysis, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, test coverage) for AEMaaCS/AMS, Commerce PaaS + SaaS, App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
 default_selected: false
 recommendedModules: [bmm]
 requiredModules: [core]
@@ -24,7 +24,7 @@ audit_output:
 audit_engine:
   prompt: "Default audit engine (auto-detects if not set)?"
   default: "auto"
-  single-select: ["auto", "commerce", "aem", "eds", "eds-commerce"]
+  single-select: ["auto", "aem", "commerce", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
 
 audit_namespace:
   prompt: "Custom module namespace for Commerce projects?"

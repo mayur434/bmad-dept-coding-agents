@@ -41,22 +41,22 @@ export function modeOptions(comparison: SavingsComparison): ModeOption[] {
     if (p.mode === "static") {
       options.push({
         id: "static",
-        title: "Scanner",
-        description: "Fast deterministic scan. Produces Excel report in seconds.",
-        tokenHint: `Uses ~${formatTokens(p.projectedTokens)} tokens — saves ${p.savingsPercent}%`,
+        title: "Quick review",
+        description: "I'll check your code against best practices and give you a report in seconds.",
+        tokenHint: `Barely uses any tokens (~${formatTokens(p.projectedTokens)})`,
       });
     } else if (p.mode === "llm-optimized") {
       options.push({
         id: "llm-optimized",
-        title: "AI Analysis",
-        description: "AI-driven semantic analysis. Catches architectural flaws, cross-file issues.",
+        title: "Deep review",
+        description: "I'll reason through your architecture and logic to find subtle issues.",
         tokenHint: `Uses ~${formatTokens(p.projectedTokens)} tokens`,
       });
     } else if (p.mode === "llm") {
       options.push({
         id: "llm",
-        title: "Full (Scanner + AI)",
-        description: "Run both for comprehensive coverage.",
+        title: "Everything",
+        description: "Quick review first, then I'll dig deeper into what I find.",
         tokenHint: `Uses ~${formatTokens(p.projectedTokens)} tokens`,
       });
     }
