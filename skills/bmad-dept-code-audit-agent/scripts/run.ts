@@ -17,6 +17,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { detectPlatform, getEngine, listEngines } from "./engines/registry";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
+import { maybeCutStandardBranch } from "../../shared/output";
 
 function parseArgs(argv: string[]): { engine?: string; path?: string; format?: string; listEngines: boolean; help: boolean; remaining: string[] } {
   const result = { engine: undefined as string | undefined, path: undefined as string | undefined, format: undefined as string | undefined, listEngines: false, help: false, remaining: [] as string[] };
@@ -121,7 +122,10 @@ async function main(): Promise<void> {
     if (process.argv.includes("--preflight")) return;
   }
 
-  // Build forwarded argv for the engine
+  // ── Standard branch (output C): cut dca/audit-<stack>-<ts> from production/shared ──
+  if (projectPath) maybeCutStandardBranch(process.argv, { agent: "audit", stack: engineId, projectRoot: projectPath });
+
+  // Build forwarded argv for the engine (strip branch flags — the dispatcher already cut it)
   const engineArgv: string[] = [];
   if (projectPath) {
     engineArgv.push("--path", projectPath);
@@ -129,7 +133,11 @@ async function main(): Promise<void> {
   if (args.format) {
     engineArgv.push("--format", args.format);
   }
-  engineArgv.push(...args.remaining);
+  for (let i = 0; i < args.remaining.length; i++) {
+    if (args.remaining[i] === "--create-branch") continue;
+    if (args.remaining[i] === "--source-branch") { i++; continue; }
+    engineArgv.push(args.remaining[i]);
+  }
   if (args.help) {
     engineArgv.push("--help");
   }

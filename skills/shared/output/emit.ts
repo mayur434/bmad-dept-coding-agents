@@ -157,6 +157,26 @@ export function ensureStandardBranch(opts: EnsureBranchOptions): EnsureBranchRes
   };
 }
 
+/**
+ * Dispatcher helper: if `--create-branch` is present in argv, cut the standard
+ * working branch (`dca/<agent>-<stack>-<ts>`) from the production/shared branch
+ * (optionally named via `--source-branch <name>`) so the run's outputs land there.
+ * Returns null when `--create-branch` was not requested. Non-fatal on git errors.
+ */
+export function maybeCutStandardBranch(
+  argv: string[],
+  opts: { agent: AgentName; stack?: string; projectRoot: string },
+): EnsureBranchResult | null {
+  if (!argv.includes("--create-branch")) return null;
+  const i = argv.indexOf("--source-branch");
+  const sourceCandidates = i >= 0 && i + 1 < argv.length ? [argv[i + 1]] : undefined;
+  const res = ensureStandardBranch({ agent: opts.agent, stack: opts.stack, projectRoot: opts.projectRoot, sourceCandidates });
+  console.log(res.ok
+    ? `🌿 Standard branch: ${res.branch} (from ${res.sourceBranch})`
+    : `⚠️  Standard branch not created: ${res.error}`);
+  return res;
+}
+
 function defaultSummary(agent: AgentName, total: number): string {
   switch (agent) {
     case "audit": return `Audit produced ${total} finding(s).`;

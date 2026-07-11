@@ -10,6 +10,7 @@ import * as fs from "fs";
 import * as path from "path";
 import { scaffold, GENERATORS, listTypes } from "./scaffold";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
+import { maybeCutStandardBranch } from "../../shared/output";
 
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(SKILL_ROOT, "assets");
@@ -200,6 +201,8 @@ async function main(): Promise<void> {
       console.log(renderPreflight(runPreflight(projectRoot), { agent: "generation", stack }) + "\n");
       if (args.includes("--preflight")) return;
     }
+    // Standard branch (output C): cut dca/generation-<stack>-<ts> from production/shared.
+    maybeCutStandardBranch(args, { agent: "generation", stack, projectRoot });
     await scaffold({
       stack, type, name,
       pkg: flag(args, "--package"),

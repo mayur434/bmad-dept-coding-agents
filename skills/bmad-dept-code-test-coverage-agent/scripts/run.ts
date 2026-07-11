@@ -15,7 +15,7 @@ import { resolve, basename, join } from "path";
 import { existsSync } from "fs";
 import * as readline from "readline";
 import { TestFramework, DetectionStrategy, CoverageReport, CoverageGap } from "./shared/base";
-import { emitStandardOutputs } from "../../shared/output";
+import { emitStandardOutputs, maybeCutStandardBranch } from "../../shared/output";
 import type { Finding, Severity } from "../../shared/core/types";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
 import { discoverReport, parseReport, runCoverage, CoverageResult } from "../../shared/coverage";
@@ -342,6 +342,9 @@ async function main(): Promise<void> {
   if (frameworks) console.log(`   Frameworks: ${frameworks.join(", ")}`);
   if (strategy) console.log(`   Strategy:   ${strategy}`);
   console.log("");
+
+  // Standard branch (output C): cut dca/test-coverage-<stack>-<ts> from production/shared.
+  maybeCutStandardBranch(process.argv, { agent: "test-coverage", stack: engine.id, projectRoot: projectPath });
 
   const coverageOpts = {
     name: args.name,

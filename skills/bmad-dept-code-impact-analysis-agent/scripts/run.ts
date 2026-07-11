@@ -15,7 +15,7 @@
 
 import { resolve, basename, join } from "path";
 import { existsSync } from "fs";
-import { emitStandardOutputs } from "../../shared/output";
+import { emitStandardOutputs, maybeCutStandardBranch } from "../../shared/output";
 import { computeCounts, RecommendationRow, SEVERITIES } from "../../shared/core/types";
 import { InputItem } from "./inputs/types";
 import { readProofhubCsv, describeMapping } from "./inputs/proofhub";
@@ -109,6 +109,9 @@ async function main(): Promise<void> {
     console.log("\n" + renderPreflight(runPreflight(projectPath), { agent: "impact", stack: profile.id }));
     if (process.argv.includes("--preflight")) return;
   }
+  // Standard branch (output C): cut dca/impact-<stack>-<ts> from production/shared.
+  maybeCutStandardBranch(process.argv, { agent: "impact", stack: profile.id, projectRoot: projectPath });
+
   console.log("\n🔎 Tracing impacted code...");
 
   const { findings, sourceCount, matchedItems } = traceImpact(projectPath, items, profile);
