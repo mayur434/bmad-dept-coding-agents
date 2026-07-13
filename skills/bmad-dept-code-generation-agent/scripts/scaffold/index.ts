@@ -24,7 +24,11 @@ export interface ScaffoldOptions {
   force?: boolean;
 }
 
+/** Accept the other agents' engine IDs (aemcs/aemams → aem; commerce → commerce-paas). */
+const STACK_ALIASES: Record<string, string> = { aemcs: "aem", aemams: "aem", commerce: "commerce-paas" };
+
 export async function scaffold(opts: ScaffoldOptions): Promise<void> {
+  opts.stack = STACK_ALIASES[opts.stack] ?? opts.stack;
   const gens = GENERATORS[opts.stack];
   if (!gens) {
     console.error(`❌ Unknown stack: ${opts.stack}. Available: ${Object.keys(GENERATORS).join(", ")}`);
