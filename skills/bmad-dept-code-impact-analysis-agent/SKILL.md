@@ -20,6 +20,118 @@ This skill activates when the user asks to:
 - Check what code is affected by a set of bugs/requirements
 - Evaluate blast radius of planned changes
 - Trace dependencies for a change set
+- List available impact analysis engines / stacks
+
+---
+
+## Prompt → Action Resolution
+
+Resolve the user's natural language prompt to the correct action **before** running preflight.
+
+### Direct-intent triggers
+
+The first row of each entry is the **BMAD help panel prompt-template** — the pre-filled message shown when the user clicks the command. All other rows are organic conversation triggers.
+
+| User says… | Action | Resolved flags |
+|------------|--------|---------------|
+| "Please analyze the impact of my Proofhub bug export at {proofhub_csv} on the project at {project_path}" _(help panel)_ | Analyze — bugs | `--bugs {proofhub_csv} --path {project_path}` |
+| "analyze impact of this bug export" / "trace blast radius of my Proofhub CSV" / "what does fixing these bugs affect" / "impact analysis from bugs" | Analyze — bugs | `--bugs {bugs_csv} --path {project_path}` |
+| "Please analyze the impact of my BRD at {brd_doc} on the project at {project_path}" _(help panel)_ | Analyze — BRD | `--brd {brd_doc} --path {project_path}` |
+| "analyze impact of this BRD" / "requirements blast radius" / "what does building this BRD affect" / "impact from requirements document" | Analyze — BRD | `--brd {brd_doc} --path {project_path}` |
+| "Please analyze the combined impact of my bug export at {proofhub_csv} and BRD at {brd_doc} on the project at {project_path}" _(help panel)_ | Analyze — bugs + BRD | `--bugs {proofhub_csv} --brd {brd_doc} --path {project_path}` |
+| "analyze impact from both bugs and BRD" / "combined impact analysis" / "bugs and requirements together" | Analyze — bugs + BRD | `--bugs {bugs_csv} --brd {brd_doc} --path {project_path}` |
+| "Please list all available impact analysis engines and supported stacks" _(help panel)_ | List engines | `--list-engines` |
+| "list impact analysis engines" / "what stacks does impact analysis support?" / "show available engines" | List engines | `--list-engines` |
+
+### Flag resolution rules
+
+| User says… | Flag | Value |
+|------------|------|-------|
+| _(always)_ | `--path` | Current workspace root (auto-detect) |
+| "bugs from /path" / "Proofhub export at /path" / "bug CSV at /path" | `--bugs` | CSV file path |
+| "BRD at /path" / "requirements document /path" / "from /path.docx" | `--brd` | .docx / .md / .txt path |
+| "for AEM" / "Spring project" / "Commerce project" / explicit engine name | `--engine` | stack id |
+| "output to /dir" / "save report at /dir" | `--output` | Directory path |
+| "cut a branch" / "on a new branch" / "create branch" | `--create-branch` | _(flag, no value)_ |
+| "branch from production/main/staging" | `--source-branch` | Branch name |
+
+### Engine auto-detection (do not ask unless ambiguous)
+
+| Project signal | Engine |
+|----------------|--------|
+| `composer.json` with `magento/` or `app/code/` | `commerce-paas` |
+| `ui.apps/`, `pom.xml` with AEM SDK | `aem` |
+| `pom.xml`/`bnd` with `org.apache.sling`/`org.apache.felix` (no AEM markers) | `sling` |
+| `spring-boot-starter` / `@SpringBootApplication` in `pom.xml` or `build.gradle` | `spring` |
+| Storefront Events SDK / `catalog-service.adobe.io` (no `app/code`) | `commerce-saas` |
+| `blocks/`, `helix-query.yaml`, `fstab.yaml` | `eds` |
+| EDS signals + commerce dropin references | `eds-commerce` |
+| `app.config.yaml`, `.aio`, `@adobe/aio-sdk` | `app-builder` |
+| Cannot determine | Ask: "What platform is this? Commerce / AEM / Sling-Shaft / Spring / EDS / App Builder?" |
+
+### Missing required info — ask (don't guess)
+
+| When user says… | What to ask |
+|-----------------|-------------|
+| "analyze impact" with no file path | "Please provide the path to your Proofhub CSV and/or BRD document." |
+| "analyze bugs" but no CSV path | "Please provide the path to your Proofhub CSV export." |
+| "analyze BRD" but no file path | "Please provide the path to your BRD document (.docx / .md / .txt)." |
+| No `--path` / project root unclear | "Which project directory should I trace impact against? Use current workspace?" |
+| Stack is ambiguous | "I see markers for both [X] and [Y]. Which stack should I use?" |
+
+### Compound resolution
+
+Combine all matched flags from a single prompt:
+
+- "analyze impact of bugs.csv and cut a branch" → `--bugs bugs.csv --create-branch`
+- "BRD impact on Spring project, output to /reports, branch from main" → `--brd brd.docx --engine spring --output /reports --create-branch --source-branch main`
+- "combined impact from bugs.csv and requirements.docx" → `--bugs bugs.csv --brd requirements.docx`
+- "trace blast radius of this Proofhub export on a new branch" → `--bugs export.csv --create-branch`
+
+### Concrete examples — one per skill entry
+
+**`IB` — Impact from Bugs**
+> _Help panel:_ "Please analyze the impact of my Proofhub bug export at `/path/to/bugs.csv` on the project at `/your/project/path`"
+> _Or say:_ "analyze impact of this bug export" / "trace blast radius of my bugs" / "what does fixing these bugs affect"
+
+Extract `{proofhub_csv}` and `{project_path}` from the message:
+```bash
+npx ts-node {skill_path}/scripts/run.ts --bugs {proofhub_csv} --path {project_path}
+```
+
+---
+
+**`IR` — Impact from BRD**
+> _Help panel:_ "Please analyze the impact of my BRD at `/path/to/brd.docx` on the project at `/your/project/path`"
+> _Or say:_ "analyze impact of this BRD" / "requirements blast radius" / "what does building this BRD affect"
+
+Extract `{brd_doc}` and `{project_path}`. Supports `.docx`, `.md`, `.txt`:
+```bash
+npx ts-node {skill_path}/scripts/run.ts --brd {brd_doc} --path {project_path}
+```
+
+---
+
+**`IX` — Impact Bugs + BRD**
+> _Help panel:_ "Please analyze the combined impact of my bug export at `/path/to/bugs.csv` and BRD at `/path/to/brd.docx` on the project at `/your/project/path`"
+> _Or say:_ "analyze impact from both bugs and BRD" / "combined impact analysis" / "bugs and requirements together"
+
+Extract `{proofhub_csv}`, `{brd_doc}`, and `{project_path}`:
+```bash
+npx ts-node {skill_path}/scripts/run.ts --bugs {proofhub_csv} --brd {brd_doc} --path {project_path}
+```
+
+---
+
+**`IL` — List Engines**
+> _Help panel:_ "Please list all available impact analysis engines and supported stacks"
+> _Or say:_ "list impact analysis engines" / "what stacks does impact analysis support?" / "show available engines"
+
+```bash
+npx ts-node {skill_path}/scripts/run.ts --list-engines
+```
+
+---
 
 ## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
 
@@ -49,12 +161,10 @@ cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
 ## Consent: Ask Analysis Mode
 
 **Direct-intent triggers (skip the question, go straight):**
-- "trace dependencies" / "what uses X" / "dependency chain" → run the tracer, present the traceability as-is
-- "upgrade risk" / "what breaks if" / "blast radius" → run the tracer, then have the LLM interpret the blast radius
+- "trace dependencies" / "blast radius" / "what does X affect" / "dependency chain" → run the tracer and present the traceability
 
-Both intents run the **same deterministic tracer** — these are natural-language intent phrases, not CLI flags, and
-they differ only in how much the LLM interprets the result afterward. STATIC vs LLM/HYBRID is an advisory from
-preflight, not a switch that changes tracer behaviour.
+The tracer is always deterministic regardless of the input phrasing. STATIC vs LLM/HYBRID is an advisory from
+preflight about how to interpret the results, not a switch that changes tracer behaviour.
 
 **Ambiguous triggers (ask which mode):**
 - "impact analysis" / "analyze impact" / "check impact"
@@ -115,3 +225,23 @@ Pass `--create-branch` (optionally with `--source-branch <name>`) to first cut t
 > **Note on fidelity:** tracing is heuristic (symbol/identifier matching + reverse-reference), not full
 > type-resolved data-flow — it favors recall and always lists its evidence (matched symbols) so a reviewer can
 > confirm. Enrich Proofhub items with a module/label or a file/class name to sharpen matches.
+
+---
+
+## Post-Run Follow-Up
+
+After an impact report has been generated, the user may ask follow-up questions. Handle these by reading the generated report and responding:
+
+| User prompt | Action |
+|-------------|--------|
+| "summarize the impact findings" | Read the report, provide executive summary with top blast-radius items and severity breakdown |
+| "show items with no code match" | Filter Input Traceability sheet for rows with severity INFO and status "Needs manual review" |
+| "which modules are most affected?" | Group findings by Category/Module column, rank by count |
+| "what's the highest blast-radius item?" | Find the finding with highest blast radius from the Impact Analysis column |
+| "show me only CRITICAL and HIGH findings" | Filter Summary sheet by Severity column |
+| "re-run with a different engine" | Ask which engine, then re-run with `--engine <id>` added |
+| "generate a fix plan for the top items" | Prioritize highest-severity findings and their Recommendation column values |
+| "why was file X included?" | Read matched symbols / evidence in Code Reference and Impact Analysis columns for that file |
+| "which input items had the most blast radius?" | Group by inputRef.id in the Input Traceability sheet, sum affected files per input |
+
+**Report location:** Look for the latest `impact-<branch>-<timestamp>-agent-report.xlsx` (and its `.md` twin) in `<project>/impact-reports/` or the `--output` directory. The appended `CHANGE-LOG.md` at the project root lists every report by filename.

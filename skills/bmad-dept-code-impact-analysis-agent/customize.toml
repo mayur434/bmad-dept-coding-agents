@@ -15,3 +15,4 @@ package = "scripts/package.json"
 
 [skill.commands]
 analyze = "npx ts-node scripts/run.ts"
+list-engines = "npx ts-node scripts/run.ts --list-engines"
