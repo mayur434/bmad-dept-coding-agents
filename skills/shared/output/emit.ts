@@ -183,6 +183,7 @@ function defaultSummary(agent: AgentName, total: number): string {
     case "impact": return `Impact analysis produced ${total} impacted item(s).`;
     case "test-coverage": return `Coverage analysis produced ${total} gap(s).`;
     case "generation": return `Generation run produced ${total} artifact record(s).`;
+    case "sonar-scan": return `Sonar scan produced ${total} finding(s).`;
     default: return `${total} item(s).`;
   }
 }

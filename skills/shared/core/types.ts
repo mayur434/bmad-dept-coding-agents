@@ -1,8 +1,8 @@
 /**
  * DCA Shared — Unified Engine Contract & Finding Model
  * =====================================================
- * A single normalized data model shared by all four agents (audit, generation,
- * impact-analysis, test-coverage) so that every agent can emit the SAME
+ * A single normalized data model shared by all five agents (audit, generation,
+ * impact-analysis, test-coverage, sonar-scan) so that every agent can emit the SAME
  * standardized outputs (CHANGE-LOG.md + `<agent>-<branch>-<timestamp>-agent-report.xlsx`).
  *
  * Engines produce `Finding[]`; the shared report/output layer consumes it.
@@ -24,8 +24,8 @@ export const SEVERITY_RANK: Record<Severity, number> = {
   INFO: 4,
 };
 
-/** The four agents in the DCA suite. Used for report/branch/changelog naming. */
-export type AgentName = "audit" | "generation" | "impact" | "test-coverage";
+/** The five agents in the DCA suite. Used for report/branch/changelog naming. */
+export type AgentName = "audit" | "generation" | "impact" | "test-coverage" | "sonar-scan";
 
 /** Where a finding came from — a deterministic scanner or the LLM tier. */
 export type FindingSource = "scanner" | "llm" | "hybrid";

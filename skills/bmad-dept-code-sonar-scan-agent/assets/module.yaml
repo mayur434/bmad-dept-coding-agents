@@ -1,0 +1,5 @@
+code: dca
+name: "BMAD DEPT Code Agent"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"

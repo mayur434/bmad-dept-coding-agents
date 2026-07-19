@@ -90,17 +90,17 @@ const STACKS = [
   "Adobe App Builder", "Sling-12 / Shaft", "Spring Boot", "Adobe EDS", "EDS + Commerce",
 ];
 
-// [audit, generation, impact, testCoverage] per stack (status word)
+// [audit, generation, impact, testCoverage, sonarScan] per stack (status word)
 const MATRIX = {
-  "AEMaaCS":              ["Done", "Done", "Done", "Done"],
-  "AEM AMS":              ["Done", "Done", "Done", "Done"],
-  "Adobe Commerce PaaS":  ["Done", "Done", "Done", "Done"],
-  "Adobe Commerce SaaS":  ["Done", "Done", "Done", "Done"],
-  "Adobe App Builder":    ["Done", "Done", "Done", "Done"],
-  "Sling-12 / Shaft":     ["Done", "Done", "Done", "Done"],
-  "Spring Boot":          ["Done", "Done", "Done", "Done"],
-  "Adobe EDS":            ["Done", "Done", "Done", "Done"],
-  "EDS + Commerce":       ["Done", "Done", "Done", "Done"],
+  "AEMaaCS":              ["Done", "Done", "Done", "Done", "Done"],
+  "AEM AMS":              ["Done", "Done", "Done", "Done", "Done"],
+  "Adobe Commerce PaaS":  ["Done", "Done", "Done", "Done", "Done"],
+  "Adobe Commerce SaaS":  ["Done", "Done", "Done", "Done", "Done"],
+  "Adobe App Builder":    ["Done", "Done", "Done", "Done", "Done"],
+  "Sling-12 / Shaft":     ["Done", "Done", "Done", "Done", "Done"],
+  "Spring Boot":          ["Done", "Done", "Done", "Done", "Done"],
+  "Adobe EDS":            ["Done", "Done", "Done", "Done", "Done"],
+  "EDS + Commerce":       ["Done", "Done", "Done", "Done", "Done"],
 };
 
 const AGENTS = [
@@ -116,9 +116,12 @@ const AGENTS = [
   { key: "testcoverage", name: "Test Coverage", icon: "🧪",
     purpose: "Coverage-gap analysis per stack (source↔test matching, priority scoring) → standardized report. LLM tier generates the missing tests.",
     overall: "Complete — all 9 stacks" },
+  { key: "sonarscan", name: "Sonar Scan", icon: "🛡️",
+    purpose: "LLM-driven SonarQube-style analysis: Bugs, Vulnerabilities, Security Hotspots, Code Smells, Duplications, Complexity. Reliability/Security/Maintainability ratings (A–E) + Quality Gate. Dedicated Vulnerabilities Excel sheet with color-coded severity and concrete recommended fixes.",
+    overall: "Complete — all 9 stacks" },
 ];
 
-const IDX = { audit: 0, generation: 1, impact: 2, testcoverage: 3 };
+const IDX = { audit: 0, generation: 1, impact: 2, testcoverage: 3, sonarscan: 4 };
 
 // standard outputs status per agent
 const OUTPUTS = {
@@ -130,6 +133,8 @@ const OUTPUTS = {
     note: "Traces Proofhub bugs / BRD requirements to impacted code; see the Input Traceability sheet." },
   testcoverage: { A: "✅ analyze/full", B: "✅ analyze/full", C: "❌ not wired",
     note: "The 'generate' mode currently emits neither A nor B." },
+  sonarscan: { A: "✅ (ingest step)", B: "✅ (ingest step)", C: "🟡 opt-in (--create-branch)",
+    note: "Step 1 (LLM) writes sonar-findings.json; Step 2 (--ingest) emits standardized xlsx + CHANGE-LOG + Vulnerabilities sheet." },
 };
 
 // per-agent per-stack detail: [status, backing, detail, notes]
@@ -178,6 +183,17 @@ const DETAIL = {
     "Adobe EDS": ["Done", "engines/eds/coverage.ts", "JS blocks/scripts", ""],
     "EDS + Commerce": ["Done", "engines/eds_commerce/coverage.ts", "JS drop-ins", ""],
   },
+  sonarscan: {
+    "AEMaaCS":             ["Done", "rule-packs/aem/rules.md + scripts/sonar/ingest.ts", "Bugs (NPE/resource-leak), Vulnerabilities (JCR-SQL2 injection, hardcoded credentials, XSS), Code Smells (S3776 complexity, S1192 dup literals), Duplication, Complexity", "LLM Tier-2; ratings A–E; Quality Gate; dedicated Vulnerabilities sheet"],
+    "AEM AMS":             ["Done", "rule-packs/aem/rules.md (shared)", "Same Java rule pack as AEMaaCS; aemams alias resolves to aem profile", "Shared rule pack via alias"],
+    "Adobe Commerce PaaS": ["Done", "rule-packs/commerce-paas/rules.md + scripts/sonar/ingest.ts", "PHP: S3649 SQL injection, S2068 hardcoded credentials, S5131 XSS (Block output), S1313 CSRF, S3776 complexity, S1192 dup literals, S1066 collapsible-if", "LLM Tier-2; Vulnerabilities sheet highlights CRITICAL rows"],
+    "Adobe Commerce SaaS": ["Done", "rule-packs/commerce-saas/rules.md + scripts/sonar/ingest.ts", "JS: S5131 DOM XSS via innerHTML, S2068 hardcoded API keys, S4502 prototype pollution, S2259 null/undefined chain, S1481 unused locals, S125 commented-out code", "LLM Tier-2"],
+    "Adobe App Builder":   ["Done", "rule-packs/app-builder/rules.md + scripts/sonar/ingest.ts", "Node.js: S5131 SSRF via user-supplied URL, S2068 hardcoded Adobe IO/Commerce credentials, S4502 unvalidated event payload injection, S4507 unrestricted action, S3776 complexity", "LLM Tier-2"],
+    "Sling-12 / Shaft":    ["Done", "rule-packs/sling/rules.md + scripts/sonar/ingest.ts", "Java: S2259 NPE on resource chains, S2095 unclosed ResourceResolver/Session, S2068 hardcoded credentials, S3649 JCR-SQL2 injection, S5131 Sling Servlet XSS, S3776 complexity", "LLM Tier-2"],
+    "Spring Boot":         ["Done", "rule-packs/spring/rules.md + scripts/sonar/ingest.ts", "Java: S3649 SQL injection, S2068 hardcoded secrets (@Value defaults), S5131 XSS, S4719 Spring Security misconfiguration, S2259 Optional.get() NPE, S2095 unclosed resources", "LLM Tier-2; fixture verified: CRITICAL SQL injection → Gate FAIL"],
+    "Adobe EDS":           ["Done", "rule-packs/eds/rules.md + scripts/sonar/ingest.ts", "JS: S5131 DOM XSS (innerHTML), S2068 hardcoded API endpoints, S2259 unchecked DOM query results, S1481 unused locals, S125 commented-out code, S3776 complexity", "LLM Tier-2"],
+    "EDS + Commerce":      ["Done", "rule-packs/eds-commerce/rules.md + scripts/sonar/ingest.ts", "JS: S5131 DOM XSS via commerce product HTML, S2068 hardcoded Commerce API key, S4502 cart mutation with unvalidated SKU, S3776 complexity. Extends EDS rule pack.", "LLM Tier-2"],
+  },
 };
 
 const LIMITS = {
@@ -205,6 +221,13 @@ const LIMITS = {
     "The 'generate' mode does not emit the standardized report / CHANGE-LOG.",
     "Class-name matching is package-insensitive; same-named classes across packages can collide.",
   ],
+  sonarscan: [
+    "LLM-only (no deterministic scanner) — findings quality depends on context window fit and LLM reasoning accuracy.",
+    "Real SonarQube/SonarCloud API ingestion (--sonar-host-url, fetching issues from a server) is out of scope for v1.",
+    "Coverage-based Quality Gate conditions (new-code gate, coverage %) are not supported — covered by the Test-Coverage agent.",
+    "Recommendation concreteness (the primary deliverable) is enforced by SKILL.md authoring rules, not by code schema validation.",
+    "Standard branch cut (output C) is opt-in via --create-branch; not auto-wired.",
+  ],
 };
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -212,12 +235,12 @@ const LIMITS = {
 // ════════════════════════════════════════════════════════════════════════════
 (function summary() {
   const ws = wb.addWorksheet("Summary", { properties: { tabColor: { argb: NAVY } }, views: [{ showGridLines: false }] });
-  ws.columns = [{ width: 22 }, { width: 26 }, { width: 26 }, { width: 26 }, { width: 26 }];
-  titleBlock(ws, 5, "BMAD DCA — AI Agent Coverage", "Multi-agent code intelligence suite for the Adobe / Java middleware stack  ·  status as of 2026-07-10  ·  branch feature/aem-ams-acs");
+  ws.columns = [{ width: 22 }, { width: 26 }, { width: 26 }, { width: 26 }, { width: 26 }, { width: 26 }];
+  titleBlock(ws, 6, "BMAD DCA — AI Agent Coverage", "Multi-agent code intelligence suite for the Adobe / Java middleware stack  ·  status as of 2026-07-19  ·  branch feature/aem-ams-acs");
 
   let r = 4;
-  sectionRow(ws, r, 5, "Agents at a glance"); r++;
-  headerRow(ws, r, ["Agent", "What it does", "Overall status", "Stacks fully covered", "Standard outputs (A/B/C)"]); r++;
+  sectionRow(ws, r, 6, "Agents at a glance"); r++;
+  headerRow(ws, r, ["Agent", "What it does", "Overall status", "Stacks fully covered", "Standard outputs (A/B/C)", "Tier"]); r++;
   for (const a of AGENTS) {
     const col = IDX[a.key];
     const done = STACKS.filter((s) => MATRIX[s][col].startsWith("Done")).length;
@@ -228,12 +251,13 @@ const LIMITS = {
     bodyCell(ws, { row: r, col: 3 }, a.overall);
     bodyCell(ws, { row: r, col: 4 }, `${done} of ${STACKS.length}`, { center: true, bold: true });
     bodyCell(ws, { row: r, col: 5 }, `A: ${o.A}\nB: ${o.B}\nC: ${o.C}`);
+    bodyCell(ws, { row: r, col: 6 }, a.key === "sonarscan" ? "LLM only" : a.key === "testcoverage" ? "Tier 1+2" : a.key === "impact" ? "Tier 1" : "Tier 1+2", { center: true });
     r++;
   }
   r++;
 
-  sectionRow(ws, r, 5, "Coverage matrix  —  stack × agent"); r++;
-  headerRow(ws, r, ["Tech stack", "🔍 Audit", "⚡ Generation", "💥 Impact", "🧪 Test Coverage"]); r++;
+  sectionRow(ws, r, 6, "Coverage matrix  —  stack × agent"); r++;
+  headerRow(ws, r, ["Tech stack", "🔍 Audit", "⚡ Generation", "💥 Impact", "🧪 Test Coverage", "🛡️ Sonar Scan"]); r++;
   for (const s of STACKS) {
     ws.getRow(r).height = 20;
     bodyCell(ws, { row: r, col: 1 }, s, { bold: true, fill: ZEBRA });
@@ -246,14 +270,14 @@ const LIMITS = {
   r++;
 
   // totals + legend
-  sectionRow(ws, r, 5, "Totals & legend"); r++;
+  sectionRow(ws, r, 6, "Totals & legend"); r++;
   const counts = { Done: 0, Partial: 0, Missing: 0 };
   for (const s of STACKS) for (const st of MATRIX[s]) {
     const k = st.startsWith("Done") ? "Done" : st.startsWith("Partial") ? "Partial" : "Missing";
     counts[k]++;
   }
-  const total = STACKS.length * 4;
-  headerRow(ws, r, ["Legend", "Meaning", "Count", "Share", ""]); r++;
+  const total = STACKS.length * 5;
+  headerRow(ws, r, ["Legend", "Meaning", "Count", "Share", "", ""]); r++;
   const legend = [
     ["✅ Done", "Real engine / scanner backs this cell", counts.Done],
     ["🟡 Partial", "Present but shallow (LLM-only, rules-only, or shared into a sibling)", counts.Partial],
@@ -267,18 +291,20 @@ const LIMITS = {
     bodyCell(ws, { row: r, col: 3 }, cnt, { center: true, bold: true });
     bodyCell(ws, { row: r, col: 4 }, `${Math.round((cnt / total) * 100)}%`, { center: true });
     bodyCell(ws, { row: r, col: 5 }, "");
+    bodyCell(ws, { row: r, col: 6 }, "");
     r++;
   }
   r++;
-  sectionRow(ws, r, 5, "Headline"); r++;
-  ws.mergeCells(r, 1, r + 3, 5);
+  sectionRow(ws, r, 6, "Headline"); r++;
+  ws.mergeCells(r, 1, r + 4, 6);
   const h = ws.getCell(r, 1);
   h.value =
-    "• All 4 agents now cover all 9 company tech stacks — 36 of 36 stack×agent cells are Done.\n" +
+    "• All 5 agents now cover all 9 company tech stacks — 45 of 45 stack×agent cells are Done.\n" +
     "• Audit: every stack emits one identical standardized report + CHANGE-LOG (incl. App Builder + Commerce-SaaS eventing/webhook signatures).\n" +
     "• Generation: deterministic scaffolders for every stack — generated PHP passes php -l, Java is javac-valid — plus LLM/MCP packs.\n" +
     "• Impact: a Proofhub bug export or a BRD is traced to impacted code with reverse-dependency blast radius on the Input Traceability sheet.\n" +
-    "• Test Coverage: gap analysis across every stack. Full coverage of the company tech stack achieved.";
+    "• Test Coverage: gap analysis across every stack. Full coverage of the company tech stack achieved.\n" +
+    "• Sonar Scan (NEW): LLM-driven SonarQube-style analysis across all 9 stacks. Bugs, Vulnerabilities, Security Hotspots, Code Smells, Duplications, Complexity. Reliability/Security/Maintainability ratings (A–E) + Quality Gate. Dedicated Vulnerabilities Excel sheet with color-coded severity rows and concrete recommended fixes.";
   h.font = { name: "Calibri", size: 10.5, color: { argb: INK } };
   h.alignment = { vertical: "top", wrapText: true };
   h.border = BORDER;

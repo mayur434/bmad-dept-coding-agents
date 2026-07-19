@@ -337,6 +337,7 @@ function labelForAgent(agent: string): string {
     case "generation": return "Code Generation";
     case "impact": return "Impact Analysis";
     case "test-coverage": return "Test Coverage";
+    case "sonar-scan": return "Sonar Scan";
     default: return agent;
   }
 }

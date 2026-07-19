@@ -1,8 +1,8 @@
 code: dca
 name: "BMAD DEPT Code Agent"
 header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
-subheader: "Code audit, generation, impact analysis, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
-description: "Multi-agent AI suite (audit, generation, impact, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+subheader: "Code audit, generation, impact analysis, sonar scan, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
 default_selected: false
 recommendedModules: [bmm]
 requiredModules: [core]
@@ -36,6 +36,13 @@ agents:
     description: "Two-tier test coverage. Tier 1: gap analysis + real line/branch coverage (JaCoCo/Istanbul/Clover/LCOV). Tier 2: LLM test generation to 100% per framework (JUnit + AEM/Sling Mocks, Spring Test/MockMvc, PHPUnit/MFTF, Jest)."
     team: software-development
 
+  - code: bmad-dept-code-sonar-scan-agent
+    name: Sonar Scanner
+    title: Code Quality & Security Scan Specialist
+    icon: "🛡️"
+    description: "LLM-driven SonarQube-style code quality analysis across all 8 stacks. Covers Bugs, Vulnerabilities, Security Hotspots, Code Smells, Duplications, and Complexity. Produces Reliability/Security/Maintainability ratings (A–E), a pass/fail Quality Gate, and a dedicated Vulnerabilities Excel sheet with color-coded severity rows and concrete recommended fixes."
+    team: software-development
+
 # Configuration variables
 audit_output:
   prompt: "Where should audit reports be stored?"
@@ -55,20 +62,25 @@ directories:
   - "{audit_output}"
 
 post-install-notes: |
-  BMAD DEPT Code Agent installed (audit · generation · impact · test-coverage).
+  BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage).
 
   Quick usage:
     Ask: "audit my project", "generate a component", "analyze impact of these bugs",
-         or "analyze test coverage" — the agent auto-detects the stack.
+         "sonar scan my project", or "analyze test coverage" — the agent auto-detects the stack.
 
   Install dependencies (Node.js v20.12+):
     # the shared foundation (required by every agent) FIRST:
     cd .claude/skills/shared && npm install
     # then each agent you use:
     cd .claude/skills/bmad-dept-code-audit-agent/scripts && npm install
+    cd .claude/skills/bmad-dept-code-sonar-scan-agent/scripts && npm install
 
   Tier 1 (deterministic scanner), e.g. audit:
     npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts --path .
 
-  Engines (auto-detected): aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce.
+  Sonar scan (LLM Step 1 → ingest Step 2):
+    # Step 1: ask the AI agent "sonar scan my project" — produces sonar-findings.json
+    # Step 2: npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts --ingest sonar-findings.json --path .
+
+  Stacks (auto-detected): aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce.
   Tier 2 (AI deep analysis) triggers automatically when you ask the agent to run.

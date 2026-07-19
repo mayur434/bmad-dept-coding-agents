@@ -1,0 +1,22 @@
+[skill]
+name = "bmad-dept-code-sonar-scan-agent"
+description = "LLM-driven SonarQube-style code quality analysis for Adobe Commerce (PaaS & SaaS), AEM (AEMaaCS & AMS), Apache Sling/Shaft, Spring Boot, App Builder, EDS, and EDS+Commerce. Covers Bugs, Vulnerabilities, Security Hotspots, Code Smells, Duplications, and Complexity with Reliability/Security/Maintainability ratings (A–E) and a pass/fail Quality Gate in a standardized Excel report."
+version = "1.0.0"
+
+[skill.tools]
+required = ["claude-code"]
+
+[skill.activation]
+keywords = ["sonar", "sonar scan", "code quality", "vulnerability scan", "security hotspot", "code smell", "reliability rating", "quality gate", "duplication", "cognitive complexity", "sonarqube", "sonarcloud", "code vulnerabilities", "security scan"]
+
+[skill.scripts]
+dispatcher = "scripts/run.ts"
+package = "scripts/package.json"
+
+[skill.commands]
+# Step 1: LLM writes sonar-findings.json (pure AI analysis via SKILL.md workflow)
+scan = "skill"
+# Step 2: Deterministic ingest — reads JSON → Finding[] → ratings/gate → standardized xlsx + CHANGE-LOG
+ingest = "npx ts-node scripts/run.ts --ingest"
+# Utility
+list-rule-packs = "npx ts-node scripts/run.ts --list-engines"

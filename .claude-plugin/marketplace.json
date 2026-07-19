@@ -10,12 +10,13 @@
     {
       "name": "dca",
       "source": "./skills",
-      "description": "Multi-agent AI suite for Adobe + Java middleware — code audit, generation, impact analysis, and test coverage across AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS. The whole ./skills tree ships, including the shared/ runtime foundation the agents import.",
-      "version": "3.0.0",
+      "description": "Multi-agent AI suite for Adobe + Java middleware — code audit, generation, impact analysis, sonar scan, and test coverage across AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS. The whole ./skills tree ships, including the shared/ runtime foundation the agents import.",
+      "version": "4.0.0",
       "skills": [
         "./skills/bmad-dept-code-audit-agent",
         "./skills/bmad-dept-code-generation-agent",
         "./skills/bmad-dept-code-impact-analysis-agent",
+        "./skills/bmad-dept-code-sonar-scan-agent",
         "./skills/bmad-dept-code-test-coverage-agent"
       ]
     }
