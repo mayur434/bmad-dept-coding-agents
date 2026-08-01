@@ -7,7 +7,7 @@ version = "2.0.0"
 required = ["claude-code"]
 
 [skill.activation]
-keywords = ["audit", "code review", "code quality", "adobe audit", "aem audit", "commerce audit", "commerce saas", "eds", "eds commerce", "eds audit", "sling", "spring", "app builder", "code scan", "static analysis"]
+keywords = ["audit", "code review", "code quality", "adobe audit", "aem audit", "commerce audit", "commerce saas", "eds", "eds commerce", "eds audit", "sling", "spring", "app builder", "code scan", "static analysis", "set role", "switch role", "what's my role", "show my role", "role catalog"]
 
 [skill.scripts]
 dispatcher = "scripts/run.ts"

@@ -19,6 +19,7 @@ import { emitStandardOutputs, maybeCutStandardBranch } from "../../shared/output
 import type { Finding, Severity } from "../../shared/core/types";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
 import { discoverReport, parseReport, runCoverage, CoverageResult } from "../../shared/coverage";
+import { resolveRole, parseRoleFlag } from "../../shared/role";
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -41,6 +42,7 @@ interface Args {
   sourceBranch: string | null;
   preflight: boolean;
   noPreflight: boolean;
+  role: string | undefined;
 }
 
 function parseArgs(): Args {
@@ -62,9 +64,22 @@ function parseArgs(): Args {
     sourceBranch: null,
     preflight: false,
     noPreflight: false,
+    role: undefined,
   };
 
+  // --role=<code> and --role <code> are both handled by the shared helper.
+  parsed.role = parseRoleFlag(args);
+
   for (let i = 0; i < args.length; i++) {
+    // Swallow --role tokens (already captured by parseRoleFlag) so the
+    // switch below doesn't misinterpret them.
+    if (args[i] === "--role" && i + 1 < args.length && !args[i + 1].startsWith("--")) {
+      i++;
+      continue;
+    }
+    if (args[i].startsWith("--role=")) {
+      continue;
+    }
     switch (args[i]) {
       case "--mode":
         parsed.mode = args[++i] as Args["mode"];
@@ -146,6 +161,8 @@ Options:
   --source-branch <name>           Source branch for --create-branch (default: production/main/master/develop)
   --preflight                      Print model/context + STATIC/LLM/HYBRID advisory and exit
   --no-preflight                   Suppress the preflight advisory that otherwise prints on every run
+  --role <code>                    Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content
+                                   (persisted at <project>/.bmad/role.yaml; --role wins for one run)
   --list-engines                   List available engines
   --help                           Show this help
 
@@ -267,6 +284,18 @@ function coverageToFindings(report: CoverageReport): Finding[] {
 async function emitCoverageOutputs(report: CoverageReport, projectPath: string, args: Args): Promise<void> {
   const findings = coverageToFindings(report);
   const outputDir = args.output ?? join(projectPath, "test-coverage-reports");
+  const extra: Record<string, string | number> = {
+    "Coverage %": report.coveragePercent,
+    "Coverage source": (report as any).coverageSource ?? "estimate (filename match)",
+    "Tested Files": report.testedFiles,
+    "Total Source Files": report.totalSourceFiles,
+  };
+  if (process.env.DCA_ROLE) {
+    extra["Role"] = process.env.DCA_ROLE_NAME ?? process.env.DCA_ROLE;
+    extra["Role code"] = process.env.DCA_ROLE;
+    if (process.env.DCA_ROLE_FLAVOR) extra["Role output flavor"] = process.env.DCA_ROLE_FLAVOR;
+    if (process.env.DCA_ROLE_SOURCE) extra["Role source"] = process.env.DCA_ROLE_SOURCE;
+  }
   const res = await emitStandardOutputs({
     agent: "test-coverage",
     meta: {
@@ -275,12 +304,7 @@ async function emitCoverageOutputs(report: CoverageReport, projectPath: string, 
       stack: report.engine,
       projectName: report.projectName || args.name || basename(projectPath),
       projectRoot: projectPath,
-      extra: {
-        "Coverage %": report.coveragePercent,
-        "Coverage source": (report as any).coverageSource ?? "estimate (filename match)",
-        "Tested Files": report.testedFiles,
-        "Total Source Files": report.totalSourceFiles,
-      },
+      extra,
     },
     findings,
     outputDir,
@@ -351,6 +375,26 @@ async function main(): Promise<void> {
   const projectPath = resolve(args.path);
   if (!existsSync(projectPath)) {
     console.error(`❌ Project path not found: ${projectPath}`);
+    process.exit(1);
+  }
+
+  // ── Role resolution (metadata for the report + downstream chaining) ──
+  // Order: --role flag  >  <projectRoot>/.bmad/role.yaml  >  generic fallback.
+  try {
+    const resolved = resolveRole({
+      projectRoot: projectPath,
+      cliFlag: args.role,
+      fallbackToGeneric: true,
+    });
+    process.env.DCA_ROLE = resolved.role.code;
+    process.env.DCA_ROLE_NAME = resolved.role.name;
+    process.env.DCA_ROLE_FLAVOR = resolved.role.defaultOutputFlavor;
+    process.env.DCA_ROLE_SOURCE = resolved.source;
+    process.stderr.write(
+      `[dca-role] ${resolved.role.name} (source: ${resolved.source})\n`,
+    );
+  } catch (err) {
+    console.error(`❌ ${(err as Error).message}`);
     process.exit(1);
   }
 

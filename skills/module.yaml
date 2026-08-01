@@ -54,6 +54,11 @@ audit_engine:
   default: "auto"
   single-select: ["auto", "aem", "commerce", "commerce-paas", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
 
+default_role:
+  prompt: "Which role best matches how you'll use this plugin? (leave blank to be asked on first activation)"
+  default: ""
+  single-select: ["", "ea", "tl", "de", "qa", "devops", "security", "pm", "ba", "migration", "content"]
+
 audit_namespace:
   prompt: "Custom module namespace for Commerce projects?"
   default: "Custom"
@@ -84,6 +89,7 @@ directories:
   - "{impact_output}"
   - "{test_coverage_output}"
   - "{sonar_output}"
+  - ".bmad"
 
 post-install-notes: |
   BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage).
@@ -108,3 +114,11 @@ post-install-notes: |
 
   Stacks (auto-detected): aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce.
   Tier 2 (AI deep analysis) triggers automatically when you ask the agent to run.
+
+  Role adaptation:
+    Every agent adapts mode default, output shape, and recommended follow-ups to your role.
+    Roles: ea, tl, de, qa, devops, security, pm, ba, migration, content (or generic).
+    Set it on first activation (interactive), via the `--role=<code>` flag on any run,
+    or up-front via the `default_role` install-time config var above.
+    Persisted at `.bmad/role.yaml` in the project root.
+    Full catalog and per-role adaptations: `skills/shared/role/ROLES.md`.

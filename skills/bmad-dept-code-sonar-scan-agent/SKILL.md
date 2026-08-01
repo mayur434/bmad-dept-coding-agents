@@ -223,6 +223,83 @@ npx ts-node {skill_path}/scripts/run.ts --list-engines
 
 ---
 
+## Role-aware behavior
+
+Sonar Scan adapts its emphasis to the role of the person driving the run.
+Ten roles are supported plus a `generic` fallback (see
+`skills/shared/role/ROLES.md` for the canonical catalog).
+
+**This is a two-step tool — role affects both steps:**
+
+- **Step 1 (LLM scan)** — role emphasis nudges category weighting. Examples:
+  `security` → deeper Vulnerability / Security Hotspot analysis and OWASP/CWE
+  enrichment; `ea` → deeper Complexity / Maintainability narrative;
+  `migration` → surface deprecation smells. The LLM **must** record the acting
+  role in `sonar-findings.json` as a top-level `role: "<code>"` field
+  (see the JSON contract update in Step 1d below).
+- **Step 2 (ingest)** — role determines report emphasis and recommended
+  follow-ups. If a `--role` flag is passed to `run.ts --ingest`, it
+  **overrides** the role recorded in the JSON (a WARN is logged when they
+  differ). If `--role` is absent, ingest uses the JSON's `role` field; if
+  that is also absent, it falls back to `.bmad/role.yaml`, then `generic`.
+
+### Role check on activation
+
+Before Step 1 (scan) or Step 2 (ingest), check `<projectRoot>/.bmad/role.yaml`:
+
+1. **Absent** — ask the user to pick a role. Present the six **promoted**
+   roles first (`ea`, `tl`, `de`, `qa`, `devops`, `security`), then the four
+   **additional** roles (`pm`, `ba`, `migration`, `content`), and finally the
+   `generic` fallback. Persist the choice to `.bmad/role.yaml` (schema in
+   `skills/shared/role/persistence.ts`; use `set_by: interactive`).
+2. **Present** — read it silently and proceed.
+3. **Single-run override** — if the user prefixes their prompt with
+   `as <role>` (e.g. `"as security, sonar scan my project"`), use that role
+   for this run only. Do **not** overwrite `.bmad/role.yaml`.
+4. **Permanent switch** — if the user says `"switch role to <code>"`,
+   overwrite `.bmad/role.yaml` with the new selection.
+
+### Role → Sonar Scan behavior matrix
+
+| Role | Scan focus emphasis | Ingest / report emphasis | Recommended follow-up |
+|---|---|---|---|
+| `ea` | All 6 Sonar categories; emphasize Maintainability + Complexity trend narrative | Standard XLSX + Maintainability trend section in Markdown twin | "generate architecture roadmap from the Maintainability rating" |
+| `tl` | All 6 categories | Standard XLSX + technical twin | "audit for architecture verification" |
+| `de` | All 6 categories | Jira-ready CSV alongside XLSX, one row per issue with Priority mapped from severity | "generate fixes for CRITICAL vulnerabilities" |
+| `qa` | All 6 categories; emphasize Reliability + Bugs | Standard XLSX + Reliability rating narrative | "test-coverage on the changed files" |
+| `devops` | All 6 categories | **SARIF export** alongside XLSX for GitHub code-scanning upload; Quality Gate PASS/FAIL should set process exit code (0 pass / 1 fail) | "wire the Quality Gate into CI as a required check" |
+| `security` | All 6 categories; emphasize Vulnerabilities + Security Hotspots; enrich with CWE / OWASP Top-10 tags where the rule pack knows them | Vulnerabilities sheet moved to first; XLSX; ratings emphasize Security | "audit --focus security" |
+| `pm` | All 6 categories | Executive Markdown: Quality Gate + 3 ratings A–E + top-10 vulnerabilities in business language | "summarize the Quality Gate for release notes" |
+| `ba` | Standard scan | Standard XLSX; no special shaping | _(none — sonar-scan is not a primary BA tool)_ |
+| `migration` | All 6 categories; emphasize deprecation smells + Code Smells | Standard XLSX + a "Deprecated" section in Markdown twin | "impact-analyze deprecated API usage" |
+| `content` | Standard scan | Standard XLSX | _(none)_ |
+| `generic` | Standard scan (current default) | Standard XLSX + MD (current default) | "list ratings" |
+
+**Output flavors** (matches the audit agent's flavor definitions):
+
+- `executive` — leadership-facing Markdown: Quality Gate + 3 ratings + top-N
+  in business language, no code snippets.
+- `technical` — engineer-facing XLSX + Markdown twin with full finding
+  details, code refs, rule IDs.
+- `jira-csv` — Jira-ready CSV alongside XLSX; one row per issue with Summary,
+  Description, Priority (mapped from severity), Component (mapped from
+  category), Labels.
+- `sarif` — SARIF 2.1.0 export alongside XLSX for GitHub code-scanning /
+  security-tab upload; PASS/FAIL Quality Gate drives process exit code.
+- `default` — standard XLSX + Markdown twin + CHANGE-LOG (current v1 output).
+
+### CLI flag
+
+Pass `--role=<code>` (or `--role <code>`) to `scripts/run.ts` to override the
+persisted role for a single run. On `--ingest`, this also overrides any
+`role` recorded inside the findings JSON:
+
+```bash
+npx ts-node run.ts --ingest sonar-findings.json --path /project --role security
+```
+
+---
+
 ## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
 
 The moment this skill is triggered, run the preflight and tell the user — in one line — **which LLM they're on** and **whether the project fits the context window**:
@@ -312,12 +389,34 @@ If you cannot produce a concrete recommendation with a specific code location, l
 
 Write the findings to `{output}/sonar-findings.json` using the template in `templates/report-json.md`. The exact field names matter — the ingest step maps them directly to `Finding`.
 
+**Top-level JSON contract:**
+
+```jsonc
+{
+  "meta": {
+    "project": "<project name>",
+    "engine":  "<engine id, e.g. spring>",
+    "stack":   "<human stack label, e.g. Spring Boot>",
+    "timestamp": "<ISO-8601 UTC>"
+  },
+  "role": "<ea|tl|de|qa|devops|security|pm|ba|migration|content|generic>",
+  "findings": [ /* Finding objects — see per-finding contract in Step 1c */ ]
+}
+```
+
+The `role` field is **required**. It records which role you (the LLM) were
+acting under while producing this file. Use the role resolved on activation
+(see the "Role-aware behavior" section above). At ingest time, this value
+is picked up automatically unless `--role=<code>` is passed to
+`run.ts --ingest`, in which case the CLI flag wins (a WARN is logged when
+they differ).
+
 ```bash
 # Output location (default: {project}/sonar-reports)
 {output}/sonar-findings.json
 ```
 
-Log: `✅ Wrote {N} finding(s) to sonar-findings.json`
+Log: `✅ Wrote {N} finding(s) to sonar-findings.json (role: <code>)`
 
 ---
 

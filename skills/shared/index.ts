@@ -14,3 +14,4 @@ export * from "./core";
 export * from "./report";
 export * from "./git";
 export * from "./output";
+export * from "./role";

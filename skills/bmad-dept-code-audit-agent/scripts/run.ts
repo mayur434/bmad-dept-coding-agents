@@ -18,9 +18,12 @@ import * as path from "path";
 import { detectPlatform, getEngine, listEngines } from "./engines/registry";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
 import { maybeCutStandardBranch } from "../../shared/output";
+import { resolveRole, parseRoleFlag } from "../../shared/role";
 
-function parseArgs(argv: string[]): { engine?: string; path?: string; format?: string; listEngines: boolean; help: boolean; remaining: string[] } {
-  const result = { engine: undefined as string | undefined, path: undefined as string | undefined, format: undefined as string | undefined, listEngines: false, help: false, remaining: [] as string[] };
+function parseArgs(argv: string[]): { engine?: string; path?: string; format?: string; role?: string; listEngines: boolean; help: boolean; remaining: string[] } {
+  const result = { engine: undefined as string | undefined, path: undefined as string | undefined, format: undefined as string | undefined, role: undefined as string | undefined, listEngines: false, help: false, remaining: [] as string[] };
+  // --role=<code> and --role <code> are both handled by the shared helper.
+  result.role = parseRoleFlag(argv);
   let i = 0;
   while (i < argv.length) {
     if (argv[i] === "--engine" && i + 1 < argv.length) {
@@ -29,6 +32,11 @@ function parseArgs(argv: string[]): { engine?: string; path?: string; format?: s
       result.path = argv[++i];
     } else if (argv[i] === "--format" && i + 1 < argv.length) {
       result.format = argv[++i];
+    } else if (argv[i] === "--role" && i + 1 < argv.length && !argv[i + 1].startsWith("--")) {
+      // Consume value form; parseRoleFlag already captured it.
+      i++;
+    } else if (argv[i].startsWith("--role=")) {
+      // parseRoleFlag already captured it — swallow the token.
     } else if (argv[i] === "--list-engines") {
       result.listEngines = true;
     } else if (argv[i] === "-h" || argv[i] === "--help") {
@@ -60,6 +68,8 @@ async function main(): Promise<void> {
     console.log("  npx ts-node run.ts --path <project>              Auto-detect and audit");
     console.log("  npx ts-node run.ts --engine <name> --path <path> Explicit engine");
     console.log("  npx ts-node run.ts --format <type>               Output format: excel, md, pdf, all");
+    console.log("  npx ts-node run.ts --role <code>                 Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content");
+    console.log("                                                   (persisted at <project>/.bmad/role.yaml; --role wins for one run)");
     console.log("  npx ts-node run.ts --list-engines                Show available engines");
     console.log("\nEngine-specific help: npx ts-node run.ts --engine <name> --help");
     return;
@@ -113,6 +123,29 @@ async function main(): Promise<void> {
       console.error(`     ${eid.padEnd(15)} ${desc}`);
     }
     process.exit(1);
+  }
+
+  // ── Role resolution (metadata for the report + downstream chaining) ──
+  // Order: --role flag  >  <projectRoot>/.bmad/role.yaml  >  generic fallback.
+  // We only log + set DCA_ROLE for engines; engine dispatch is unchanged.
+  if (projectPath) {
+    try {
+      const resolved = resolveRole({
+        projectRoot: projectPath,
+        cliFlag: args.role,
+        fallbackToGeneric: true,
+      });
+      process.env.DCA_ROLE = resolved.role.code;
+      process.env.DCA_ROLE_NAME = resolved.role.name;
+      process.env.DCA_ROLE_FLAVOR = resolved.role.defaultOutputFlavor;
+      process.env.DCA_ROLE_SOURCE = resolved.source;
+      process.stderr.write(
+        `[dca-role] ${resolved.role.name} (source: ${resolved.source})\n`,
+      );
+    } catch (err) {
+      console.error(`❌ ${(err as Error).message}`);
+      process.exit(1);
+    }
   }
 
   // ── Conversational preflight: current LLM + Static-vs-LLM recommendation ──

@@ -7,7 +7,7 @@ version = "1.0.0"
 required = ["claude-code"]
 
 [skill.activation]
-keywords = ["sonar", "sonar scan", "code quality", "vulnerability scan", "security hotspot", "code smell", "reliability rating", "quality gate", "duplication", "cognitive complexity", "sonarqube", "sonarcloud", "code vulnerabilities", "security scan", "aem", "commerce", "commerce saas", "sling", "spring", "app builder", "eds", "eds commerce"]
+keywords = ["sonar", "sonar scan", "code quality", "vulnerability scan", "security hotspot", "code smell", "reliability rating", "quality gate", "duplication", "cognitive complexity", "sonarqube", "sonarcloud", "code vulnerabilities", "security scan", "aem", "commerce", "commerce saas", "sling", "spring", "app builder", "eds", "eds commerce", "set role", "switch role", "what's my role", "show my role", "role catalog"]
 
 [skill.scripts]
 dispatcher = "scripts/run.ts"

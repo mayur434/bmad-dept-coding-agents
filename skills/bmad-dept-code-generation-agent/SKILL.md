@@ -185,6 +185,64 @@ path with the resource packs. Note the `--engine` key is not always the resource
 `resources/sling-shaft/`, `spring` → `resources/spring-boot/`; `commerce-saas`, `app-builder`, `eds`, and
 `eds-commerce` map directly to their like-named `resources/` packs.
 
+## Role-aware behavior
+
+The agent adapts its generation approach to the caller's role — one of ten codes (`ea`, `tl`, `de`, `qa`, `devops`, `security`, `pm`, `ba`, `migration`, `content`), or `generic` when no role is selected. Role changes *what* the agent scaffolds, *which conventions* it enforces, and *which follow-ups* it suggests. See `skills/shared/role/ROLES.md` for the full catalog.
+
+### Role check on activation
+
+Before executing any scaffold or generation, do this — silently, in this order:
+
+1. **Check `<projectRoot>/.bmad/role.yaml`.**
+2. **If ABSENT** — ask the user, in one message, to pick a role. Show the 6 promoted roles first, then the 4 additional, then `generic`:
+   - Promoted: `ea` (Enterprise Architect), `tl` (Tech Lead / Solution Architect), `de` (Senior Delivery Engineer), `qa` (QA / SDET), `devops` (DevOps / SRE), `security` (Security Engineer)
+   - Additional: `pm` (Product Manager / PMO), `ba` (Business Analyst), `migration` (Migration/Upgrade Lead), `content` (Content/CMS Engineer)
+   - Or `generic` (no adaptation)
+
+   Persist the answer via `writeRoleFile(projectRoot, <code>, "interactive")` from `skills/shared/role/persistence.ts` (equivalent hand-written YAML is also fine):
+   ```yaml
+   # BMAD DCA — role selection
+   role: <code>
+   set_at: <ISO-8601 timestamp>
+   set_by: interactive
+   ```
+3. **If PRESENT** — read it silently. Do not re-prompt.
+4. **Single-run override** — if the user says *"as <role>, generate ..."*, adopt the role for that run only. **Do NOT** overwrite `role.yaml`.
+5. **Change permanently** — if the user says *"switch role to <code>"* (or equivalent), overwrite `role.yaml` with `set_by: interactive`.
+
+The CLI dispatcher (`scripts/run.ts`) already implements this resolution when invoked directly: `--role <code>` (or `--role=<code>`) wins for one run; otherwise `.bmad/role.yaml`; otherwise `generic`. The resolved role is recorded in the Run Info sheet (`Role`, `RoleName`, `RoleSource`, `RoleFlavor`, `RoleTweaks`) of every generation report.
+
+### Role → generation behavior matrix
+
+When the user says "generate X", adapt as follows:
+
+| Role | Default action | Output emphasis | Recommended follow-up |
+|------|----------------|-----------------|-----------------------|
+| `ea` | Scaffold with **house conventions enforced** — package structure, naming, artifact layout. Do NOT accept non-standard names; log every convention decision. | Standard emitted files + a **"Conventions applied"** section in the Markdown report twin. | *"audit the generated code"* |
+| `tl` | Standard scaffold. Offer the LLM/MCP path if no deterministic scaffolder exists for the requested type. | Standard scaffold output (`technical` flavor). | *"audit the generated code"* |
+| `de` | Scaffold + **auto-emit a matching test stub** using the test-coverage agent's per-stack framework packs. Produce a Jira-linkable description in the report. | Scaffold + test stub files + one **Jira-ready CSV row per generated file**. | *"run test coverage on the generated files"* |
+| `qa` | Scaffold **test files only** — delegate to the test-coverage agent's LLM path via the shared test-generation packs; if a dedicated test scaffolder exists for the type, use it. | Test files only + a **coverage checklist**. | *"run test coverage"* |
+| `devops` | Prefer **IaC / pipeline / dispatcher** scaffolds (Cloud Manager pipeline, dispatcher config templates) even for generic "generate X" prompts. | Scaffold + a **"Deployment"** section in the Markdown twin (`sarif` flavor for downstream CI gates). | *"audit dispatcher config"* |
+| `security` | Scaffold with **security-hardened defaults** — input validation, ACL, XSS-safe HTL/HTML, CSRF tokens, prepared statements, safe defaults for OSGi/DI config. | Scaffold + a **"Security decisions"** section explaining each hardening. | *"audit --focus security"* or *"sonar scan"* |
+| `pm` | Generation is not a primary PM tool — proceed with `generic` behavior; note the role in the report. | Standard (`executive` flavor). | (none) |
+| `ba` | Same as PM. | Standard (`executive` flavor). | (none) |
+| `migration` | Scaffold **migration / patch artifacts** — Commerce: setup patches, `module.xml`, `db_schema` patches, `di.xml` overrides; AEM: install hooks, content packages. | Scaffold + a **"Migration guide"** section in the Markdown twin. | *"impact-analyze the migration"* |
+| `content` | Prefer **content-fragment / editable-template / dispatcher-config / EDS-block** scaffolders (templates under `templates/`). | Content scaffold + template usage note. | *"audit content models"* |
+| `generic` | Current behavior — no adaptation. | Standard (`default` flavor). | *"list types"* |
+
+**Output flavors** (match the audit agent's definitions):
+- `executive` — leadership-facing summary, low detail
+- `technical` — engineer-facing, full detail
+- `jira-csv` — one Jira-ready row per artifact, importable
+- `sarif` — SARIF-shaped output for CI gates
+- `default` — the standard report bundle
+
+### What "role-adapted scaffolding" means today vs later
+
+Today, the role is an **advisory input** that modifies the AI's *approach* — which template to reach for, which naming conventions to enforce, which hardening decisions to apply, which follow-up to suggest. The **deterministic scaffolders themselves are unchanged** in this pass; when you invoke `run.ts --scaffold --role <code>`, the dispatcher logs the planned tweaks and records the role in the report metadata, but the emitted files are the same as `generic`.
+
+For the LLM/MCP path, the role drives real behavioral change — you (the AI agent following this skill) apply the matrix above when producing the code. If a role's tweak is beyond the current deterministic scaffolder's ability (for example, the `security` role wants a hardened Commerce plugin with input validation, ACL checks, and prepared statements), **extend the scaffolder's output with an additional patch after generation** — write the extra files, and note the additions in the report so the delta is visible.
+
 ## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
 
 The moment this command is triggered from an AI assistant (GitHub Copilot, Claude, Cursor, or any LLM), run the

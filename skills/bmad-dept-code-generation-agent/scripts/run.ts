@@ -11,6 +11,7 @@ import * as path from "path";
 import { scaffold, GENERATORS, listTypes } from "./scaffold";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
 import { maybeCutStandardBranch } from "../../shared/output";
+import { resolveRole, parseRoleFlag } from "../../shared/role";
 
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(SKILL_ROOT, "assets");
@@ -177,6 +178,28 @@ async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const projectRoot = path.resolve(flag(args, "--path") ?? ".");
 
+  // ── Role resolution (--role flag > .bmad/role.yaml > generic fallback) ──
+  // Accepts both `--role=ea` and `--role ea` via the shared helper.
+  const roleFlag = parseRoleFlag(args);
+  let resolvedRole;
+  try {
+    resolvedRole = resolveRole({
+      projectRoot,
+      cliFlag: roleFlag,
+      fallbackToGeneric: true,
+    });
+  } catch (err) {
+    console.error(`❌ ${(err as Error).message}`);
+    process.exit(1);
+  }
+  process.env.DCA_ROLE = resolvedRole.role.code;
+  process.env.DCA_ROLE_NAME = resolvedRole.role.name;
+  process.env.DCA_ROLE_FLAVOR = resolvedRole.role.defaultOutputFlavor;
+  process.env.DCA_ROLE_SOURCE = resolvedRole.source;
+  process.stderr.write(
+    `[dca-role] ${resolvedRole.role.name} (source: ${resolvedRole.source})\n`,
+  );
+
   if (args.includes("--setup")) {
     console.log("⚡ BMAD Code Generation Agent — MCP Setup");
     console.log(`   Project: ${projectRoot}\n`);
@@ -210,6 +233,8 @@ async function main(): Promise<void> {
       outputDir: flag(args, "--output"),
       dryRun: args.includes("--dry-run"),
       force: args.includes("--force"),
+      role: resolvedRole.role,
+      roleSource: resolvedRole.source,
     });
     return;
   }
@@ -235,6 +260,8 @@ async function main(): Promise<void> {
   console.log("  --no-preflight                Skip the preflight advisory");
   console.log("  --create-branch               Cut dca/generation-<stack>-<timestamp> before writing");
   console.log("  --source-branch <name>        Base branch for --create-branch (default: production/main/master/develop)");
+  console.log("  --role <code>                 Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content");
+  console.log("                                (persisted at <project>/.bmad/role.yaml; --role wins for one run)");
   console.log("\nFor complex/custom generation, use the LLM path (SKILL.md + resource packs).");
 }
 

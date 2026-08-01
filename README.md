@@ -23,6 +23,7 @@
 - [File roles](#file-roles)
 - [Install / Update / Uninstall](#install--update--uninstall)
 - [Configuration overview](#configuration-overview)
+- [Role-based operation](#role-based-operation)
 - [Quick start — 5-minute smoke test](#quick-start--5-minute-smoke-test)
 - [Prompt library](#prompt-library)
 - [Deep-dive documentation](#deep-dive-documentation)
@@ -38,6 +39,7 @@
 - **What it delivers** — Tier 1 deterministic TypeScript engines (tree-sitter AST + regex) plus Tier 2 LLM knowledge packs, funnelled through one shared reporting foundation.
 - **What you get, every run** — a standardized `<agent>-<branch>-<timestamp>-agent-report.xlsx` + Markdown twin + `CHANGE-LOG.md` entry, with an optional working branch cut on demand.
 - **Who it's for** — Enterprise Architects, tech leads, and delivery engineers on Adobe Commerce (PaaS/SaaS), AEMaaCS/AMS, Adobe App Builder, Apache Sling/Shaft, Spring Boot, and Edge Delivery Services projects.
+- **Adapts to your role** — the plugin's default mode, output shape, and recommended follow-ups tune to how you use it: Enterprise Architect, Tech Lead, Senior Delivery Engineer, QA / SDET, DevOps / SRE, Security Engineer, Product Manager, Business Analyst, Migration Lead, or Content Engineer (10 roles + `generic` fallback). See [Role-based operation](#role-based-operation) below.
 
 ---
 
@@ -393,6 +395,28 @@ Full flag reference (`--pin`, `--channel next`, `--set`, `--list-options`, `--li
 | `audit_namespace` | Custom module namespace for Commerce projects | `Custom` |
 
 See **[MANUAL.md](MANUAL.md)** for the full config reference and `--set` examples.
+
+---
+
+## Role-based operation
+
+Every one of the five agents adapts its default mode, output flavor, and recommended follow-ups to the **role** of the person driving the run. Role selection is captured once per project in `<projectRoot>/.bmad/role.yaml` — the first agent invocation asks you to pick from a short list, and every subsequent run reads it silently. You can also override per-run with `--role=<code>` on any `run.ts`, or by prefixing a chat prompt with *"as `<role>`, ..."*. Ten roles are supported (six promoted, four additional) plus a `generic` fallback for teams that want to skip role gating.
+
+| Code | Role |
+|------|------|
+| `ea` | Enterprise Architect (promoted) |
+| `tl` | Tech Lead / Solution Architect (promoted) |
+| `de` | Senior Delivery Engineer (promoted) |
+| `qa` | QA / SDET (promoted) |
+| `devops` | DevOps / SRE (promoted) |
+| `security` | Security Engineer (promoted) |
+| `pm` | Product Manager / PMO |
+| `ba` | Business Analyst |
+| `migration` | Migration / Upgrade Lead |
+| `content` | Content / CMS Engineer |
+| `generic` | Generic (fallback — no adaptation) |
+
+Full mechanics, the `.bmad/role.yaml` schema, the 5 output flavors (`executive`, `technical`, `jira-csv`, `sarif`, `default`), and the per-agent × per-role adaptation matrix live in **[MANUAL.md — Role-based operation](MANUAL.md#4a-role-based-operation-new)**. The canonical role definitions (priority agents, default output flavor, description) live in [`skills/shared/role/ROLES.md`](skills/shared/role/ROLES.md).
 
 ---
 

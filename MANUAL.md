@@ -10,6 +10,7 @@
 2. [Prerequisites](#2-prerequisites)
 3. [Install](#3-install)
 4. [Configuration](#4-configuration)
+4a. [Role-based operation (NEW)](#4a-role-based-operation-new)
 5. [The Five Agents — usage guide](#5-the-five-agents--usage-guide)
     - [5.1 Audit](#51-audit-agent)
     - [5.2 Sonar Scan](#52-sonar-scan-agent)
@@ -296,6 +297,114 @@ This writes/updates (in your project root):
 - **`.gitignore`** — ensures `.env` and any credential files are not committed.
 
 Confirm the result before you commit any of the above. If your organization uses centrally-managed MCP servers, edit `.mcp.json` and `.bmad/mcp-registry.toml` afterwards to point at those.
+
+---
+
+## 4a. Role-based operation (NEW)
+
+The plugin adapts its default mode, output shape, and recommended follow-ups to the **role** of the person driving the run. Role handling is a shared foundation (`skills/shared/role/`) consumed by every one of the five agents, and it is entirely opt-out (set `role: generic` to disable).
+
+### Why roles
+
+Different consumers of these five agents need different output shapes and different default modes. An Enterprise Architect wants a top-N executive Markdown; a Delivery Engineer wants a Jira-ready CSV they can paste straight into a sprint; a DevOps engineer wants SARIF for GitHub code-scanning. Role gating lets one plugin serve an EA, a Security Engineer, and a Delivery Engineer without confusing anyone — each sees the plugin tuned to what they actually do.
+
+### The 10 roles
+
+The canonical source is [`skills/shared/role/role.ts`](skills/shared/role/role.ts); the human-readable catalog is [`skills/shared/role/ROLES.md`](skills/shared/role/ROLES.md). Six roles are **promoted** — surfaced first in the interactive picker; four are **additional** and shown under a secondary "More roles" affordance. `generic` is the fallback used when no role is set.
+
+| Code | Name | Promoted? | Priority agents | Default output flavor | One-line description |
+|------|------|:---------:|-----------------|-----------------------|----------------------|
+| `ea` | Enterprise Architect | yes | audit, sonar-scan, impact-analysis | `executive` | Owns cross-cutting architecture across Adobe/JVM estates; needs portfolio-level health, risk, and modernization signals over per-file detail. |
+| `tl` | Tech Lead / Solution Architect | yes | audit, generation, impact-analysis | `technical` | Leads a delivery team on a specific solution; needs component-level design review, generation scaffolds, and impact blast-radius for changes. |
+| `de` | Senior Delivery Engineer | yes | generation, test-coverage, audit | `jira-csv` | Ships stories on a sprint cadence; needs generated scaffolds, test coverage gaps, and audit findings shaped as Jira-ready tickets. |
+| `qa` | QA / SDET | yes | test-coverage, impact-analysis, audit | `technical` | Owns test strategy and coverage; needs coverage gaps, impact-driven regression scope, and audit findings that map to test surfaces. |
+| `devops` | DevOps / SRE | yes | sonar-scan, generation, audit | `sarif` | Runs pipelines and production; needs SARIF-shaped scan output that plugs into CI gates and generated infra/pipeline scaffolds. |
+| `security` | Security Engineer | yes | sonar-scan, audit | `technical` | Owns AppSec posture across the estate; needs deep sonar-scan and audit output focused on vulnerability classes and remediation guidance. |
+| `pm` | Product Manager / PMO | no | audit, impact-analysis | `executive` | Owns roadmap and delivery risk; needs executive-shape audit and impact output framed as scope, effort, and portfolio risk. |
+| `ba` | Business Analyst | no | impact-analysis | `executive` | Bridges business intent and system behavior; needs impact-analysis output that reads as feature/flow-level change summaries. |
+| `migration` | Migration / Upgrade Lead | no | audit, impact-analysis, test-coverage | `technical` | Drives platform upgrades and re-platforming; needs audit baselines, impact of upgrade paths, and coverage of legacy surfaces. |
+| `content` | Content / CMS Engineer | no | generation, audit | `technical` | Builds and maintains AEM/EDS content surfaces; needs component/block generation scaffolds and audit findings scoped to content code. |
+| `generic` | Generic (fallback) | n/a | — | `default` | No role selected — used as fallback when `.bmad/role.yaml` is absent and no `--role` flag was passed in a headless run. |
+
+### Selecting a role
+
+There are three ways to set a role, in resolution-priority order (highest priority wins for a given run):
+
+1. **Interactive picker** — the first time you invoke any of the five agents in a project, the AI performs a **role handshake**: it asks *"Which role best matches how you'll use this plugin?"*, lists the 6 promoted roles first, then the 4 additional roles, then the `generic` fallback. Your choice is saved to `<projectRoot>/.bmad/role.yaml` and every subsequent agent run reads it silently.
+
+2. **CLI flag** — pass `--role=<code>` on any agent's `scripts/run.ts` invocation. This is **per-run only** — it does NOT overwrite `.bmad/role.yaml`. Example:
+    ```bash
+    npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
+      --path . --role=security
+    ```
+
+3. **Manual edit** — create `<projectRoot>/.bmad/role.yaml` yourself. The exact schema (documented in [`skills/shared/role/persistence.ts`](skills/shared/role/persistence.ts)):
+    ```yaml
+    # BMAD DCA — role selection
+    # Set by the DCA agent suite on first activation; edit or delete to change.
+    role: ea                        # one of: ea, tl, de, qa, devops, security, pm, ba, migration, content
+    set_at: 2026-08-01T02:53:00Z    # ISO-8601 UTC
+    set_by: config                  # one of: interactive | --role-flag | config
+    notes: |
+      Optional free-text notes about the role choice.
+    ```
+
+Resolution order at runtime: `--role=<code>` flag → `.bmad/role.yaml` → `generic` fallback.
+
+### Changing the role
+
+- **Permanent change** — say *"switch role to `<code>`"* in any agent chat (the agent will overwrite `.bmad/role.yaml`) or edit the YAML by hand.
+- **Per-run override** — prefix your prompt with *"as `<role>`, ..."* (e.g. *"as security, audit my project"*), or pass `--role=<code>` on that single `run.ts` invocation. Neither writes `.bmad/role.yaml`.
+- **Reset** — delete `.bmad/role.yaml`; the next agent run drops back to the interactive picker.
+
+### What "role adaptation" changes
+
+Every agent adapts along **three axes** once the resolved role is known:
+
+1. **Default mode when the trigger is ambiguous** — e.g. Audit's default (Scan Only / Full Audit / Deep Audit) shifts by role; Test Coverage's default (`analyze` / `generate` / `full`) shifts by role; Impact Analysis's consent-picker default (*"what's connected"* vs *"what could break"*) shifts by role.
+2. **Output flavor** — a role-specific *extra* artifact written into the report directory alongside the standard XLSX + Markdown twin.
+3. **Recommended follow-up** — the next agent (and next prompt) the AI offers at the end of the run.
+
+The **five output flavors**:
+
+| Flavor | What it produces |
+|--------|------------------|
+| `executive` | Markdown-first deliverable: top-N findings, business-impact framing, no rule IDs; the XLSX is supplementary. |
+| `technical` | The current default look — the standard XLSX plus its Markdown twin. |
+| `jira-csv` | A companion CSV next to the XLSX where each row is a Jira import row (Summary, Description, Priority, Labels, Component). |
+| `sarif` | A `.sarif` file suitable for GitHub code-scanning upload alongside the XLSX. |
+| `default` | Today's behavior with no role-specific shaping (used for `generic`). |
+
+**Important — flavor generation is AI-post-processed today.** The deterministic pipeline in every agent always emits the standard XLSX + Markdown twin regardless of role. Role-specific extras (Jira CSV, SARIF, executive MD) are written by the AI, post-run, into the same report directory. The run never blocks because a flavor generator is not wired into the deterministic pipeline.
+
+### Role × Agent behavior matrix (compact)
+
+Scanability table — one short phrase per cell. Grounded in each agent's `SKILL.md` "Role-aware behavior" section. For the deep detail (default mode, output emphasis, exact follow-up prompt), see the "Role-aware behavior" section of the agent's own `SKILL.md`.
+
+| Role | Audit | Sonar Scan | Code Generation | Impact Analysis | Test Coverage |
+|------|-------|------------|-----------------|-----------------|---------------|
+| `ea` | Deep Audit, architecture-focused → executive MD | All 6 pillars + Maintainability trend | Scaffold with house conventions enforced | Dependency-map lens ("what's connected") + module ownership heatmap | `full` + coverage-by-module heatmap |
+| `tl` | Deep Audit (full) → technical XLSX | All 6 pillars → technical | Standard scaffold; offer LLM/MCP path for uncovered types | Breakage lens ("what could break") + design impact section | `full` → technical |
+| `de` | Scan Only → Jira-ready CSV + XLSX | Jira-ready CSV alongside XLSX | Scaffold + matching test stub + Jira-ready CSV row per file | Jira-ready CSV of impacted files with risk-mapped priority | Jira-ranked backlog CSV with S/M/L effort |
+| `qa` | Full Audit → technical XLSX | All 6 pillars, Reliability + Bugs emphasis | Test files only + coverage checklist | Regression test plan section per impacted file | `full` + mutation hints + MFTF/API stubs |
+| `devops` | Scan Only → SARIF + XLSX | SARIF export + Quality Gate → CI exit code | IaC / pipeline / dispatcher scaffolds preferred | Deploy-risk score + change-freeze recommendation | `analyze` only + coverage-gate PASS/FAIL for CI |
+| `security` | Full Audit, Vulnerability/Hotspot rows highlighted, CWE/OWASP tags | All 6 pillars; Vulnerabilities sheet first + CWE/OWASP tags | Security-hardened defaults + "Security decisions" section | Threat surface impact per file (auth/crypto/input/secrets/network) | `analyze` + security-critical files, cross-ref audit Security findings |
+| `pm` | Scan Only → executive MD, top-10 | Executive MD: Quality Gate + top-10 vulns in business language | Not primary — generic behavior | Executive MD: top-10 modules + effort matrix + timeline buckets | `analyze` only + executive MD |
+| `ba` | Scan Only → executive MD | Standard scan (not primary) | Not primary — generic behavior | BRD requirement coverage section + traceability | `analyze` only (not primary) |
+| `migration` | Full Audit + patch/platform-upgrade rules + deprecated-API section | All 6 pillars + Deprecated section | Migration / patch artifacts (Commerce setup patches, AEM install hooks) | BOTH passes + migration blast radius (deprecated APIs, rollback candidates) | `full` + migration coverage delta |
+| `content` | Scan Only on content-related rule packs | Standard scan | Prefer content-fragment / editable-template / EDS-block scaffolders | Standard, filtered to content-model files | `analyze` on content files only |
+| `generic` | Full Audit (current default) | Standard scan | Standard scaffold | Ask user which pass | Ask user which mode |
+
+The resolved role is exposed to child engines via `process.env.DCA_ROLE` (and `DCA_ROLE_NAME` / `DCA_ROLE_FLAVOR` / `DCA_ROLE_SOURCE`), and a one-line banner `[dca-role] <Name> (source: <cli-flag|role-file|generic-fallback>)` is printed to stderr on every run so you always know which role the agent picked up.
+
+### Skipping role adaptation
+
+If a team doesn't want role gating at all, either:
+
+- **Recommended** — set `role: generic` in `<projectRoot>/.bmad/role.yaml` once. The interactive picker never fires; every run uses standard defaults.
+- **Per-run** — pass `--role=generic` on every `run.ts` invocation.
+
+The `generic` role's default output flavor is `default` (the current standard XLSX + Markdown twin with no role-specific shaping), and its priority-agent list is empty, so no agent will nudge you toward a specific follow-up.
 
 ---
 
@@ -1236,6 +1345,7 @@ Every documented CLI flag across all five agents. **Applicable agents** column: 
 | `--source-branch <name>` | A, S, G, I, T | string | auto | Base branch for `--create-branch`. Default cascade: `production → main → master → develop`. | |
 | `--preflight` | A, S, G, I, T | bool | false | Print the model/context advisory and exit. | See [§8](#8-preflight-mode-static--llm--hybrid). |
 | `--no-preflight` | A, S, G, I, T | bool | false | Suppress the preflight advisory that otherwise prints on every run. | |
+| `--role <code>` | A, S, G, I, T | enum | resolved from `.bmad/role.yaml` or `generic` | Override the resolved role for this run. One of: `ea`, `tl`, `de`, `qa`, `devops`, `security`, `pm`, `ba`, `migration`, `content`, `generic`. Per-run only — does NOT persist. | See [§4a](#4a-role-based-operation-new) for role definitions and adaptation behavior. |
 | `--help` / `-h` | A, S, G, I, T | bool | false | Show help. | |
 
 ---
@@ -1279,7 +1389,7 @@ bmad-dept-code-agent/
     ├── .env.example                   ← Token-budget + cost knobs
     ├── shared/                        ← @bmad/dca-shared foundation — install deps FIRST
     │   ├── ast/  core/  coverage/  git/  java/  js/  php/
-    │   ├── output/  preflight/  report/  token-budget/
+    │   ├── output/  preflight/  report/  role/  token-budget/
     │   ├── index.ts
     │   └── package.json · tsconfig.json
     ├── bmad-dept-code-audit-agent/           ← Auditor

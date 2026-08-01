@@ -47,6 +47,13 @@ interface SonarFindingsJson {
     stack?: string;
     timestamp?: string;
   };
+  /**
+   * Role the LLM was acting under while producing this findings file.
+   * One of: ea | tl | de | qa | devops | security | pm | ba | migration | content
+   * (or "generic" when no role was resolved). See shared/role/ROLES.md.
+   * The ingest CLI flag --role, when present, overrides this value.
+   */
+  role?: string;
   findings: RawFinding[];
 }
 
@@ -195,10 +202,18 @@ export interface IngestOptions {
   profile: StackProfile;
   outputDir: string;
   argv: string[];
+  /**
+   * Role resolved from --role flag, .bmad/role.yaml, or "generic" fallback.
+   * When roleFromCli is true this OVERRIDES the top-level role field inside
+   * sonar-findings.json (a WARN is logged on mismatch).
+   * Shapes downstream report emphasis (Run Info sheet, Quality Gate framing).
+   */
+  role: string;
+  roleFromCli: boolean;
 }
 
 export async function ingest(opts: IngestOptions): Promise<void> {
-  const { jsonPath, projectRoot, profile, outputDir, argv } = opts;
+  const { jsonPath, projectRoot, profile, outputDir, argv, role, roleFromCli } = opts;
 
   if (!fs.existsSync(jsonPath)) {
     console.error(`❌ Findings JSON not found: ${jsonPath}`);
@@ -216,6 +231,22 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   if (!Array.isArray(parsed.findings)) {
     console.error(`❌ sonar-findings.json must have a top-level "findings" array`);
     process.exit(1);
+  }
+
+  // Reconcile role: CLI flag overrides the JSON-recorded role. When the
+  // resolved role came from the file/generic-fallback path we take the JSON's
+  // role if present. Log a WARN on mismatch when the CLI won.
+  const jsonRole = typeof parsed.role === "string" ? parsed.role.trim() : "";
+  let effectiveRole = role;
+  if (roleFromCli) {
+    if (jsonRole && jsonRole !== role) {
+      process.stderr.write(
+        `[dca-role] WARN: --role=${role} overrides role "${jsonRole}" recorded in ${path.basename(jsonPath)}\n`,
+      );
+    }
+    effectiveRole = role;
+  } else if (jsonRole) {
+    effectiveRole = jsonRole;
   }
 
   const findings: Finding[] = parsed.findings.map((r, i) => mapFinding(r, i));
@@ -249,6 +280,7 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         "Maintainability Rating": ratings.maintainability,
         "Findings Total": findings.length,
         "Vulnerabilities": findings.filter((f) => f.category === "Vulnerability" || f.category === "Security Hotspot").length,
+        "Role": effectiveRole,
       },
     },
     findings,

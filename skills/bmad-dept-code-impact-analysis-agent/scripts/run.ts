@@ -23,6 +23,7 @@ import { readBrd } from "./inputs/brd";
 import { traceImpact } from "./analysis/tracer";
 import { PROFILES, profileById, detectProfile } from "./engines/profiles";
 import { runPreflight, renderPreflight } from "../../shared/preflight";
+import { resolveRole, parseRoleFlag } from "../../shared/role";
 
 interface Args {
   path: string;
@@ -30,6 +31,7 @@ interface Args {
   bugs: string | null;
   brd: string | null;
   output: string | null;
+  role: string | undefined;
   listEngines: boolean;
   createBranch: boolean;
   sourceBranch: string | null;
@@ -39,10 +41,13 @@ interface Args {
 
 function parseArgs(): Args {
   const a: Args = {
-    path: ".", engine: null, bugs: null, brd: null, output: null, listEngines: false,
+    path: ".", engine: null, bugs: null, brd: null, output: null, role: undefined,
+    listEngines: false,
     createBranch: false, sourceBranch: null, preflight: false, noPreflight: false,
   };
   const argv = process.argv.slice(2);
+  // --role=<code> and --role <code> are both handled by the shared helper.
+  a.role = parseRoleFlag(argv);
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
       case "--path": a.path = argv[++i]; break;
@@ -50,6 +55,10 @@ function parseArgs(): Args {
       case "--bugs": a.bugs = argv[++i]; break;
       case "--brd": a.brd = argv[++i]; break;
       case "--output": a.output = argv[++i]; break;
+      case "--role":
+        // parseRoleFlag already captured the value; swallow the value token if present so it isn't misread later.
+        if (i + 1 < argv.length && !argv[i + 1].startsWith("--")) i++;
+        break;
       case "--list-engines": a.listEngines = true; break;
       case "--create-branch": a.createBranch = true; break;
       case "--source-branch": a.sourceBranch = argv[++i]; break;
@@ -67,6 +76,8 @@ Options:
   --brd <doc>             BRD document (.docx / .md / .txt)
   --engine <id>           Stack engine (auto-detect if omitted)
   --output <dir>          Report output dir (default: <path>/impact-reports)
+  --role <code>           Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content
+                          (persisted at <project>/.bmad/role.yaml; --role wins for one run)
   --list-engines          List available stack engines
   --create-branch         Cut standard working branch dca/impact-<stack>-<ts> before writing outputs
   --source-branch <name>  Base branch for --create-branch (default: production/main/master/develop)
@@ -74,6 +85,9 @@ Options:
   --no-preflight          Skip the preflight advisory on a normal run
   --help                  Show this help`);
         process.exit(0);
+      default:
+        // swallow --role=<value> here so it isn't logged as unknown
+        if (argv[i].startsWith("--role=")) break;
     }
   }
   return a;
@@ -91,6 +105,34 @@ async function main(): Promise<void> {
 
   const projectPath = resolve(args.path);
   if (!existsSync(projectPath)) { console.error(`❌ Project path not found: ${projectPath}`); process.exit(1); }
+
+  // ── Role resolution (metadata for the report + downstream chaining) ──
+  // Order: --role flag  >  <projectRoot>/.bmad/role.yaml  >  generic fallback.
+  let resolvedRoleCode = "generic";
+  let resolvedRoleName = "Generic";
+  let resolvedRoleFlavor = "default";
+  let resolvedRoleSource = "generic-fallback";
+  try {
+    const resolved = resolveRole({
+      projectRoot: projectPath,
+      cliFlag: args.role,
+      fallbackToGeneric: true,
+    });
+    resolvedRoleCode = resolved.role.code;
+    resolvedRoleName = resolved.role.name;
+    resolvedRoleFlavor = resolved.role.defaultOutputFlavor;
+    resolvedRoleSource = resolved.source;
+    process.env.DCA_ROLE = resolvedRoleCode;
+    process.env.DCA_ROLE_NAME = resolvedRoleName;
+    process.env.DCA_ROLE_FLAVOR = resolvedRoleFlavor;
+    process.env.DCA_ROLE_SOURCE = resolvedRoleSource;
+    process.stderr.write(
+      `[dca-role] ${resolvedRoleName} (source: ${resolvedRoleSource})\n`,
+    );
+  } catch (err) {
+    console.error(`❌ ${(err as Error).message}`);
+    process.exit(1);
+  }
 
   if (!args.bugs && !args.brd) {
     console.error("❌ Provide at least one input: --bugs <proofhub.csv> and/or --brd <document>");
@@ -144,7 +186,14 @@ async function main(): Promise<void> {
     meta: {
       agent: "impact", engine: profile.id, stack: profile.name,
       projectName: basename(projectPath), projectRoot: projectPath,
-      extra: { Inputs: items.length, "Matched to code": matchedItems, "Source files": sourceCount },
+      extra: {
+        Inputs: items.length,
+        "Matched to code": matchedItems,
+        "Source files": sourceCount,
+        Role: `${resolvedRoleName} (${resolvedRoleCode})`,
+        "Role Source": resolvedRoleSource,
+        "Role Flavor": resolvedRoleFlavor,
+      },
     },
     findings,
     outputDir,

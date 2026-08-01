@@ -125,6 +125,170 @@ ingest ./sonar-findings.json --create-branch
 
 ---
 
+## Role-based prompts
+
+The plugin adapts to your **role** (Enterprise Architect, Tech Lead, Senior Delivery Engineer, QA/SDET, DevOps/SRE, Security Engineer, PM, BA, Migration Lead, Content Engineer, or `generic`). Setup happens once per project — the first agent invocation asks you to pick from the list; your choice is written to `<projectRoot>/.bmad/role.yaml` and picked up silently by every subsequent run. Prefix any prompt with *"as `<role>`, ..."* to override for a single run without changing the persisted role. Full mechanics in **[MANUAL.md §4a](MANUAL.md#4a-role-based-operation-new)**; canonical role catalog in [`skills/shared/role/ROLES.md`](skills/shared/role/ROLES.md).
+
+### Setup / discovery / change
+
+```text
+which role should I pick for this project?
+what roles does this plugin support?
+show me the role catalog
+set my role to enterprise architect
+set my role to security engineer
+show my current role
+switch role to devops
+reset my role
+skip role adaptation, use generic
+```
+
+### `ea` — Enterprise Architect
+
+```text
+as ea, audit my project focused on architecture
+generate an architecture roadmap from the last audit
+show me the module ownership heatmap from the impact analysis
+executive summary of the CRITICAL findings
+list top-5 tech-debt items with business impact
+ADR-ready summary of the audit findings
+maintainability trend across all modules
+which modules should we invest in refactoring first?
+sonar scan my project and show me the Maintainability trend narrative
+impact-analyze the top-5 audit findings for portfolio risk
+```
+
+### `tl` — Tech Lead / Solution Architect
+
+```text
+as tl, deep audit my project
+audit the impacted modules from the last impact analysis
+scaffold a Sling Model for OrderResource with house conventions
+impact-analyze the top-5 findings before I hand out fixes
+which shared abstractions did the last impact run flag?
+sonar scan my service for architecture verification
+list scaffolder types for my stack
+generate a REST controller, service, and JPA repo for the Product entity in one shot
+design impact of the pending BRD at ./req.docx
+```
+
+### `de` — Senior Delivery Engineer
+
+```text
+as de, scan my project and give me a Jira CSV
+generate fixes for the top 5 CRITICAL findings
+scaffold the AEM component Hero Banner and emit the test stub
+generate a JPA repository and the matching Testcontainers integration test
+give me a Jira-ranked backlog of uncovered files with S/M/L effort
+export the audit findings as a Jira-ready CSV
+one row per impacted file with Priority mapped from risk, Component from stack
+run test coverage on the generated files
+list the top-10 backlog items and their sprint sizing
+```
+
+### `qa` — QA / SDET
+
+```text
+as qa, run test coverage on my project
+generate unit tests for OrderService using Spring Test + MockMvc
+generate MFTF tests for the checkout flow
+regression test plan for the impacted files from the last impact run
+mutation-testing hints for the boundary conditions in CartService
+which files are still below the 80% branch threshold?
+full test coverage for the Payment module
+generate a full test plan: unit + integration + e2e per module
+run mutation testing
+audit my project and map findings to test surfaces
+```
+
+### `devops` — DevOps / SRE
+
+```text
+as devops, sonar scan my project and export SARIF
+wire the Quality Gate into CI as a required check
+generate a Cloud Manager pipeline configuration for my AEMaaCS project
+scaffold Dispatcher config for my AEMaaCS project
+run coverage gate PASS/FAIL for CI on my Spring service
+deploy-risk score and change-freeze recommendation from the last impact run
+audit --engine spring --path . and give me SARIF output
+scan my project and set the process exit code from the Quality Gate
+export the Vulnerabilities sheet as SARIF for GitHub code-scanning
+generate an IaC scaffold for the deploy pipeline
+```
+
+### `security` — Security Engineer
+
+```text
+as security, sonar scan my project focused on Vulnerabilities and Security Hotspots
+audit my project and enrich findings with CWE and OWASP Top-10 tags
+map every Vulnerability to CWE and OWASP Top 10
+threat-surface impact per file from the last impact run
+generate a security-hardened Sling servlet with input validation and CSRF tokens
+audit my project --focus security
+scan my PHP Commerce project focused on SQL injection and XSS
+generate a remediation plan for the top 10 vulnerabilities
+which security-critical files have coverage below 80%?
+show the Vulnerabilities sheet moved to first
+```
+
+### `pm` — Product Manager / PMO
+
+```text
+as pm, executive summary of the last audit
+top-10 impacted modules in business language from the last impact run
+effort matrix S/M/L/XL and suggested timeline buckets from the last impact
+summarize CRITICAL findings for the release note
+release-readiness snapshot for stakeholders
+```
+
+### `ba` — Business Analyst
+
+```text
+as ba, impact-analyze the BRD at ./req.docx
+generate the BRD requirement coverage section from the last impact run
+requirements traceability matrix from BRD to code
+which BRD line-items map to zero code files?
+analyze impact --brd ./BRD.docx --engine spring
+```
+
+### `migration` — Migration / Upgrade Lead
+
+```text
+as migration, full audit my AEM AMS project --platform aemams
+impact-analyze the migration from ./old-to-new-BRD.docx (both passes)
+migration blast radius: deprecated APIs and rollback candidates
+test-coverage delta between production and release/2.4.7-p9
+scaffold Commerce setup patches for the schema migration
+generate AEM install hooks and content packages for the upgrade
+```
+
+### `content` — Content / CMS Engineer
+
+```text
+as content, audit my content models
+scan blocks/hero and blocks/cards for EDS
+generate a Content Fragment Model for articles: title, body, author, date
+create an EDS block called cards
+audit only /apps/mysite/components
+```
+
+### Cross-role chained prompts
+
+Chains that show role handoffs — paste one block per chain and the AI runs the steps in order, adapting each agent to the role in play.
+
+```text
+as security, audit my project, then sonar scan the same project, then generate a remediation plan for the top 5 vulnerabilities
+as ba, impact-analyze the BRD at ./req.docx, then generate the requirements traceability matrix
+as devops, sonar scan my project, then export SARIF for GitHub code-scanning, then wire the quality gate into CI
+as ea, audit my project, then generate an architecture roadmap from the findings, then hand off to tl for a deep-audit follow-up on the top-5 modules
+as migration, full audit my AEM AMS project --platform aemams, then impact-analyze the AMS→AEMaaCS gap set, then test-coverage the impacted files
+as de, scan my project, then generate fixes for the CRITICAL findings, then test-coverage the generated files, then export a Jira-ready CSV of the whole batch
+as qa, test-coverage the impacted files from the last impact run, then generate the missing tests to close every gap, then re-run coverage and report the delta
+as tl, impact-analyze ./bugs.csv, then audit the impacted modules, then scaffold the remediation stubs (interfaces + tests only)
+```
+
+---
+
 ## 1. Code Audit Agent
 
 Tier 1 = deterministic tree-sitter AST + regex (zero tokens). Tier 2 = LLM semantic analysis driven by per-stack rule packs. `scan` = Tier 1 only, `deep audit` = Tier 2 only, `full audit` = both.

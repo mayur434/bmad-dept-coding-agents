@@ -7,7 +7,7 @@ version = "1.0.0"
 required = ["claude-code"]
 
 [skill.activation]
-keywords = ["test coverage", "unit test", "integration test", "test generation", "coverage report", "missing tests", "test gap", "generate tests", "test plan", "sling", "spring", "app builder", "commerce saas", "eds", "eds commerce"]
+keywords = ["test coverage", "unit test", "integration test", "test generation", "coverage report", "missing tests", "test gap", "generate tests", "test plan", "sling", "spring", "app builder", "commerce saas", "eds", "eds commerce", "set role", "switch role", "what's my role", "show my role", "role catalog"]
 
 [skill.scripts]
 dispatcher = "scripts/run.ts"

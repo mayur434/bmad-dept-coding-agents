@@ -63,6 +63,88 @@ This skill activates when the user asks to:
 - Analyze patch upgrade impact
 - Export audit findings
 
+## Role-aware behavior
+
+The Audit agent adapts its **default mode**, **output flavor**, and **recommended follow-up** to the role of the person driving the run. Role selection is a **shared** concept across the 5-agent DCA suite and is persisted per-project at `<projectRoot>/.bmad/role.yaml` (see `skills/shared/role/ROLES.md`).
+
+### Role check on activation
+
+**Before running any mode**, the AI agent MUST perform the role handshake:
+
+1. **Check for `<projectRoot>/.bmad/role.yaml`.**
+2. **If ABSENT**, ask the user — verbatim:
+   > "Which role best matches how you'll use this plugin? Pick one from the 10 codes below (or say 'generic' to skip):"
+   Then list the **6 promoted roles** first, each with a one-line description:
+   - `ea` — Enterprise Architect: cross-cutting architecture across Adobe/JVM estates; portfolio-level health, risk, modernization signals.
+   - `tl` — Tech Lead / Solution Architect: component-level design review, generation scaffolds, impact blast-radius.
+   - `de` — Senior Delivery Engineer: sprint delivery; scaffolds, coverage gaps, Jira-ready audit tickets.
+   - `qa` — QA / SDET: coverage gaps, impact-driven regression scope, audit-to-test-surface mapping.
+   - `devops` — DevOps / SRE: SARIF-shaped scan output for CI gates; infra/pipeline scaffolds.
+   - `security` — Security Engineer: deep sonar-scan + audit focused on vulnerability classes and remediation.
+
+   Then list the **4 additional roles**:
+   - `pm` — Product Manager / PMO: executive-shape audit/impact framed as scope, effort, portfolio risk.
+   - `ba` — Business Analyst: impact-analysis as feature/flow-level change summaries.
+   - `migration` — Migration/Upgrade Lead: upgrade baselines, deprecated-API impact, legacy coverage.
+   - `content` — Content/CMS Engineer: AEM/EDS content-surface scaffolds and content-scoped audit.
+
+   Then the fallback: `generic` — skip role adaptation and use standard defaults.
+
+3. **Persist the choice** by confirming with the user, then **write `.bmad/role.yaml`** using the shared `writeRoleFile(projectRoot, role, "interactive")` helper from `skills/shared/role`. If writing by hand, use the exact YAML format documented in `skills/shared/role/persistence.ts`:
+   ```yaml
+   # BMAD DCA — role selection
+   # Set by the DCA agent suite on first activation; edit or delete to change.
+   role: <code>
+   set_at: <ISO-8601 timestamp>
+   set_by: interactive
+   ```
+
+4. **If PRESENT**, read it silently and use the `role:` field — do NOT re-prompt.
+
+5. **Per-run override**: the user can override for a single run by prefixing their prompt with **"as `<role>`"** (e.g. *"as security, audit my project"*) or by passing **`--role=<code>`** to `scripts/run.ts`. Do NOT write `.bmad/role.yaml` when the role is overridden this way.
+
+6. **Permanent change**: if the user says **"switch role to `<code>`"**, overwrite `.bmad/role.yaml` with the new code (same `writeRoleFile` call, `set_by: interactive`).
+
+### Role → Audit behavior matrix
+
+| Role | Default mode when ambiguous | Output flavor | Recommended follow-up |
+|---|---|---|---|
+| `ea` | **Deep Audit**, architecture-focused (skip low-severity code smells) | Executive Markdown summary + technical XLSX | "generate architecture roadmap" |
+| `tl` | **Deep Audit** (full) | Technical XLSX | "impact-analyze the top 5 findings" |
+| `de` | **Scan Only** (fast Tier 1) | Jira-ready CSV + technical XLSX | "generate fixes for CRITICAL findings" |
+| `qa` | **Full Audit** | Technical XLSX | "test-coverage the impacted files" |
+| `devops` | **Scan Only** | SARIF export + XLSX | "wire audit into CI as a gate" |
+| `security` | **Full Audit**, Vulnerability + Security Hotspot rows highlighted; enrich with CWE/OWASP tags | Technical XLSX with security emphasis | "sonar scan for deeper vulnerability analysis" |
+| `pm` | **Scan Only** | Executive Markdown, top-10 findings only | "summarize CRITICAL findings for the release note" |
+| `ba` | **Scan Only** | Executive Markdown | "map findings to BRD requirements" |
+| `migration` | **Full Audit** + patch-upgrade analysis (Commerce) or platform-upgrade rules (AEM) | Technical XLSX with deprecated-API section highlighted | "impact + coverage delta between versions" |
+| `content` | **Scan Only**, focus on AEM/EDS content-related rule packs | Technical XLSX | "generate content-fragment or block scaffold" |
+| `generic` | **Full Audit** (current default) | Standard XLSX + MD | "summarize findings" |
+
+**Output flavors — what they mean.** The `executive` flavor is a Markdown-first deliverable: top-N findings, business-impact framing, no rule-IDs; the XLSX is supplementary. The `technical` flavor is the current default look — the standard XLSX plus its Markdown twin. The `jira-csv` flavor adds a companion CSV next to the XLSX where each row is a Jira import row (columns: Summary, Description, Priority, Labels, Component). The `sarif` flavor adds a `.sarif` file suitable for GitHub code-scanning upload alongside the XLSX. The `default` flavor is today's behavior with no role-specific shaping.
+
+**When the deterministic pipeline hasn't shipped a flavor yet** (Jira-CSV, SARIF, executive-MD): post-process the standard XLSX+MD yourself and emit the extra artifact into the same report directory. Do not block the run because a flavor generator isn't wired up.
+
+### Cross-agent chaining hints per role
+
+After the Audit run finishes, offer the follow-up handoff that matches the resolved role:
+
+| Role | Next agent to invoke | Why |
+|---|---|---|
+| `ea` | `impact-analysis` | Roll findings up to architecture-level risk. |
+| `tl` | `impact-analysis` | Blast-radius the top findings before assigning fixes. |
+| `de` | `generation` | Generate fix scaffolds for CRITICAL findings. |
+| `qa` | `test-coverage` | Measure coverage on the files audit flagged. |
+| `devops` | `sonar-scan` | Deeper scan wired for CI gates. |
+| `security` | `sonar-scan` | Deeper Vulnerability + Security Hotspot analysis. |
+| `pm` | (stay in audit) | Summarize CRITICAL findings for release notes / status. |
+| `ba` | `impact-analysis` | Map findings back to BRD requirements. |
+| `migration` | `impact-analysis` + `test-coverage` | Cross-version impact + coverage delta. |
+| `content` | `generation` | Emit content-fragment / block scaffolds. |
+| `generic` | (stay in audit) | Summarize findings; ask user for next step. |
+
+The resolved role is exposed to child engines via `process.env.DCA_ROLE` (and `DCA_ROLE_NAME` / `DCA_ROLE_FLAVOR` / `DCA_ROLE_SOURCE`), and a one-line `[dca-role] <Name> (source: <cli-flag|role-file|generic-fallback>)` is printed to stderr on every run.
+
 ## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
 
 The moment this command is triggered from an AI assistant (GitHub Copilot, Claude, Cursor, or any LLM), run the

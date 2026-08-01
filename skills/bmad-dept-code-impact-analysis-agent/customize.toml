@@ -7,7 +7,7 @@ version = "1.0.0"
 required = ["claude-code"]
 
 [skill.activation]
-keywords = ["impact", "blast radius", "what breaks", "dependency", "affected", "breaking changes", "upgrade risk", "patch risk", "trace dependencies", "change risk", "aem", "commerce", "commerce saas", "sling", "spring", "app builder", "eds", "eds commerce"]
+keywords = ["impact", "blast radius", "what breaks", "dependency", "affected", "breaking changes", "upgrade risk", "patch risk", "trace dependencies", "change risk", "aem", "commerce", "commerce saas", "sling", "spring", "app builder", "eds", "eds commerce", "set role", "switch role", "what's my role", "show my role", "role catalog"]
 
 [skill.scripts]
 dispatcher = "scripts/run.ts"

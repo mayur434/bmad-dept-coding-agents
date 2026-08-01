@@ -57,6 +57,88 @@ This skill activates when the user asks to:
 - Produce a coverage report
 - Generate tests for specific files or components
 
+## Role-aware behavior
+
+The Test Coverage agent adapts its **default mode**, **output emphasis**, and **recommended follow-up** to the role of the person driving the run. Role selection is a **shared** concept across the 5-agent DCA suite and is persisted per-project at `<projectRoot>/.bmad/role.yaml` (see `skills/shared/role/ROLES.md`).
+
+### Role check on activation
+
+**Before running any mode**, the AI agent MUST perform the role handshake:
+
+1. **Check for `<projectRoot>/.bmad/role.yaml`.**
+2. **If ABSENT**, ask the user — verbatim:
+   > "Which role best matches how you'll use this plugin? Pick one from the 10 codes below (or say 'generic' to skip):"
+   Then list the **6 promoted roles** first, each with a one-line description:
+   - `ea` — Enterprise Architect: cross-cutting architecture across Adobe/JVM estates; portfolio-level coverage health and modernization signals.
+   - `tl` — Tech Lead / Solution Architect: component-level coverage and generation scaffolds for the team.
+   - `de` — Senior Delivery Engineer: sprint delivery; Jira-ready coverage backlog with per-file priority + effort.
+   - `qa` — QA / SDET: test plan with unit + integration + e2e per module; mutation-testing hints; MFTF/API stubs.
+   - `devops` — DevOps / SRE: PASS/FAIL coverage gate for CI with a PR-comment-ready Markdown block.
+   - `security` — Security Engineer: security-critical files highlighted where coverage is < 80%.
+
+   Then list the **4 additional roles**:
+   - `pm` — Product Manager / PMO: executive coverage narrative + effort estimate for release readiness.
+   - `ba` — Business Analyst: standard coverage analysis (not primary for BA).
+   - `migration` — Migration/Upgrade Lead: regression-suite emphasis + before/after coverage delta.
+   - `content` — Content/CMS Engineer: coverage on content-related files only (block/component/CF).
+
+   Then the fallback: `generic` — skip role adaptation and use standard defaults.
+
+3. **Persist the choice** by confirming with the user, then **write `.bmad/role.yaml`** using the shared `writeRoleFile(projectRoot, role, "interactive")` helper from `skills/shared/role`. If writing by hand, use the exact YAML format documented in `skills/shared/role/persistence.ts`:
+   ```yaml
+   # BMAD DCA — role selection
+   # Set by the DCA agent suite on first activation; edit or delete to change.
+   role: <code>
+   set_at: <ISO-8601 timestamp>
+   set_by: interactive
+   ```
+
+4. **If PRESENT**, read it silently and use the `role:` field — do NOT re-prompt.
+
+5. **Per-run override**: the user can override for a single run by prefixing their prompt with **"as `<role>`"** (e.g. *"as qa, test-coverage my project"*) or by passing **`--role=<code>`** to `scripts/run.ts`. Do NOT write `.bmad/role.yaml` when the role is overridden this way.
+
+6. **Permanent change**: if the user says **"switch role to `<code>`"**, overwrite `.bmad/role.yaml` with the new code (same `writeRoleFile` call, `set_by: interactive`).
+
+### Role → Test Coverage behavior matrix
+
+| Role | Default mode when ambiguous | Output emphasis | Recommended follow-up |
+|---|---|---|---|
+| `ea` | `full` (analyze + generate) | Standard XLSX + **coverage-by-module heatmap** section in Markdown twin — grouped by top-level package/module | "generate coverage roadmap" |
+| `tl` | `full` | Standard XLSX + Markdown twin (technical) | "audit the low-coverage modules" |
+| `de` | `full` | **Jira-ranked backlog CSV** — one row per uncovered file with Priority from the priority score (Commerce 6-factor where available; filename estimate elsewhere), Effort S/M/L, and Component from stack | "generate tests for the top backlog items" |
+| `qa` | `full` — generate tests + include **mutation-testing hints** in the Markdown twin ("consider mutating boundary conditions in FILE:LINE") and **MFTF/API scenario** stubs for Commerce | Standard XLSX + a **full test plan** section: unit + integration + e2e per module | "run mutation testing" |
+| `devops` | `analyze` only (fast) with `--run-coverage` if not already passed | Standard XLSX + a **coverage-gate section** with a PASS/FAIL decision (config-driven threshold, default 80%) and a **PR-comment-ready Markdown block** | "wire the coverage gate into CI" |
+| `security` | `analyze` + focus on security-critical files (auth, crypto, input validation) — cross-reference audit's Security findings if available | Standard XLSX with **security-negative-tests** highlighted (rows where security-critical files have <80% coverage) | "audit --focus security to feed the security-critical file list" |
+| `pm` | `analyze` only | **Executive Markdown** — coverage narrative in business language, top-5 gaps, effort estimate for closing them | "summarize coverage for release readiness" |
+| `ba` | (not primary for BA) — `analyze` only, standard output | Standard | (none) |
+| `migration` | `full` — emphasize **regression-suite for migration** (tests that must pass on both old and new versions) | Standard XLSX + a **migration coverage delta** section comparing before/after | "impact-analyze the migration" |
+| `content` | `analyze` on content-related files only (block/component/CF) | Standard XLSX filtered to content files | "generate content-fragment scaffold with test stub" |
+| `generic` | (Ask user which mode — current behavior) | Standard XLSX + Markdown twin | "list gaps" |
+
+**Output flavors — what they mean.** The `executive` flavor is a Markdown-first deliverable: coverage narrative in business language, top-N gaps, effort estimate; the XLSX is supplementary. The `technical` flavor is today's default look — the standard XLSX plus its Markdown twin. The `jira-csv` flavor adds a companion CSV next to the XLSX where each row is a Jira-import row (columns: Summary, Description, Priority, Labels, Component). The `sarif` flavor adds a `.sarif` file (per-file coverage gaps as issues) suitable for CI upload alongside the XLSX. The `default` flavor is today's behavior with no role-specific shaping.
+
+**When the deterministic pipeline hasn't shipped a flavor yet** (executive MD, Jira-ranked CSV, coverage-gate PR comment, mutation hints, regression delta): the CLI emits the **standard XLSX + Markdown twin only**. The AI agent is responsible for post-processing the coverage data into the extra artifact and emitting it into the same report directory alongside the standard files. Do not block the run because a flavor generator isn't wired up.
+
+### Cross-agent chaining hints per role
+
+After the Test Coverage run finishes, offer the follow-up handoff that matches the resolved role:
+
+| Role | Next agent to invoke | Why |
+|---|---|---|
+| `ea` | `audit` + `impact-analysis` | Turn low-coverage modules into an architecture roadmap. |
+| `tl` | `audit` | Audit the low-coverage modules the coverage run surfaced. |
+| `de` | `generation` | Generate tests for the top backlog items. |
+| `qa` | `sonar-scan` (mutation-adjacent), then more `test-coverage` | Deeper defect analysis + measure lift after generation. |
+| `devops` | `sonar-scan` | Wire the coverage gate + sonar quality gate into CI together. |
+| `security` | `audit` (`--focus security`) | Feed the security-critical file list into audit for the negative-tests. |
+| `pm` | (stay in test-coverage) | Summarize coverage for release readiness. |
+| `ba` | (none) | Not primary for BA. |
+| `migration` | `impact-analysis` | Cross-version blast-radius on top of the coverage delta. |
+| `content` | `generation` | Emit content-fragment / block scaffold with test stub. |
+| `generic` | (stay in test-coverage) | Summarize gaps; ask user for next step. |
+
+The resolved role is exposed to child engines via `process.env.DCA_ROLE` (and `DCA_ROLE_NAME` / `DCA_ROLE_FLAVOR` / `DCA_ROLE_SOURCE`), recorded on the Run-Info sheet of the standardized report, and a one-line `[dca-role] <Name> (source: <cli-flag|role-file|generic-fallback>)` is printed to stderr on every run.
+
 ## Preflight — report the user's LLM & recommend a mode (do this first, conversationally)
 
 The moment this command is triggered from an AI assistant (GitHub Copilot, Claude, Cursor, or any LLM), run the
@@ -286,5 +368,6 @@ Standard outputs are written to `<project>/test-coverage-reports/` (or `--output
 | `--source-branch <name>` | Source branch for `--create-branch` (default candidates: production, main, master, develop) |
 | `--preflight` | Print the model/context + STATIC/LLM/HYBRID advisory and exit |
 | `--no-preflight` | Suppress the preflight advisory that otherwise prints on every run |
+| `--role <code>` | Role adaptation: `ea|tl|de|qa|devops|security|pm|ba|migration|content`. Persisted at `<project>/.bmad/role.yaml`; `--role` wins for a single run. See **Role-aware behavior** above. |
 | `--list-engines` | List available engines |
 | `--help` | Print usage and exit |
