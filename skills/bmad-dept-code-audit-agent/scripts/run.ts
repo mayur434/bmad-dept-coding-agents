@@ -34,11 +34,14 @@ interface AuditArgs {
   noInstall: boolean;
   interactive: boolean;
   technical: boolean;
+  chainAll: boolean;
+  chainStages?: string;
+  chainStopOnFail: boolean;
   remaining: string[];
 }
 
 function parseArgs(argv: string[]): AuditArgs {
-  const result: AuditArgs = { engine: undefined, path: undefined, format: undefined, role: undefined, listEngines: false, help: false, yesInstall: false, noInstall: false, interactive: false, technical: false, remaining: [] };
+  const result: AuditArgs = { engine: undefined, path: undefined, format: undefined, role: undefined, listEngines: false, help: false, yesInstall: false, noInstall: false, interactive: false, technical: false, chainAll: false, chainStages: undefined, chainStopOnFail: false, remaining: [] };
   // --role=<code> and --role <code> are both handled by the shared helper.
   result.role = parseRoleFlag(argv);
   let i = 0;
@@ -64,6 +67,12 @@ function parseArgs(argv: string[]): AuditArgs {
       result.interactive = true;
     } else if (argv[i] === "--technical") {
       result.technical = true;
+    } else if (argv[i] === "--chain-all") {
+      result.chainAll = true;
+    } else if (argv[i] === "--chain-stages" && i + 1 < argv.length) {
+      result.chainStages = argv[++i];
+    } else if (argv[i] === "--chain-stop-on-fail") {
+      result.chainStopOnFail = true;
     } else if (argv[i] === "-h" || argv[i] === "--help") {
       result.help = true;
     } else {
@@ -106,6 +115,12 @@ async function main(): Promise<void> {
     console.log("  --technical           Force technical mode; missing required inputs error out (current default).");
     console.log("                        Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),");
     console.log("                        falling back to technical when the file is absent.");
+    console.log("\nCross-agent chain:");
+    console.log("  --chain-all                   Run audit → sonar-scan → test-coverage → impact-analysis in sequence,");
+    console.log("                                chaining outputs via the shared findings cache and emitting a Markdown");
+    console.log("                                roll-up at <project>/dca-chain-reports/.");
+    console.log("  --chain-stages <csv>          Comma-separated subset of stages to run (default: all four).");
+    console.log("  --chain-stop-on-fail          Abort the chain on the first stage failure (default: continue).");
     console.log("\nEngine-specific help: npx ts-node run.ts --engine <name> --help");
     return;
   }
@@ -118,6 +133,51 @@ async function main(): Promise<void> {
     no: args.noInstall,
   });
   if (bootstrap.exitCode !== 0) process.exit(bootstrap.exitCode);
+
+  // ── Cross-agent chain: run audit → sonar-scan → test-coverage → impact-analysis
+  //    in sequence, chaining outputs via the shared findings cache. Emits a
+  //    Markdown roll-up. All other behavior is bypassed when --chain-all is set.
+  if (args.chainAll) {
+    const chainRoot = args.path ? path.resolve(args.path) : process.cwd();
+    if (!fs.existsSync(chainRoot) || !fs.statSync(chainRoot).isDirectory()) {
+      console.error(`❌ Error: --chain-all requires a valid --path (got: ${chainRoot})`);
+      process.exit(1);
+    }
+    const { runChain } = require("../../shared/orchestrator") as typeof import("../../shared/orchestrator");
+    const stagesArg = args.chainStages
+      ? args.chainStages
+          .split(",")
+          .map((s: string) => s.trim())
+          .filter(Boolean)
+      : undefined;
+    const validStages = new Set(["audit", "sonar-scan", "test-coverage", "impact-analysis"]);
+    if (stagesArg) {
+      const bad = stagesArg.filter((s: string) => !validStages.has(s));
+      if (bad.length) {
+        console.error(`❌ Unknown --chain-stages entries: ${bad.join(", ")}`);
+        console.error(`   Valid: ${Array.from(validStages).join(", ")}`);
+        process.exit(1);
+      }
+    }
+    const result = await runChain({
+      projectRoot: chainRoot,
+      stages: stagesArg as any,
+      role: args.role,
+      yesInstall: args.yesInstall,
+      noInstall: args.noInstall,
+      stopOnFail: args.chainStopOnFail,
+    });
+    console.log("\n" + "=".repeat(60));
+    console.log(` DCA Chain — ${result.runId}`);
+    console.log("=".repeat(60));
+    for (const s of result.stages) {
+      const findings = s.findingsCount !== undefined ? ` (${s.findingsCount} findings)` : "";
+      console.log(`  ${s.stage.padEnd(18)} ${s.status.padEnd(8)} exit=${s.exitCode}${findings}`);
+    }
+    console.log(`\n📝 Roll-up: ${result.rollupPath || "(not written)"}`);
+    const anyFailed = result.stages.some((s) => s.status === "failed");
+    process.exit(anyFailed ? 1 : 0);
+  }
 
   // Lazy loads — safe now that node_modules is guaranteed present.
   const { detectPlatform, getEngine, listEngines } = require("./engines/registry") as typeof import("./engines/registry");
