@@ -15,6 +15,9 @@ import { EdsAuditScanner } from "./lib/scanner/index";
 import { emitStandardOutputs } from "../../../../shared/output";
 import { fromLegacyFindingsMap } from "../../../../shared/core/types";
 import { scanEdsAst } from "./ast-scan";
+import { enforceConfidenceOnAll, emitAuditFindingsCache } from "../../shared/emit-helpers";
+import { runDeltaMode } from "../../shared/delta";
+import { appendLegacySheets } from "../../shared/legacy-merge";
 
 export class EdsAuditEngine extends BaseAuditEngine {
   readonly PLATFORM_ID = "eds";
@@ -115,23 +118,66 @@ export async function main(): Promise<void> {
   const total = Object.values(findings).reduce((n, a) => n + a.length, 0);
   console.log(`🔍 EDS scan: ${total} finding(s)`);
 
-  // Legacy platform report (EDS-specific sheets) — non-fatal.
-  try {
-    await engine.generateReport(findings, outputDir);
-  } catch (e) {
-    console.log(`⚠️  Legacy report skipped: ${(e as Error).message}`);
-  }
+  // Standardized report + CHANGE-LOG — the EDS-specific rich sheets are
+  // appended AFTER the standardized ones in the SAME xlsx via
+  // appendLegacySheets() so every run yields exactly one xlsx.
+  let stdFindings = fromLegacyFindingsMap(findings as any, "eds");
+  stdFindings = enforceConfidenceOnAll(stdFindings, "regex");
 
-  // Standardized report + CHANGE-LOG — uniform across every DCA audit engine.
+  const since = argVal("--since");
+
   const std = await emitStandardOutputs({
     agent: "audit",
     meta: { agent: "audit", engine: "eds", stack: "Edge Delivery Services", projectName, projectRoot: projectPath },
-    findings: fromLegacyFindingsMap(findings as any, "eds"),
+    findings: stdFindings,
     outputDir,
     changelogSummary: `EDS audit: ${total} finding(s).`,
   });
   console.log(`📊 Standardized report: ${std.xlsxPath}`);
   if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
+
+  try {
+    // The legacy AuditExcelReport lives at engine.ts; construct it here so we
+    // can populate an existing workbook rather than write a separate file.
+    const { AuditExcelReport } = await import("../../shared/report-excel");
+    const { edsReportConfig } = await import("./config");
+    const stats = {
+      totalFiles: 0,
+      totalFindings: total,
+      categories: Object.keys(findings).length,
+      severityCounts: Object.values(findings).flat().reduce<Record<string, number>>((acc, it: any) => {
+        acc[it.severity] = (acc[it.severity] || 0) + 1; return acc;
+      }, {}),
+      scanDuration: 0,
+    };
+    const rich = new AuditExcelReport(findings, stats, projectName, projectPath, edsReportConfig);
+    await appendLegacySheets(std.xlsxPath, (wb) => rich.populate(wb));
+  } catch (e) {
+    console.log(`⚠️  Legacy sheet merge skipped: ${(e as Error).message}`);
+  }
+
+  // Delta mode — run BEFORE writing the current cache.
+  if (since !== undefined) {
+    await runDeltaMode({
+      projectRoot: projectPath,
+      since,
+      currentFindings: stdFindings,
+      xlsxPath: std.xlsxPath,
+    });
+  }
+
+  emitAuditFindingsCache({
+    projectRoot: projectPath,
+    stack: "eds",
+    reportPath: std.xlsxPath,
+    findings: stdFindings,
+    timestamp: std.meta.timestamp ?? "",
+    branch: std.meta.workingBranch,
+    meta: {
+      role: process.env.DCA_ROLE ?? "",
+      roleFlavor: process.env.DCA_ROLE_FLAVOR ?? "",
+    },
+  });
 }
 
 if (require.main === module) {

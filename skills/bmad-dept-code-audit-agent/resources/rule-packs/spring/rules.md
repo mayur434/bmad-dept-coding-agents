@@ -262,7 +262,7 @@ Set client timeouts; add retry + DLQ + idempotency for Spring Cloud Stream/Kafka
 ## Generic Java (also applied) `[scanner: JAVA-QUAL-001..004, SPRING-SEC-010/011, GEN-SEC-004..006]`
 
 Empty/over-broad catch, `printStackTrace()`/`System.out`, disabled TLS, weak crypto, and insecure `Random`
-are covered by the shared generic Java rules; see `resources/rule-packs/sling-shaft/rules.md` for the same
+are covered by the shared generic Java rules; see `resources/rule-packs/sling/rules.md` for the same
 checks in Sling terms.
 
 ---

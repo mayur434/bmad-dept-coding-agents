@@ -25,6 +25,10 @@ import type { CoverageResult } from "../../shared/coverage";
 import { resolveRole, parseRoleFlag } from "../../shared/role";
 import { ensureDepsInstalled } from "../../shared/install";
 import { resolveIntake, askAll, confirmRun, Question } from "../../shared/interactive";
+import { consumeLatestFindings, emitFindingsCache } from "../../shared/findings";
+import { applyAuditChainBoost, scoreOf } from "./priority/coverage-priority";
+import { mutationCommandFor, renderMutationHintsMarkdown, MutationHint } from "./mutation/hooks";
+import { detectFrameworks, renderRunInfoLine, DetectedFramework } from "./detection/framework";
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -51,6 +55,9 @@ interface Args {
   role: string | undefined;
   yesInstall: boolean;
   noInstall: boolean;
+  noAuditChain: boolean;
+  auditMaxAgeHours: number;
+  emitMutationHints: boolean;
 }
 
 function parseArgs(): Args {
@@ -76,6 +83,9 @@ function parseArgs(): Args {
     role: undefined,
     yesInstall: false,
     noInstall: false,
+    noAuditChain: false,
+    auditMaxAgeHours: 168,
+    emitMutationHints: false,
   };
 
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -149,6 +159,18 @@ function parseArgs(): Args {
       case "--no-install":
         parsed.noInstall = true;
         break;
+      case "--no-audit-chain":
+        parsed.noAuditChain = true;
+        break;
+      case "--audit-max-age-hours": {
+        const raw = args[++i];
+        const n = Number(raw);
+        if (Number.isFinite(n) && n >= 0) parsed.auditMaxAgeHours = n;
+        break;
+      }
+      case "--emit-mutation-hints":
+        parsed.emitMutationHints = true;
+        break;
       case "--help":
         printHelp();
         process.exit(0);
@@ -189,6 +211,18 @@ Options:
                                    (persisted at <project>/.bmad/role.yaml; --role wins for one run)
   --list-engines                   List available engines
   --help                           Show this help
+
+Cross-agent chaining:
+  --no-audit-chain                 Skip boosting priority for files that have
+                                   prior CRITICAL/HIGH audit findings in the
+                                   shared findings cache.
+  --audit-max-age-hours <n>        Ignore audit findings older than N hours
+                                   (default: 168 = 7 days).
+  --emit-mutation-hints            Append a "Mutation Hints" section (Pitest /
+                                   Stryker / Infection commands) to the
+                                   Markdown report for uncovered files with
+                                   priority >= 50 (medium+). Off by default —
+                                   mutation testing is heavyweight.
 
 Install control (first-run):
   --yes-install                    Install missing dependencies without confirmation.
@@ -308,8 +342,19 @@ function coverageToFindings(report: CoverageReport): Finding[] {
   }));
 }
 
+interface EmitContext {
+  detectedFrameworks: DetectedFramework[];
+  auditChainApplied: boolean;
+  mutationHintsEmitted: boolean;
+}
+
 /** Emit the three standardized outputs (report + markdown + CHANGE-LOG). */
-async function emitCoverageOutputs(report: CoverageReport, projectPath: string, args: Args): Promise<void> {
+async function emitCoverageOutputs(
+  report: CoverageReport,
+  projectPath: string,
+  args: Args,
+  ctx: EmitContext,
+): Promise<void> {
   // Lazy require: shared/output pulls in exceljs; safe because this helper
   // is only called from main() AFTER ensureDepsInstalled() has succeeded.
   const { emitStandardOutputs } = require("../../shared/output") as typeof import("../../shared/output");
@@ -321,6 +366,9 @@ async function emitCoverageOutputs(report: CoverageReport, projectPath: string, 
     "Tested Files": report.testedFiles,
     "Total Source Files": report.totalSourceFiles,
   };
+  if (ctx.detectedFrameworks.length > 0) {
+    extra["Detected Frameworks"] = renderRunInfoLine(ctx.detectedFrameworks);
+  }
   if (process.env.DCA_ROLE) {
     extra["Role"] = process.env.DCA_ROLE_NAME ?? process.env.DCA_ROLE;
     extra["Role code"] = process.env.DCA_ROLE;
@@ -344,6 +392,74 @@ async function emitCoverageOutputs(report: CoverageReport, projectPath: string, 
   console.log(`\n📊 Report:     ${res.xlsxPath}`);
   if (res.mdPath) console.log(`📄 Markdown:   ${res.mdPath}`);
   if (res.changelogPath) console.log(`📝 CHANGE-LOG: ${res.changelogPath}`);
+
+  // ── Append the Mutation Hints section to the Markdown twin ────────────────
+  if (args.emitMutationHints && res.mdPath) {
+    const hints = collectMutationHints(report);
+    if (hints.length > 0) {
+      const section = renderMutationHintsMarkdown(hints);
+      try {
+        require("fs").appendFileSync(res.mdPath, section, "utf8");
+      } catch (err) {
+        process.stderr.write(`[coverage-mutation] WARN: could not append hints: ${(err as Error).message}\n`);
+      }
+      const dist: Record<string, number> = {};
+      for (const h of hints) dist[h.hint.tool] = (dist[h.hint.tool] ?? 0) + 1;
+      const distStr = Object.entries(dist).map(([k, v]) => `${k}=${v}`).join(", ");
+      process.stderr.write(
+        `[coverage-mutation] emitted ${hints.length} mutation-testing hints (tool distribution: ${distStr})\n`,
+      );
+      ctx.mutationHintsEmitted = true;
+    } else {
+      process.stderr.write(`[coverage-mutation] no eligible files (priority >= 50) for mutation hints\n`);
+    }
+  }
+
+  // ── Persist to the shared findings cache for downstream cross-refs ────────
+  try {
+    const written = emitFindingsCache({
+      projectRoot: projectPath,
+      agent: "test-coverage",
+      stack: report.engine,
+      branch: res.meta.workingBranch ?? "nobranch",
+      timestamp: res.meta.timestamp ?? "",
+      reportPath: res.xlsxPath,
+      findings,
+      meta: {
+        frameworksDetected: ctx.detectedFrameworks.map((f) => f.name).join(",") || "none",
+        auditChain: String(ctx.auditChainApplied),
+        mutationHints: String(ctx.mutationHintsEmitted),
+      },
+    });
+    if (written) process.stderr.write(`[coverage-cache] wrote findings cache: ${written}\n`);
+  } catch (err) {
+    process.stderr.write(`[coverage-cache] WARN: cache emit failed: ${(err as Error).message}\n`);
+  }
+}
+
+/** Collect mutation-testing commands for uncovered files with priority >= 50. */
+function collectMutationHints(
+  report: CoverageReport,
+): Array<{ file: string; score: number; hint: MutationHint }> {
+  const out: Array<{ file: string; score: number; hint: MutationHint }> = [];
+  for (const g of report.gaps) {
+    const score = scoreOf(g);
+    // Threshold is numeric 50 (high+ band per shared/priority bandForScore).
+    // Synthetic gaps missing a score still qualify when the engine already
+    // labelled them critical/high (e.g. Commerce MFTF layout handles).
+    const eligible =
+      score >= 50 ||
+      (score === 0 && (g.priority === "critical" || g.priority === "high"));
+    if (!eligible) continue;
+    const hint = mutationCommandFor(g.file, report.engine);
+    if (!hint) continue;
+    out.push({ file: g.file, score: score || bandFallbackScore(g.priority), hint });
+  }
+  return out;
+}
+
+function bandFallbackScore(p: CoverageGap["priority"]): number {
+  return p === "critical" ? 90 : p === "high" ? 65 : p === "medium" ? 40 : 15;
 }
 
 // ---------------------------------------------------------------------------
@@ -568,6 +684,42 @@ async function main(): Promise<void> {
   // Standard branch (output C): cut dca/test-coverage-<stack>-<ts> from production/shared.
   maybeCutStandardBranch(process.argv, { agent: "test-coverage", stack: engine.id, projectRoot: projectPath });
 
+  // ── Framework auto-detection ────────────────────────────────────────────
+  const detectedFrameworks = detectFrameworks(projectPath, engine.id);
+  if (detectedFrameworks.length > 0) {
+    process.stderr.write(
+      `[coverage-detect] frameworks: ${renderRunInfoLine(detectedFrameworks)} — target: ${detectedFrameworks[0].name}\n`,
+    );
+  } else {
+    process.stderr.write(
+      `[coverage-detect] no frameworks detected in manifests — falling back to engine defaults\n`,
+    );
+  }
+
+  // ── Consume prior audit run (for CRITICAL-first prioritisation) ─────────
+  const auditContext = args.noAuditChain
+    ? null
+    : consumeLatestFindings({
+        projectRoot: projectPath,
+        fromAgent: "audit",
+        maxAgeHours: args.auditMaxAgeHours,
+      });
+  const criticalFileCounts = new Map<string, number>();
+  const highFileCounts = new Map<string, number>();
+  if (auditContext) {
+    for (const [file, findings] of Object.entries(auditContext.fileToFindings)) {
+      if (file === "<no-file>") continue;
+      let c = 0, h = 0;
+      for (const f of findings) {
+        const sev = String(f.severity ?? "").toUpperCase();
+        if (sev === "CRITICAL") c++;
+        else if (sev === "HIGH") h++;
+      }
+      if (c > 0) criticalFileCounts.set(file, c);
+      if (h > 0) highFileCounts.set(file, h);
+    }
+  }
+
   const coverageOpts = {
     name: args.name,
     module: args.module,
@@ -576,12 +728,34 @@ async function main(): Promise<void> {
     strategy: strategy || null,
   };
 
+  const emitCtx: EmitContext = {
+    detectedFrameworks,
+    auditChainApplied: false,
+    mutationHintsEmitted: false,
+  };
+
+  const applyChainAndLog = (report: CoverageReport): void => {
+    if (!auditContext) return;
+    const res = applyAuditChainBoost(report.gaps, criticalFileCounts, highFileCounts);
+    if (res.boosted > 0) {
+      process.stderr.write(
+        `[coverage-audit-chain] boosted priority for ${res.boosted} uncovered files with prior audit findings (${res.criticalHits} CRITICAL, ${res.highHits} HIGH)\n`,
+      );
+      emitCtx.auditChainApplied = true;
+    } else {
+      process.stderr.write(
+        `[coverage-audit-chain] audit cache found but no file overlap — no priority changes\n`,
+      );
+    }
+  };
+
   switch (args.mode) {
     case "analyze": {
       const report = await engine.analyzeCoverage(projectPath, coverageOpts);
       const cov = resolveRealCoverage(projectPath, engine.id);
       if (cov) { applyRealCoverage(report, cov, projectPath); console.log(`   📈 Real coverage (${cov.tool}): ${cov.overall.linesPct}% lines, ${cov.overall.branchesPct}% branches`); }
       else console.log(`   ℹ️  No coverage report found — filename-based estimate (use --run-coverage or --coverage-report <file>).`);
+      applyChainAndLog(report);
       console.log(`\n✓ Analysis complete`);
       console.log(`  Overall: ${report.coveragePercent}% covered (${report.testedFiles}/${report.totalSourceFiles} files)`);
       console.log(`  Gaps found: ${report.gaps.length}`);
@@ -591,7 +765,7 @@ async function main(): Promise<void> {
           console.log(`    ${fb.framework.padEnd(16)} ${fb.coveragePercent}% (${fb.testedFiles}/${fb.totalFiles})`);
         }
       }
-      await emitCoverageOutputs(report, projectPath, args);
+      await emitCoverageOutputs(report, projectPath, args, emitCtx);
       break;
     }
     case "generate":
@@ -601,9 +775,10 @@ async function main(): Promise<void> {
       const report = await engine.analyzeCoverage(projectPath, coverageOpts);
       const cov = resolveRealCoverage(projectPath, engine.id);
       if (cov) { applyRealCoverage(report, cov, projectPath); console.log(`  📈 Real coverage (${cov.tool}): ${cov.overall.linesPct}% lines, ${cov.overall.branchesPct}% branches`); }
+      applyChainAndLog(report);
       console.log(`  Coverage: ${report.coveragePercent}% — ${report.gaps.length} gaps found`);
       await engine.generateTests(projectPath, coverageOpts);
-      await emitCoverageOutputs(report, projectPath, args);
+      await emitCoverageOutputs(report, projectPath, args, emitCtx);
       break;
     }
   }

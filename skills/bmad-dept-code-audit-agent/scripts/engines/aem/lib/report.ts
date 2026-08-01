@@ -55,7 +55,27 @@ export class AemReportGenerator {
 
   async generate(outputPath: string): Promise<void> {
     console.log('\n📊 Generating AEM Audit Excel Report');
+    this.buildAllSheets();
+    await this.wb.xlsx.writeFile(outputPath);
+    console.log(`✅ Report generated: ${outputPath}`);
+    console.log(`   Total Sheets: ${this.wb.worksheets.length}`);
+    for (const ws of this.wb.worksheets) {
+      console.log(`   📄 ${ws.name} (${ws.rowCount - 1} rows)`);
+    }
+  }
 
+  /**
+   * Populate the AEM rich sheets INTO an existing workbook (used by the
+   * unified single-xlsx flow — the standardized workbook is created by
+   * `emitStandardOutputs`, then this method appends the AEM-specific sheets
+   * AFTER the standardized ones).
+   */
+  populate(target: ExcelJS.Workbook): void {
+    this.wb = target;
+    this.buildAllSheets();
+  }
+
+  private buildAllSheets(): void {
     // 1. Executive Summary (CEO-friendly — always first)
     this.sheetExecutiveSummary();
 
@@ -99,13 +119,6 @@ export class AemReportGenerator {
     // 7. Platform Detection Summary (if auto-detected)
     if (this.platformDetection) {
       this.sheetPlatformDetection();
-    }
-
-    await this.wb.xlsx.writeFile(outputPath);
-    console.log(`✅ Report generated: ${outputPath}`);
-    console.log(`   Total Sheets: ${this.wb.worksheets.length}`);
-    for (const ws of this.wb.worksheets) {
-      console.log(`   📄 ${ws.name} (${ws.rowCount - 1} rows)`);
     }
   }
 

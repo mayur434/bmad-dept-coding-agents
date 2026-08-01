@@ -14,6 +14,9 @@ import { emitStandardOutputs, ensureStandardBranch } from "../../../../shared/ou
 import { computeCounts, Finding, RecommendationRow, SEVERITIES } from "../../../../shared/core/types";
 import { SlingShaftScanner } from "./scanner";
 import { isShaft } from "./detect";
+import { scanSlingXml } from "./xml-scan";
+import { enforceConfidenceOnAll, emitAuditFindingsCache } from "../../shared/emit-helpers";
+import { runDeltaMode } from "../../shared/delta";
 
 interface Args {
   path: string;
@@ -22,6 +25,7 @@ interface Args {
   sourceBranch?: string;
   createBranch: boolean;
   help: boolean;
+  since?: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -33,6 +37,7 @@ function parseArgs(argv: string[]): Args {
       case "--output": a.output = argv[++i]; break;
       case "--source-branch": a.sourceBranch = argv[++i]; break;
       case "--create-branch": a.createBranch = true; break;
+      case "--since": a.since = argv[++i]; break;
       case "-h": case "--help": a.help = true; break;
     }
   }
@@ -51,6 +56,7 @@ Options:
   --output <dir>          Report output dir (default: <path>/audit-reports)
   --source-branch <name>  Production/shared branch to cut the standard branch from
   --create-branch         Create the standard working branch before writing outputs
+  --since <ref|ts|last>   Regression / delta vs a prior cached audit run
   --help                  Show this help`);
 }
 
@@ -109,7 +115,16 @@ export async function main(): Promise<void> {
   console.log("🔍 Scanning Java sources (tree-sitter AST)...");
 
   const scanner = new SlingShaftScanner(projectRoot);
-  const { findings, filesScanned, javaFiles } = await scanner.scan();
+  const scanRes = await scanner.scan();
+  const { filesScanned, javaFiles } = scanRes;
+  let findings: Finding[] = scanRes.findings;
+
+  // XML config scan — META-INF descriptors, install hooks, etc.
+  const xmlFindings = await scanSlingXml(projectRoot);
+  findings = [...findings, ...xmlFindings];
+
+  // Confidence enforcement — fill defaults for anything the scanners left blank.
+  findings = enforceConfidenceOnAll(findings, "ast");
 
   const counts = computeCounts(findings);
   console.log(`   Java files: ${javaFiles} (scanned ${filesScanned})`);
@@ -154,6 +169,31 @@ export async function main(): Promise<void> {
   console.log(`📊 Report:     ${res.xlsxPath}`);
   if (res.mdPath) console.log(`📄 Markdown:   ${res.mdPath}`);
   if (res.changelogPath) console.log(`📝 CHANGE-LOG: ${res.changelogPath}`);
+
+  // Delta mode — run BEFORE writing this run's cache so "last" resolves to a
+  // truly prior run rather than the one we're about to persist.
+  if (args.since !== undefined) {
+    await runDeltaMode({
+      projectRoot,
+      since: args.since,
+      currentFindings: findings,
+      xlsxPath: res.xlsxPath,
+    });
+  }
+
+  emitAuditFindingsCache({
+    projectRoot,
+    stack: "sling-shaft",
+    reportPath: res.xlsxPath,
+    findings,
+    timestamp: res.meta.timestamp ?? "",
+    branch: res.meta.workingBranch,
+    meta: {
+      role: process.env.DCA_ROLE ?? "",
+      roleFlavor: process.env.DCA_ROLE_FLAVOR ?? "",
+    },
+  });
+
   console.log("\n" + "═".repeat(60));
   console.log(" ✅ Sling/Shaft audit complete");
   console.log("═".repeat(60));

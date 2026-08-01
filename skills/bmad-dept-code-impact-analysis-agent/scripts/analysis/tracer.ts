@@ -16,6 +16,8 @@ import fg from "fast-glob";
 import { Finding, Severity } from "../../../shared/core/types";
 import { InputItem } from "../inputs/types";
 import { StackProfile } from "../engines/profiles";
+import { dispatchHeuristic } from "./heuristics";
+import { CodeownersIndex, loadCodeowners, resolveOwners } from "../inputs/codeowners";
 
 const SEV_ORDER: Severity[] = ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"];
 const STOP = new Set([
@@ -33,28 +35,49 @@ export interface TraceResult {
   sourceCount: number;
   itemCount: number;
   matchedItems: number;
+  /** Absolute path to the CODEOWNERS file used for enrichment, or null. */
+  codeownersPath: string | null;
+  /** Count of impacted files whose owners were resolved. */
+  ownersResolved: number;
+  /** Count of additional refs contributed by the per-stack heuristic. */
+  heuristicRefs: number;
+}
+
+export interface TraceOptions {
+  /** Skip CODEOWNERS + heuristics enrichment (defaults false). */
+  noEnrichment?: boolean;
 }
 
 const MAX_FILES = 5000;
 const MAX_BYTES = 200_000;
 const MAX_IMPACTED_PER_ITEM = 8;
 
-export function traceImpact(projectPath: string, items: InputItem[], profile: StackProfile): TraceResult {
+export function traceImpact(
+  projectPath: string,
+  items: InputItem[],
+  profile: StackProfile,
+  options: TraceOptions = {},
+): TraceResult {
   const sources = loadSources(projectPath, profile);
   const findings: Finding[] = [];
   let matchedItems = 0;
 
+  const codeowners = options.noEnrichment ? null : loadCodeowners(projectPath);
+  let ownersResolved = 0;
+  let heuristicRefsAdded = 0;
+
   for (const item of items) {
     const cands = extractCandidates(item, profile);
     const scored = scoreFiles(sources, cands);
-    const inputRef = { id: item.id, type: item.kind, title: item.title, source: item.source } as const;
+    const inputRef = { id: item.id, type: mapInputRefType(item.kind), title: item.title, source: item.source } as const;
+    const category = categoryFor(item.kind);
 
     if (scored.length === 0) {
       findings.push({
         title: `${cap(item.kind)} ${item.id}: no direct code match`,
         description: item.title,
         stack: profile.id,
-        category: item.kind === "bug" ? "Bug fix impact" : "Requirement impact",
+        category,
         severity: "INFO",
         confidence: 0.2,
         impact: "No source file matched the extracted symbols — assess manually (may be new code, infra, or content).",
@@ -68,20 +91,38 @@ export function traceImpact(projectPath: string, items: InputItem[], profile: St
 
     matchedItems++;
     for (const s of scored.slice(0, MAX_IMPACTED_PER_ITEM)) {
-      const blast = blastRadius(sources, s.file);
+      let blast = blastRadius(sources, s.file);
+      // Merge per-stack heuristic refs into the blast-radius count so that
+      // stack-specific wiring (Sling ResourceType, DI XML, GraphQL fragments, …)
+      // is reflected in severity + effort.
+      let heuristicExtra: string[] = [];
+      if (!options.noEnrichment) {
+        const extra = dispatchHeuristic(profile.id, s.file.rel, s.file.base, {
+          projectRoot: projectPath,
+          sources,
+        });
+        if (extra.length > 0) {
+          heuristicRefsAdded += extra.length;
+          heuristicExtra = extra.slice(0, 3).map((r) => `${path.basename(r.file)} (${r.reason})`);
+          blast += extra.length;
+        }
+      }
+
       const sev = severityFor(s.filenameMatch, blast, item.priority);
-      findings.push({
+      const finding: Finding = {
         title: `${cap(item.kind)} ${item.id} impacts ${path.basename(s.file.rel)}`,
         description: item.title + (item.description ? ` — ${clip(item.description, 240)}` : ""),
         stack: profile.id,
-        category: item.kind === "bug" ? "Bug fix impact" : "Requirement impact",
+        category,
         file: s.file.rel,
         severity: sev,
         confidence: Math.min(0.97, 0.4 + 0.12 * s.matched.length + (s.filenameMatch ? 0.3 : 0)),
         impact:
           `${cap(item.kind)} ${item.id} ("${clip(item.title, 80)}") maps to ${s.file.rel} ` +
           `via ${s.matched.slice(0, 5).join(", ")}; ${blast} downstream reference(s) in the codebase` +
-          `${blast >= 5 ? " (wide blast radius)" : ""}.`,
+          `${blast >= 5 ? " (wide blast radius)" : ""}` +
+          (heuristicExtra.length ? ` [stack refs: ${heuristicExtra.join(", ")}]` : "") +
+          ".",
         recommendation:
           `Review ${s.file.rel}${blast > 0 ? ` and its ${blast} dependent(s)` : ""}; ` +
           `add/adjust regression coverage before merging the ${item.kind}.`,
@@ -89,7 +130,20 @@ export function traceImpact(projectPath: string, items: InputItem[], profile: St
         status: "Open",
         source: "hybrid",
         inputRef,
-      });
+      };
+
+      // Attach owner metadata (visible in Summary sheet's Owner column;
+      // Input Traceability sheet is defined by shared/report so owners flow
+      // via the finding's `owner` field).
+      if (codeowners) {
+        const owners = resolveOwners(codeowners, s.file.rel);
+        if (owners.length > 0) {
+          finding.owner = owners.join(", ");
+          ownersResolved += 1;
+        }
+      }
+
+      findings.push(finding);
     }
     if (scored.length > MAX_IMPACTED_PER_ITEM) {
       findings.push({
@@ -102,7 +156,48 @@ export function traceImpact(projectPath: string, items: InputItem[], profile: St
     }
   }
 
-  return { findings, sourceCount: sources.length, itemCount: items.length, matchedItems };
+  if (!options.noEnrichment && heuristicRefsAdded > 0) {
+    process.stderr.write(
+      `[impact-heuristic-${profile.id}] added ${heuristicRefsAdded} stack-specific ref(s)\n`,
+    );
+  }
+  if (codeowners) logCodeownersSummary(codeowners, ownersResolved, findings.length);
+
+  return {
+    findings,
+    sourceCount: sources.length,
+    itemCount: items.length,
+    matchedItems,
+    codeownersPath: codeowners?.source ?? null,
+    ownersResolved,
+    heuristicRefs: heuristicRefsAdded,
+  };
+}
+
+function categoryFor(kind: InputItem["kind"]): string {
+  switch (kind) {
+    case "bug": return "Bug fix impact";
+    case "requirement": return "Requirement impact";
+    case "pr": return "PR change impact";
+  }
+}
+
+function mapInputRefType(kind: InputItem["kind"]): "bug" | "brd" | "requirement" | "other" {
+  switch (kind) {
+    case "bug": return "bug";
+    case "requirement": return "requirement";
+    case "pr": return "other";
+  }
+}
+
+function logCodeownersSummary(idx: CodeownersIndex, resolved: number, findingCount: number): void {
+  if (!idx.source) {
+    process.stderr.write("[impact-owners] no CODEOWNERS file found — skipping owner enrichment\n");
+    return;
+  }
+  process.stderr.write(
+    `[impact-owners] resolved owners for ${resolved}/${findingCount} impacted finding(s) from ${idx.source}\n`,
+  );
 }
 
 // ── source loading ────────────────────────────────────────────────────────────

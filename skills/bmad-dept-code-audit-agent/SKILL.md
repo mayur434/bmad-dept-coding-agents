@@ -431,11 +431,11 @@ Based on detected platform, load rules from `resources/rule-packs/<platform>/`.
 
 | Platform | Rule pack files |
 |----------|----------------|
-| AEMaaCS | `rule-packs/aemcs/` |
-| AEM AMS | `rule-packs/aemams/` |
-| Sling-12 / Shaft | `rule-packs/sling-shaft/` (Tier-1 AST engine at `scripts/engines/sling/`) |
-| Spring Boot | `rule-packs/spring-boot/` (Tier-1 AST + config engine at `scripts/engines/spring/`) |
-| Commerce | `rule-packs/commerce/` |
+| AEMaaCS | `rule-packs/aem/aemcs/` |
+| AEM AMS | `rule-packs/aem/aemams/` |
+| Sling-12 / Shaft | `rule-packs/sling/` (Tier-1 AST engine at `scripts/engines/sling/`) |
+| Spring Boot | `rule-packs/spring/` (Tier-1 AST + config engine at `scripts/engines/spring/`) |
+| Commerce | `rule-packs/commerce-paas/` |
 | Commerce SaaS | `rule-packs/commerce-saas/` (Tier-1 JS + config engine at `scripts/engines/commerce-saas/`) |
 | EDS | `rule-packs/eds/` |
 | EDS+Commerce | `rule-packs/eds-commerce/` |

@@ -9,6 +9,11 @@
  * common, repeatable artifacts.
  */
 
+import * as fs from "fs";
+import * as path from "path";
+import { pascal, camel, kebab, pkgPath, slingPkg, springPkg, aemPkg, vendorModule } from "./generators-util";
+export { pascal, camel, kebab } from "./generators-util";
+
 export interface GenFile {
   /** path relative to the output root */
   path: string;
@@ -19,27 +24,11 @@ export interface GenOptions {
   name: string;
   /** Java package (Sling/Spring). Defaults per stack. */
   pkg?: string;
+  /** Optional project slug for AEM IaC scaffolders (dispatcher/CFM/XF/…). */
+  project?: string;
 }
 
 export type Generator = (o: GenOptions) => GenFile[];
-
-// ── naming helpers ────────────────────────────────────────────────────────────
-export function pascal(s: string): string {
-  return (s.match(/[A-Za-z0-9]+/g) || []).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join("") || "Sample";
-}
-export function camel(s: string): string {
-  const p = pascal(s);
-  return p.charAt(0).toLowerCase() + p.slice(1);
-}
-export function kebab(s: string): string {
-  return (s.match(/[A-Za-z0-9]+/g) || []).map((w) => w.toLowerCase()).join("-") || "sample";
-}
-function pkgPath(pkg: string): string {
-  return pkg.replace(/\./g, "/");
-}
-
-// ── Sling / Shaft ─────────────────────────────────────────────────────────────
-const slingPkg = (o: GenOptions) => o.pkg ?? "com.acme.shaft";
 
 const slingGenerators: Record<string, Generator> = {
   "osgi-service": (o) => {
@@ -186,7 +175,6 @@ public class ${C}Model {
 };
 
 // ── Spring Boot ───────────────────────────────────────────────────────────────
-const springPkg = (o: GenOptions) => o.pkg ?? "com.acme.app";
 
 const springGenerators: Record<string, Generator> = {
   "rest-controller": (o) => {
@@ -336,7 +324,6 @@ describe('${k} action', () => {
 };
 
 // ── AEM (AEMaaCS + AMS) ───────────────────────────────────────────────────────
-const aemPkg = (o: GenOptions) => o.pkg ?? "com.acme.aem";
 const aemGenerators: Record<string, Generator> = {
   "sling-model": (o) => {
     const C = pascal(o.name), pkg = aemPkg(o), dir = `core/src/main/java/${pkgPath(pkg)}/models`;
@@ -414,14 +401,6 @@ public class ${C}Process implements WorkflowProcess {
 };
 
 // ── Adobe Commerce PaaS (Magento 2, PHP) ──────────────────────────────────────
-function vendorModule(o: GenOptions): { v: string; m: string; dir: string; ns: string } {
-  const raw = o.pkg && o.pkg.includes("_") ? o.pkg
-    : o.name.includes("_") ? o.name
-    : `Acme_${pascal(o.name)}`;
-  const [vRaw, mRaw] = raw.split("_");
-  const v = pascal(vRaw), m = pascal(mRaw || "Module");
-  return { v, m, dir: `app/code/${v}/${m}`, ns: `${v}\\${m}` };
-}
 const commerceGenerators: Record<string, Generator> = {
   "module": (o) => {
     const { v, m, dir } = vendorModule(o);
@@ -710,6 +689,148 @@ export default async function decorate(block) {
     ];
   },
 };
+
+// ── AEM IaC / pipeline scaffolders ────────────────────────────────────────────
+// These read canonical patterns from
+// `skills/bmad-dept-code-generation-agent/templates/*.md` — a single source of
+// truth kept identical between the LLM path (SKILL.md) and the deterministic
+// path here. We resolve the templates dir once and log which file was used.
+
+const TEMPLATES_DIR = path.resolve(__dirname, "..", "..", "templates");
+
+/** Read a template file; returns "" (with a stderr note) if the file's missing. */
+function readTemplate(fileName: string): string {
+  const full = path.join(TEMPLATES_DIR, fileName);
+  if (!fs.existsSync(full)) {
+    process.stderr.write(
+      `[generation] WARN: template not found: ${full} — emitting minimal fallback.\n`,
+    );
+    return "";
+  }
+  process.stderr.write(`[generation] template used: ${full}\n`);
+  return fs.readFileSync(full, "utf8");
+}
+
+/**
+ * Extract every fenced block, in order, whose "info" tag equals `tag` exactly.
+ * Pass "" to match untagged blocks (```\n…\n```). Handles CRLF line endings.
+ */
+function extractAllCodeBlocks(md: string, tag: string): string[] {
+  const out: string[] = [];
+  const re = /```([^\n\r]*)\r?\n([\s\S]*?)\r?\n```/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(md)) !== null) {
+    const info = (m[1] ?? "").trim();
+    if (info === tag) out.push(m[2]!);
+  }
+  return out;
+}
+
+/** Substitute {{project}} / {{PROJECT}} / {{PROJECT_TITLE}} tokens with a slug. */
+function subst(body: string, project: string): string {
+  const Title = pascal(project);
+  return body
+    .replace(/\{\{project\}\}/g, project)
+    .replace(/\{\{PROJECT\}\}/g, project)
+    .replace(/\{\{PROJECT_TITLE\}\}/g, Title)
+    .replace(/\{\{TEMPLATE_TITLE\}\}/g, Title)
+    .replace(/\{\{TEMPLATE_DESCRIPTION\}\}/g, `${Title} template`)
+    .replace(/\{\{MODEL_TITLE\}\}/g, Title)
+    .replace(/\{\{MODEL_DESCRIPTION\}\}/g, `${Title} model`)
+    .replace(/\{\{XF_TITLE\}\}/g, Title)
+    .replace(/\{\{ALLOWED_COMPONENTS\}\}/g, "core/wcm/components/text,core/wcm/components/image,core/wcm/components/title")
+    .replace(/\{\{domain\}\}/g, `${project}.example.com`);
+}
+
+const iacGenerators: Record<string, Generator> = {
+  "dispatcher-config": (o) => {
+    const project = kebab(o.project ?? o.name);
+    const md = readTemplate("dispatcher-config.md");
+    const apacheBlocks = extractAllCodeBlocks(md, "apache");
+    // Templates in dispatcher-config.md use ``` (no lang) for .farm/.any snippets.
+    // The first untyped block is the folder-tree diagram; skip it.
+    const untypedBlocks = extractAllCodeBlocks(md, "").slice(1);
+    // apache blocks (in template order): vhost, rewrites, custom.vars
+    const [vhost = "", rewrites = "", vars = ""] = apacheBlocks;
+    // untyped after skipping tree: farm, filters, cache, clientheaders
+    const farm = untypedBlocks[0] ?? "";
+    const filters = untypedBlocks[1] ?? "";
+    const cache = untypedBlocks[2] ?? "";
+    const clientheaders = untypedBlocks[3] ?? "";
+    return [
+      { path: `dispatcher/src/conf.d/available_vhosts/${project}.vhost`, content: subst(vhost, project) + "\n" },
+      { path: `dispatcher/src/conf.d/rewrites/${project}_rewrite.rules`, content: subst(rewrites, project) + "\n" },
+      { path: `dispatcher/src/conf.d/variables/custom.vars`, content: subst(vars, project) + "\n" },
+      { path: `dispatcher/src/conf.dispatcher.d/available_farms/${project}.farm`, content: subst(farm, project) + "\n" },
+      { path: `dispatcher/src/conf.dispatcher.d/filters/${project}_filters.any`, content: subst(filters, project) + "\n" },
+      { path: `dispatcher/src/conf.dispatcher.d/cache/${project}_cache.any`, content: subst(cache, project) + "\n" },
+      { path: `dispatcher/src/conf.dispatcher.d/clientheaders/${project}_clientheaders.any`, content: subst(clientheaders, project) + "\n" },
+    ];
+  },
+
+  "editable-template": (o) => {
+    const project = kebab(o.project ?? "acme");
+    const name = kebab(o.name);
+    const md = readTemplate("editable-template.md");
+    const xmlBlocks = extractAllCodeBlocks(md, "xml");
+    const [typeXml = "", templateXml = "", policyXml = ""] = xmlBlocks;
+    const base = `ui.content/src/main/content/jcr_root/conf/${project}/settings/wcm`;
+    return [
+      { path: `${base}/template-types/${name}-type/.content.xml`, content: subst(typeXml, project) },
+      { path: `${base}/templates/${name}/.content.xml`, content: subst(templateXml, project) },
+      { path: `${base}/policies/${project}/components/container/policy/.content.xml`, content: subst(policyXml, project) },
+    ];
+  },
+
+  "cloud-manager-pipeline": (o) => {
+    const name = kebab(o.name);
+    const md = readTemplate("cloud-manager-pipeline.md");
+    const yamlBlocks = extractAllCodeBlocks(md, "yaml");
+    const untypedBlocks = extractAllCodeBlocks(md, "");
+    const [fullStack = "", frontEnd = "", configOnly = ""] = yamlBlocks;
+    const envVars = untypedBlocks[0] ?? "";
+    return [
+      { path: `.cloudmanager/${name}-fullstack.yaml`, content: subst(fullStack, name) + "\n" },
+      { path: `.cloudmanager/${name}-frontend.yaml`, content: subst(frontEnd, name) + "\n" },
+      { path: `.cloudmanager/${name}-config.yaml`, content: subst(configOnly, name) + "\n" },
+      { path: `.cloudmanager/env-variables.yaml`, content: subst(envVars, name) + "\n" },
+    ];
+  },
+
+  "content-fragment-model": (o) => {
+    const project = kebab(o.project ?? "acme");
+    const name = kebab(o.name);
+    const md = readTemplate("content-fragment-model.md");
+    const xmlBlocks = extractAllCodeBlocks(md, "xml");
+    const modelXml = xmlBlocks[0] ?? "";
+    return [
+      {
+        path: `ui.content/src/main/content/jcr_root/conf/${project}/settings/dam/cfm/models/${name}/.content.xml`,
+        content: subst(modelXml, project),
+      },
+    ];
+  },
+
+  "experience-fragment": (o) => {
+    const project = kebab(o.project ?? "acme");
+    const name = kebab(o.name);
+    const md = readTemplate("experience-fragment.md");
+    const xmlBlocks = extractAllCodeBlocks(md, "xml");
+    const [folderXml = "", webVariationXml = "", , xfTemplateXml = ""] = xmlBlocks;
+    const base = `ui.content/src/main/content/jcr_root/content/experience-fragments/${project}`;
+    return [
+      { path: `${base}/.content.xml`, content: subst(folderXml, project) },
+      { path: `${base}/${name}/master/.content.xml`, content: subst(webVariationXml, project) },
+      {
+        path: `ui.content/src/main/content/jcr_root/conf/${project}/settings/wcm/templates/xf-web-variation/.content.xml`,
+        content: subst(xfTemplateXml, project),
+      },
+    ];
+  },
+};
+
+// Merge IaC scaffolders into the AEM stack; expose them under `aem` per spec.
+Object.assign(aemGenerators, iacGenerators);
 
 export const GENERATORS: Record<string, Record<string, Generator>> = {
   aem: aemGenerators,

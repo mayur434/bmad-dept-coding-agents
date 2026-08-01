@@ -32,6 +32,26 @@ export class AuditReportGenerator {
 
   async generate(outputPath: string): Promise<void> {
     console.log('\n📊 Generating enterprise report...');
+    this.buildAllSheets();
+    await this.wb.xlsx.writeFile(outputPath);
+    console.log(`✅ Report: ${outputPath}`);
+    console.log(`   Sheets: ${this.wb.worksheets.length}`);
+    for (const ws of this.wb.worksheets) {
+      console.log(`   - ${ws.name}`);
+    }
+  }
+
+  /**
+   * Populate the Commerce rich sheets INTO an existing workbook — used by the
+   * unified single-xlsx flow so platform sheets land AFTER the standardized
+   * ones (Run Info / Summary / Severity Breakdown / By Category / Recs).
+   */
+  populate(target: ExcelJS.Workbook): void {
+    this.wb = target;
+    this.buildAllSheets();
+  }
+
+  private buildAllSheets(): void {
     this.sheetExecutiveSummary();
 
     const order = [
@@ -68,13 +88,6 @@ export class AuditReportGenerator {
     this.sheetRecommendations();
     this.sheetModuleRolloutSummary();
     this.sheetModulePlan();
-
-    await this.wb.xlsx.writeFile(outputPath);
-    console.log(`✅ Report: ${outputPath}`);
-    console.log(`   Sheets: ${this.wb.worksheets.length}`);
-    for (const ws of this.wb.worksheets) {
-      console.log(`   - ${ws.name}`);
-    }
   }
 
   // ---------- Executive Summary ----------

@@ -3,7 +3,7 @@
  * ======================================
  * Composes the shared generic Java rules with Sling/Shaft-specific rules over the
  * shared tree-sitter Java harness. Generic rule ids are rebranded to SHAFT-* so
- * they line up with resources/rule-packs/sling-shaft/rules.md.
+ * they line up with resources/rule-packs/sling/rules.md.
  */
 
 import { Finding } from "../../../../shared/core/types";

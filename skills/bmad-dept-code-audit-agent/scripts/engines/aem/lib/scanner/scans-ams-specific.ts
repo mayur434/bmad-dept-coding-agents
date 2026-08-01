@@ -1,6 +1,6 @@
 /**
  * AEM AMS-Specific Scans
- * Implements rules from resources/rule-packs/aemams/rules.md
+ * Implements rules from resources/rule-packs/aem/aemams/rules.md
  * Covers: Runmode configs, replication credentials, DAM workflow,
  * maintenance tasks, health checks, log levels, dispatcher cache,
  * clientlib proxy, CSRF, service user permissions

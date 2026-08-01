@@ -102,6 +102,26 @@ export class AuditExcelReport {
   }
 
   async generate(outputPath: string): Promise<string> {
+    this.buildAllSheets();
+    const resolvedPath = outputPath.endsWith(".xlsx")
+      ? outputPath
+      : path.join(outputPath, `${this.projectName}-audit-report.xlsx`);
+    await this.wb.xlsx.writeFile(resolvedPath);
+    return resolvedPath;
+  }
+
+  /**
+   * Populate the platform-specific rich sheets INTO an existing workbook.
+   * Used by the unified single-xlsx flow so EDS / eds-commerce sheets land
+   * AFTER the standardized ones (Run Info / Summary / Severity Breakdown /
+   * By Category / Recs / Input Traceability).
+   */
+  populate(target: ExcelJS.Workbook): void {
+    this.wb = target;
+    this.buildAllSheets();
+  }
+
+  private buildAllSheets(): void {
     this.sheetExecutiveSummary();
 
     // Detail sheets — ordered by config or alphabetical
@@ -128,13 +148,6 @@ export class AuditExcelReport {
 
     // Module Execution Plan
     this.sheetModulePlan();
-
-    const resolvedPath = outputPath.endsWith(".xlsx")
-      ? outputPath
-      : path.join(outputPath, `${this.projectName}-audit-report.xlsx`);
-
-    await this.wb.xlsx.writeFile(resolvedPath);
-    return resolvedPath;
   }
 
   // ---------- Executive Summary ----------

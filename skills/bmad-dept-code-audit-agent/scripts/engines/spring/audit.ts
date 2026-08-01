@@ -11,6 +11,9 @@ import * as path from "path";
 import { emitStandardOutputs, ensureStandardBranch } from "../../../../shared/output";
 import { computeCounts, Finding, RecommendationRow, SEVERITIES } from "../../../../shared/core/types";
 import { SpringScanner } from "./scanner";
+import { scanSpringXml } from "./xml-scan";
+import { enforceConfidenceOnAll, emitAuditFindingsCache } from "../../shared/emit-helpers";
+import { runDeltaMode } from "../../shared/delta";
 
 interface Args {
   path: string;
@@ -19,6 +22,7 @@ interface Args {
   sourceBranch?: string;
   createBranch: boolean;
   help: boolean;
+  since?: string;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -30,6 +34,7 @@ function parseArgs(argv: string[]): Args {
       case "--output": a.output = argv[++i]; break;
       case "--source-branch": a.sourceBranch = argv[++i]; break;
       case "--create-branch": a.createBranch = true; break;
+      case "--since": a.since = argv[++i]; break;
       case "-h": case "--help": a.help = true; break;
     }
   }
@@ -71,7 +76,8 @@ export async function main(): Promise<void> {
 
 Usage:
   npx ts-node audit.ts --path /spring-project [--name N] [--output DIR]
-                       [--source-branch B] [--create-branch]`);
+                       [--source-branch B] [--create-branch]
+                       [--since <ref|timestamp|last>]  Delta vs a prior cached audit run.`);
     if (!args.path) process.exit(1);
     return;
   }
@@ -93,7 +99,16 @@ Usage:
   console.log("\n🔍 Scanning Java sources (tree-sitter AST) + config...");
 
   const scanner = new SpringScanner(projectRoot);
-  const { findings, filesScanned, javaFiles, configFiles } = await scanner.scan();
+  const scanRes = await scanner.scan();
+  const { filesScanned, javaFiles, configFiles } = scanRes;
+  let findings: Finding[] = scanRes.findings;
+
+  // XML config scan — legacy applicationContext / spring / web.xml / security.xml.
+  const xmlFindings = await scanSpringXml(projectRoot);
+  findings = [...findings, ...xmlFindings];
+
+  // Confidence enforcement — fill defaults for anything the scanners left blank.
+  findings = enforceConfidenceOnAll(findings, "ast");
 
   const counts = computeCounts(findings);
   console.log(`   Java files: ${javaFiles}   Config files: ${configFiles}   (scanned ${filesScanned})`);
@@ -131,6 +146,33 @@ Usage:
   console.log(`📊 Report:     ${res.xlsxPath}`);
   if (res.mdPath) console.log(`📄 Markdown:   ${res.mdPath}`);
   if (res.changelogPath) console.log(`📝 CHANGE-LOG: ${res.changelogPath}`);
+
+  // Delta mode — compare against a prior cached run (opt-in via --since).
+  // MUST run BEFORE writing this run's cache so "last" resolves to a truly
+  // prior run rather than the one we're about to persist.
+  if (args.since !== undefined) {
+    await runDeltaMode({
+      projectRoot,
+      since: args.since,
+      currentFindings: findings,
+      xlsxPath: res.xlsxPath,
+    });
+  }
+
+  // Findings cache — enable cross-agent consumption (impact-analysis, etc.).
+  emitAuditFindingsCache({
+    projectRoot,
+    stack: "spring-boot",
+    reportPath: res.xlsxPath,
+    findings,
+    timestamp: res.meta.timestamp ?? "",
+    branch: res.meta.workingBranch,
+    meta: {
+      role: process.env.DCA_ROLE ?? "",
+      roleFlavor: process.env.DCA_ROLE_FLAVOR ?? "",
+    },
+  });
+
   console.log("\n" + "═".repeat(60));
   console.log(" ✅ Spring Boot audit complete");
   console.log("═".repeat(60));

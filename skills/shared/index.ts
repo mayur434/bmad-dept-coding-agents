@@ -17,3 +17,7 @@ export * from "./output";
 export * from "./role";
 export * from "./install";
 export * from "./interactive";
+export * from "./priority";
+export * from "./scoring";
+export * from "./xml";
+export * from "./findings";

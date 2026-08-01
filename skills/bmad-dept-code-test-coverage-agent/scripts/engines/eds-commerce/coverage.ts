@@ -8,6 +8,7 @@ import fg from "fast-glob";
 import * as fs from "fs";
 import { BaseEngine, CoverageOptions, CoverageReport, CoverageGap } from "../../shared/base";
 import { EdsEngine } from "../eds/coverage";
+import { applySharedPriority } from "../../priority/coverage-priority";
 
 export class EdsCommerceEngine extends BaseEngine {
   readonly name = "EDS + Commerce Hybrid";
@@ -43,10 +44,15 @@ export class EdsCommerceEngine extends BaseEngine {
       }
     }
 
+    // Merge + rescore with the eds-commerce profile (adds revenue_path
+    // weighting on top of the base EDS defaults).
+    const merged = [...additionalGaps, ...baseReport.gaps];
+    await applySharedPriority(merged, projectPath, this.id);
+
     return {
       ...baseReport,
       engine: this.id,
-      gaps: [...additionalGaps, ...baseReport.gaps].slice(0, 100),
+      gaps: merged.slice(0, 100),
       frameworkBreakdown: baseReport.frameworkBreakdown,
     };
   }

@@ -8,6 +8,7 @@ import * as fs from "fs";
 import * as path from "path";
 import fg from "fast-glob";
 import { BaseEngine, CoverageOptions, CoverageReport, CoverageGap } from "../../shared/base";
+import { applySharedPriority } from "../../priority/coverage-priority";
 
 export class CommerceSaasEngine extends BaseEngine {
   readonly name = "Adobe Commerce SaaS";
@@ -47,11 +48,12 @@ export class CommerceSaasEngine extends BaseEngine {
     }
 
     const pct = sourceFiles.length ? Math.round((testedCount / sourceFiles.length) * 100) : 0;
+    await applySharedPriority(gaps, projectPath, this.id);
     return {
       projectName: path.basename(projectPath), engine: this.id,
       totalSourceFiles: sourceFiles.length, testedFiles: testedCount, untestedFiles: sourceFiles.length - testedCount,
       coveragePercent: pct,
-      gaps: gaps.sort((a, b) => weight(a.priority) - weight(b.priority)).slice(0, 100),
+      gaps: gaps.slice(0, 100),
       frameworkBreakdown: [{ framework: "js", totalFiles: sourceFiles.length, testedFiles: testedCount, untestedFiles: sourceFiles.length - testedCount, coveragePercent: pct }],
     };
   }

@@ -29,6 +29,10 @@ import { detectPlatform, PlatformDetectionResult } from './lib/scanner/platform-
 import { emitStandardOutputs } from '../../../../shared/output';
 import { fromLegacyFindingsMap } from '../../../../shared/core/types';
 import { scanAemAst } from './ast-scan';
+import { scanAemXml } from './xml-scan';
+import { enforceConfidenceOnAll, emitAuditFindingsCache } from '../../shared/emit-helpers';
+import { runDeltaMode } from '../../shared/delta';
+import { appendLegacySheets } from '../../shared/legacy-merge';
 
 interface Config {
   project?: { path?: string; name?: string };
@@ -58,6 +62,7 @@ function parseArgs(argv: string[]): Record<string, any> {
     else if (arg === '--platform') args.platform = argv[++i];
     else if (arg === '--module') args.module = argv[++i];
     else if (arg === '--format') args.format = argv[++i];
+    else if (arg === '--since') args.since = argv[++i];
     else if (arg === '--json') args.json = true;
     else if (arg === '--help' || arg === '-h') {
       console.log(`AEM Code Audit Engine v1.0
@@ -77,6 +82,7 @@ Options:
   --module <mods>      Module filter (comma-separated: core,ui.apps)
   --format <type>      Report format: excel, md, pdf, all (default: excel)
   --json               Also output findings as JSON
+  --since <ref|ts|last>  Regression / delta vs a prior cached audit run
   --help               Show this help
 
 Categories audited:
@@ -195,6 +201,17 @@ async function main(): Promise<void> {
 
   const { findings, stats } = await scanner.scan();
 
+  // Extra normalized findings from the XML config scan — merged into the
+  // standardized report at emit time (kept out of the legacy FindingsMap so
+  // the legacy Excel report categories remain unchanged).
+  let extraStandardFindings: any[] = [];
+  try {
+    const xmlFindings = await scanAemXml(projectPath);
+    extraStandardFindings = xmlFindings;
+  } catch (e: any) {
+    console.log(`⚠️  XML scan skipped: ${e.message}`);
+  }
+
   // AST precision pass (tree-sitter Java) — supersede regex duplicates, recompute stats.
   try {
     const astFindings = await scanAemAst(projectPath);
@@ -257,16 +274,13 @@ async function main(): Promise<void> {
   const migrationNote = platformDetection?.isMigrated ? ' [Migrated to Cloud]' : '';
   const baseFileName = `${projectName}-aem-audit-${timestamp}${branchPart}`;
 
-  const formats = format === 'all' ? ['excel', 'md', 'pdf'] : [format];
+  // MD / PDF companion formats still write standalone files (they are separate
+  // artifact types). Only the legacy Excel is unified into the standardized
+  // xlsx via appendLegacySheets() further below.
+  const formats = format === 'all' ? ['md', 'pdf'] : format === 'excel' ? [] : [format];
 
   for (const fmt of formats) {
     switch (fmt) {
-      case 'excel': {
-        const outputFile = path.join(outputDir, `${baseFileName}.xlsx`);
-        const report = new AemReportGenerator(findings, stats, projectName, projectPath, platformLabel + migrationNote, platformDetection);
-        await report.generate(outputFile);
-        break;
-      }
       case 'md': {
         const outputFile = path.join(outputDir, `${baseFileName}.md`);
         await generateMarkdownReport(findings, stats, projectName, projectPath, platformLabel + migrationNote, outputFile);
@@ -281,24 +295,60 @@ async function main(): Promise<void> {
   }
 
   // Standardized report + CHANGE-LOG — uniform across every DCA audit engine.
-  {
-    const engineId = platform === 'aemcs' ? 'aemcs' : platform === 'aemams' ? 'aemams' : 'aem';
-    const stackLabel = platform === 'aemcs' ? 'AEMaaCS' : platform === 'aemams' ? 'AEM AMS' : 'AEM (AMS + Cloud)';
-    const stdFindings = fromLegacyFindingsMap(findings as any, engineId);
-    const std = await emitStandardOutputs({
-      agent: 'audit',
-      meta: {
-        agent: 'audit', engine: engineId, stack: stackLabel + migrationNote,
-        projectName, projectRoot: projectPath,
-        extra: { 'Total Files': stats.totalFiles },
-      },
-      findings: stdFindings,
-      outputDir,
-      changelogSummary: `AEM audit (${platform}): ${stats.totalFindings} finding(s).`,
-    });
-    console.log(`📊 Standardized report: ${std.xlsxPath}`);
-    if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
+  // The AEM-specific rich sheets (Executive Summary, per-category detail sheets,
+  // Recommendations, Action Plan, Platform Detection…) are appended AFTER the
+  // standardized ones in the SAME xlsx via appendLegacySheets().
+  const engineId = platform === 'aemcs' ? 'aemcs' : platform === 'aemams' ? 'aemams' : 'aem';
+  const stackLabel = platform === 'aemcs' ? 'AEMaaCS' : platform === 'aemams' ? 'AEM AMS' : 'AEM (AMS + Cloud)';
+  let stdFindings = [
+    ...fromLegacyFindingsMap(findings as any, engineId),
+    ...extraStandardFindings,
+  ];
+  stdFindings = enforceConfidenceOnAll(stdFindings, 'regex');
+
+  const std = await emitStandardOutputs({
+    agent: 'audit',
+    meta: {
+      agent: 'audit', engine: engineId, stack: stackLabel + migrationNote,
+      projectName, projectRoot: projectPath,
+      extra: { 'Total Files': stats.totalFiles },
+    },
+    findings: stdFindings,
+    outputDir,
+    changelogSummary: `AEM audit (${platform}): ${stats.totalFindings} finding(s).`,
+  });
+  console.log(`📊 Standardized report: ${std.xlsxPath}`);
+  if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
+
+  if (format === 'excel' || format === 'all') {
+    const richReport = new AemReportGenerator(findings, stats, projectName, projectPath, platformLabel + migrationNote, platformDetection);
+    await appendLegacySheets(std.xlsxPath, (wb) => richReport.populate(wb));
   }
+
+  // Delta mode — opt-in via --since. MUST run BEFORE writing the current
+  // cache so "last" resolves to a truly prior run.
+  if (args.since !== undefined) {
+    await runDeltaMode({
+      projectRoot: projectPath,
+      since: args.since,
+      currentFindings: stdFindings,
+      xlsxPath: std.xlsxPath,
+    });
+  }
+
+  // Findings cache — cross-agent consumption.
+  emitAuditFindingsCache({
+    projectRoot: projectPath,
+    stack: engineId,
+    reportPath: std.xlsxPath,
+    findings: stdFindings,
+    timestamp: std.meta.timestamp ?? '',
+    branch: std.meta.workingBranch,
+    meta: {
+      role: process.env.DCA_ROLE ?? '',
+      roleFlavor: process.env.DCA_ROLE_FLAVOR ?? '',
+    },
+  });
 
   // Optionally output JSON
   if (args.json) {

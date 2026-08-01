@@ -7,6 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 import fg from "fast-glob";
 import { BaseEngine, CoverageOptions, CoverageReport, CoverageGap } from "../../shared/base";
+import { applySharedPriority } from "../../priority/coverage-priority";
 
 export class AemEngine extends BaseEngine {
   readonly name = "AEM as a Cloud Service";
@@ -64,6 +65,9 @@ export class AemEngine extends BaseEngine {
       });
     }
 
+    // Shared 6-factor priority: mutates gap.priority in-place, resorts highest-first.
+    await applySharedPriority(gaps, projectPath, this.id);
+
     return {
       projectName: path.basename(projectPath),
       engine: this.id,
@@ -71,7 +75,7 @@ export class AemEngine extends BaseEngine {
       testedFiles: testedCount,
       untestedFiles: sourceFiles.length - testedCount,
       coveragePercent: sourceFiles.length > 0 ? Math.round((testedCount / sourceFiles.length) * 100) : 0,
-      gaps: gaps.sort((a, b) => this.priorityWeight(a.priority) - this.priorityWeight(b.priority)).slice(0, 100),
+      gaps: gaps.slice(0, 100),
       frameworkBreakdown: [{ framework: "unit", totalFiles: sourceFiles.length, testedFiles: testedCount, untestedFiles: sourceFiles.length - testedCount, coveragePercent: sourceFiles.length > 0 ? Math.round((testedCount / sourceFiles.length) * 100) : 0 }],
     };
   }

@@ -22,16 +22,21 @@ import { existsSync } from "fs";
 import { computeCounts, RecommendationRow, SEVERITIES } from "../../shared/core/types";
 import type { InputItem } from "./inputs/types";
 import { readProofhubCsv, describeMapping } from "./inputs/proofhub";
+import { readPrDiff } from "./inputs/pr-diff";
 import { PROFILES, profileById, detectProfile } from "./engines/profiles";
 import { resolveRole, parseRoleFlag } from "../../shared/role";
 import { ensureDepsInstalled } from "../../shared/install";
 import { resolveIntake, askAll, confirmRun, Question } from "../../shared/interactive";
+import { emitFindingsCache } from "../../shared/findings";
+import { crossReferenceAudit } from "./analysis/audit-crossref";
 
 interface Args {
   path: string;
   engine: string | null;
   bugs: string | null;
   brd: string | null;
+  pr: string | null;
+  diff: boolean;
   output: string | null;
   role: string | undefined;
   listEngines: boolean;
@@ -44,15 +49,19 @@ interface Args {
   interactive: boolean;
   technical: boolean;
   analysis: string | null;
+  auditMaxAgeHours: number;
+  noAuditCrossref: boolean;
 }
 
 function parseArgs(): Args {
   const a: Args = {
-    path: ".", engine: null, bugs: null, brd: null, output: null, role: undefined,
+    path: ".", engine: null, bugs: null, brd: null, pr: null, diff: false,
+    output: null, role: undefined,
     listEngines: false,
     createBranch: false, sourceBranch: null, preflight: false, noPreflight: false,
     yesInstall: false, noInstall: false,
     interactive: false, technical: false, analysis: null,
+    auditMaxAgeHours: 168, noAuditCrossref: false,
   };
   const argv = process.argv.slice(2);
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -63,6 +72,18 @@ function parseArgs(): Args {
       case "--engine": a.engine = argv[++i]; break;
       case "--bugs": a.bugs = argv[++i]; break;
       case "--brd": a.brd = argv[++i]; break;
+      case "--pr": a.pr = argv[++i]; break;
+      case "--diff": a.diff = true; break;
+      case "--audit-max-age-hours": {
+        const n = Number(argv[++i]);
+        if (!Number.isFinite(n) || n < 0) {
+          console.error(`❌ --audit-max-age-hours needs a non-negative number, got "${argv[i]}"`);
+          process.exit(1);
+        }
+        a.auditMaxAgeHours = n;
+        break;
+      }
+      case "--no-audit-crossref": a.noAuditCrossref = true; break;
       case "--output": a.output = argv[++i]; break;
       case "--role":
         // parseRoleFlag already captured the value; swallow the value token if present so it isn't misread later.
@@ -82,12 +103,17 @@ function parseArgs(): Args {
         console.log(`BMAD Impact Analysis Agent
 
 Usage:
-  npx ts-node run.ts --path <dir> [--bugs export.csv] [--brd doc.docx] [options]
+  npx ts-node run.ts --path <dir> [--bugs export.csv] [--brd doc.docx] [--pr a..b] [--diff] [options]
+
+Inputs (at least one required):
+  --bugs <csv>            Proofhub bug/task CSV export
+  --brd <doc>             BRD document (.docx / .md / .txt)
+  --pr <ref[..ref]>       Git diff: "a..b" for a range, single ref => diff against
+                          first existing main/master/develop/production branch
+  --diff                  Uncommitted working-tree changes (git diff HEAD)
 
 Options:
   --path <dir>            Project root (default: .)
-  --bugs <csv>            Proofhub bug/task CSV export
-  --brd <doc>             BRD document (.docx / .md / .txt)
   --engine <id>           Stack engine (auto-detect if omitted)
   --output <dir>          Report output dir (default: <path>/impact-reports)
   --role <code>           Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content
@@ -97,6 +123,8 @@ Options:
   --source-branch <name>  Base branch for --create-branch (default: production/main/master/develop)
   --preflight             Print preflight advisory (model + project fit) and exit
   --no-preflight          Skip the preflight advisory on a normal run
+  --audit-max-age-hours N Max age of the cached audit run consumed for cross-reference (default 168 = 7 days)
+  --no-audit-crossref     Skip audit-findings cross-reference enrichment
   --help                  Show this help
 
 Install control (first-run):
@@ -266,25 +294,44 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  if (!args.bugs && !args.brd) {
-    console.error("❌ Provide at least one input: --bugs <proofhub.csv> and/or --brd <document>");
+  if (!args.bugs && !args.brd && !args.pr && !args.diff) {
+    console.error("❌ Provide at least one input: --bugs <proofhub.csv>, --brd <document>, --pr <ref[..ref]>, or --diff");
     console.error("   Tip: rerun with --interactive to be prompted step-by-step, or add 'mode: interactive' to .bmad/intake.yaml.");
     process.exit(1);
   }
 
   // ── ingest inputs ──
   const items: InputItem[] = [];
+  const inputTypes: string[] = [];
   if (args.bugs) {
     if (!existsSync(args.bugs)) { console.error(`❌ Bugs file not found: ${args.bugs}`); process.exit(1); }
     const bugs = readProofhubCsv(args.bugs);
     console.log(`🐞 Proofhub: ${bugs.length} bug(s)  [columns: ${describeMapping(args.bugs)}]`);
     items.push(...bugs);
+    inputTypes.push("bugs");
   }
   if (args.brd) {
     if (!existsSync(args.brd)) { console.error(`❌ BRD file not found: ${args.brd}`); process.exit(1); }
     const reqs = await readBrd(args.brd);
     console.log(`📄 BRD: ${reqs.length} requirement(s)`);
     items.push(...reqs);
+    inputTypes.push("brd");
+  }
+  if (args.pr || args.diff) {
+    try {
+      const diff = readPrDiff({
+        projectRoot: projectPath,
+        pr: args.pr ?? undefined,
+        useWorkingTree: args.diff,
+      });
+      console.log(`🔀 PR diff: ${diff.changedFiles.length} changed source file(s) [${diff.spec}]`);
+      process.stderr.write(`[impact-pr] using git diff ${diff.spec}: ${diff.changedFiles.length} changed source files\n`);
+      items.push(...diff.items);
+      inputTypes.push("pr");
+    } catch (err) {
+      console.error(`❌ ${(err as Error).message}`);
+      process.exit(1);
+    }
   }
 
   // ── resolve stack ──
@@ -304,7 +351,27 @@ async function main(): Promise<void> {
 
   console.log("\n🔎 Tracing impacted code...");
 
-  const { findings, sourceCount, matchedItems } = traceImpact(projectPath, items, profile);
+  const traceResult = traceImpact(projectPath, items, profile);
+  const { findings, sourceCount, matchedItems } = traceResult;
+
+  // ── audit cross-reference (enrich in place) ──
+  let crossref: ReturnType<typeof crossReferenceAudit> | null = null;
+  if (!args.noAuditCrossref) {
+    crossref = crossReferenceAudit(findings, {
+      projectRoot: projectPath,
+      maxAgeHours: args.auditMaxAgeHours,
+    });
+    if (crossref.hasCache) {
+      const msg = `[impact-crossref] ${crossref.files} impacted files also have audit findings (${crossref.criticalFiles} CRITICAL) — enriched Input Traceability`;
+      process.stderr.write(`${msg}\n`);
+      console.log(`   🔗 Audit cross-reference: ${crossref.files} file(s) enriched (${crossref.criticalFiles} CRITICAL)`);
+    } else {
+      process.stderr.write(
+        "[impact-crossref] no prior audit run found — run 'audit my project' first for enriched impact analysis\n",
+      );
+    }
+  }
+
   const counts = computeCounts(findings);
   console.log(`   Source files scanned: ${sourceCount}`);
   console.log(`   Inputs matched to code: ${matchedItems}/${items.length}`);
@@ -336,6 +403,26 @@ async function main(): Promise<void> {
 
   console.log(`\n📊 Report:     ${res.xlsxPath}   (see 'Input Traceability' sheet)`);
   if (res.changelogPath) console.log(`📝 CHANGE-LOG: ${res.changelogPath}`);
+
+  // ── Findings cache emission — enables downstream agents (test-coverage,
+  //    another impact run) to consume via consumeLatestFindings.
+  emitFindingsCache({
+    projectRoot: projectPath,
+    agent: "impact-analysis",
+    stack: profile.id,
+    branch: res.meta.workingBranch ?? "nobranch",
+    timestamp: res.meta.timestamp ?? "",
+    reportPath: res.xlsxPath,
+    findings,
+    meta: {
+      inputTypes: inputTypes.join(","),
+      auditCrossref: crossref?.hasCache ? "yes" : "no",
+      hasCodeowners: traceResult.codeownersPath ? "yes" : "no",
+      ownersResolved: String(traceResult.ownersResolved),
+      heuristicRefs: String(traceResult.heuristicRefs),
+    },
+  });
+
   console.log("\n" + "═".repeat(60));
   console.log(" ✅ Impact analysis complete");
   console.log("═".repeat(60));

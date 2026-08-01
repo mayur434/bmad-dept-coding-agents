@@ -13,6 +13,10 @@ import { ImpactAnalyzer } from './lib/impact';
 import { emitStandardOutputs } from '../../../../shared/output';
 import { fromLegacyFindingsMap } from '../../../../shared/core/types';
 import { scanCommerceAst } from './ast-scan';
+import { scanCommerceXml } from './xml-scan';
+import { enforceConfidenceOnAll, emitAuditFindingsCache } from '../../shared/emit-helpers';
+import { runDeltaMode } from '../../shared/delta';
+import { appendLegacySheets } from '../../shared/legacy-merge';
 
 interface Config {
   project?: { path?: string; name?: string };
@@ -47,6 +51,7 @@ function parseArgs(argv: string[]): Record<string, any> {
     else if (arg === '--brd') args.brd.push(argv[++i]);
     else if (arg === '--bugs') args.bugs = argv[++i];
     else if (arg === '--no-code-audit') args.noCodeAudit = true;
+    else if (arg === '--since') args.since = argv[++i];
     else if (arg === '--json') args.json = true;
     else if (arg === '--help' || arg === '-h') {
       console.log(`Adobe Commerce Enterprise Code Audit & Impact Analysis Tool v4.0
@@ -70,6 +75,7 @@ Options:
   --brd <path>         BRD file (repeatable)
   --bugs <path>        Bug report Excel file
   --no-code-audit      Skip code audit
+  --since <ref|ts|last>  Regression / delta vs a prior cached audit run
   --json               Output findings as JSON
 `);
       process.exit(0);
@@ -184,7 +190,9 @@ async function main(): Promise<void> {
 
   const timestamp = new Date().toISOString().replace(/[-:T]/g, '').substring(0, 15).replace(/(\d{8})(\d{6})/, '$1_$2');
   const branchPart = branch ? `-branch-${branch}` : '';
-  const outputFile = path.join(outputDir, `${projectName}-audit-${auditMode}-${timestamp}${branchPart}.xlsx`);
+  // Note: the legacy standalone xlsx path is gone — everything now lands in the
+  // ONE standardized xlsx emitted by emitStandardOutputs + appendLegacySheets.
+  void timestamp; void branchPart;
 
   // Print summary
   console.log('='.repeat(60));
@@ -349,12 +357,28 @@ async function main(): Promise<void> {
     allStats.totalFindings = totalFindings;
     allStats.categories = Object.keys(allFindings).length;
 
-    const report = new AuditReportGenerator(allFindings, allStats, projectName, projectPath || dbPath || '');
-    await report.generate(outputFile);
-    console.log(`\n📁 Platform report saved to: ${outputFile}`);
+    // XML config scan — di.xml / webapi.xml / events.xml / module.xml / etc.
+    // Appended to the standardized findings; kept out of the legacy FindingsMap
+    // so the legacy category sheets stay untouched.
+    let xmlExtras: any[] = [];
+    if (projectPath && codeAuditEnabled) {
+      try {
+        xmlExtras = await scanCommerceXml(projectPath);
+      } catch (e: any) {
+        console.log(`⚠️  XML scan skipped: ${e.message}`);
+      }
+    }
 
     // Standardized report + CHANGE-LOG — uniform across every DCA audit engine.
-    const stdFindings = fromLegacyFindingsMap(allFindings as any, 'commerce-paas');
+    // The Commerce-specific rich sheets (Executive Summary, per-category detail
+    // sheets, BRD Impact, Recommendations, Module Rollout, Module Plan) are
+    // appended AFTER the standardized ones in the SAME xlsx.
+    let stdFindings = [
+      ...fromLegacyFindingsMap(allFindings as any, 'commerce-paas'),
+      ...xmlExtras,
+    ];
+    stdFindings = enforceConfidenceOnAll(stdFindings, 'regex');
+
     const std = await emitStandardOutputs({
       agent: 'audit',
       meta: {
@@ -368,6 +392,37 @@ async function main(): Promise<void> {
     });
     console.log(`📊 Standardized report: ${std.xlsxPath}`);
     if (std.changelogPath) console.log(`📝 CHANGE-LOG: ${std.changelogPath}`);
+
+    // Append Commerce-specific rich sheets INTO the standardized xlsx.
+    const richReport = new AuditReportGenerator(allFindings, allStats, projectName, projectPath || dbPath || '');
+    await appendLegacySheets(std.xlsxPath, (wb) => richReport.populate(wb));
+
+    // Delta mode — MUST run BEFORE the cache write so "last" resolves to a
+    // truly prior run rather than the one we're about to persist.
+    const projectRootForCache = projectPath || outputDir;
+    if (args.since !== undefined) {
+      await runDeltaMode({
+        projectRoot: projectRootForCache,
+        since: args.since,
+        currentFindings: stdFindings,
+        xlsxPath: std.xlsxPath,
+      });
+    }
+
+    // Findings cache — cross-agent consumption.
+    emitAuditFindingsCache({
+      projectRoot: projectRootForCache,
+      stack: 'commerce-paas',
+      reportPath: std.xlsxPath,
+      findings: stdFindings,
+      timestamp: std.meta.timestamp ?? '',
+      branch: std.meta.workingBranch,
+      meta: {
+        role: process.env.DCA_ROLE ?? '',
+        roleFlavor: process.env.DCA_ROLE_FLAVOR ?? '',
+        auditMode,
+      },
+    });
   } else {
     console.log('\n⚠️  No findings generated. Check your configuration and inputs.');
   }

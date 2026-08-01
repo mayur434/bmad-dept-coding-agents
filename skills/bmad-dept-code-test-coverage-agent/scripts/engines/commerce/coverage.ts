@@ -26,6 +26,8 @@ import {
   TestFramework,
   DetectionStrategy,
 } from "../../shared/base";
+import { applySharedPriority } from "../../priority/coverage-priority";
+import type { FactorKey } from "../../../../shared/priority";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -68,6 +70,25 @@ export class CommerceEngine extends BaseEngine {
     const totalSource = breakdowns.reduce((s, b) => s + b.totalFiles, 0);
     const totalTested = breakdowns.reduce((s, b) => s + b.testedFiles, 0);
 
+    // Feed the shared 6-factor scorer the churn + fan-in maps this engine
+    // already built (bulk `git log` + di.xml scan), so the shared Commerce
+    // profile's plugin/observer/revenue_path weights combine with our
+    // pre-computed churn/fan_in rather than falling back to slow per-file
+    // execSync in the shared default extractors.
+    const factorHints = new Map<string, Partial<Record<FactorKey, number | boolean>>>();
+    for (const g of allGaps) {
+      const hint: Partial<Record<FactorKey, number | boolean>> = {};
+      const churn = churnMap.get(g.file);
+      if (typeof churn === "number") hint.churn = churn;
+      const className = path.basename(g.file, ".php");
+      const fan = fanInMap.get(className);
+      if (typeof fan === "number") hint.fan_in = fan;
+      if (Object.keys(hint).length > 0) factorHints.set(g.file, hint);
+    }
+    await applySharedPriority(allGaps, projectPath, this.id, {
+      factorHintsByFile: factorHints,
+    });
+
     return {
       projectName: options.name || path.basename(projectPath),
       engine: this.id,
@@ -75,9 +96,7 @@ export class CommerceEngine extends BaseEngine {
       testedFiles: totalTested,
       untestedFiles: totalSource - totalTested,
       coveragePercent: totalSource > 0 ? Math.round((totalTested / totalSource) * 100) : 0,
-      gaps: allGaps
-        .sort((a, b) => this.priorityWeight(a.priority) - this.priorityWeight(b.priority))
-        .slice(0, 200),
+      gaps: allGaps.slice(0, 200),
       frameworkBreakdown: breakdowns,
     };
   }

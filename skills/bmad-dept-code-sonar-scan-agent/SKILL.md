@@ -327,7 +327,7 @@ Before Step 1 (scan) or Step 2 (ingest), check `<projectRoot>/.bmad/role.yaml`:
 | `tl` | All 6 categories | Standard XLSX + technical twin | "audit for architecture verification" |
 | `de` | All 6 categories | Jira-ready CSV alongside XLSX, one row per issue with Priority mapped from severity | "generate fixes for CRITICAL vulnerabilities" |
 | `qa` | All 6 categories; emphasize Reliability + Bugs | Standard XLSX + Reliability rating narrative | "test-coverage on the changed files" |
-| `devops` | All 6 categories | **SARIF export** alongside XLSX for GitHub code-scanning upload; Quality Gate PASS/FAIL should set process exit code (0 pass / 1 fail) | "wire the Quality Gate into CI as a required check" |
+| `devops` | All 6 categories | **SARIF export** alongside XLSX for GitHub code-scanning upload; Quality Gate PASS/FAIL sets the process exit code (0 = PASS, 1 = FAIL). This is now enforced by default — pass `--no-fail` to suppress. | "wire the Quality Gate into CI as a required check" |
 | `security` | All 6 categories; emphasize Vulnerabilities + Security Hotspots; enrich with CWE / OWASP Top-10 tags where the rule pack knows them | Vulnerabilities sheet moved to first; XLSX; ratings emphasize Security | "audit --focus security" |
 | `pm` | All 6 categories | Executive Markdown: Quality Gate + 3 ratings A–E + top-10 vulnerabilities in business language | "summarize the Quality Gate for release notes" |
 | `ba` | Standard scan | Standard XLSX; no special shaping | _(none — sonar-scan is not a primary BA tool)_ |
@@ -417,6 +417,19 @@ Before scanning, ask the user in one line:
 ```
 
 If the user confirms a specific category focus (e.g. "just vulnerabilities"), keep all 6 categories in the JSON but note the focus in the scan — this ensures the ratings and Quality Gate are always complete.
+
+**Exception — explicit `--focus` flag:** when the user (or the CLI dispatcher)
+passes `--focus <csv>` (accepted tokens: `bugs`, `vulnerabilities`, `hotspots`,
+`smells`, `duplications`, `complexity`) the intent is to _narrow_ the run. In
+that mode the LLM MUST emit findings ONLY for the requested categories in
+`sonar-findings.json` — do NOT pad with the other 4/5. Rating math in Step 2
+is computed only from the included categories, and the Quality Gate is
+reported against that reduced surface. Example:
+
+  `--focus vulnerabilities,hotspots` → Step 1 writes only Vulnerability and
+  Security Hotspot findings; Step 2 ingests those and reports Security
+  rating + Quality Gate against them (Reliability and Maintainability are
+  reported as `A` because those categories are empty).
 
 ---
 
@@ -566,6 +579,64 @@ Findings: <CRITICAL> critical · <HIGH> high · <MEDIUM> medium · <LOW> low · 
 ```
 
 If the Quality Gate FAILS, emphasize which rating(s) drove the failure and point to the specific finding(s) on the Vulnerabilities sheet.
+
+---
+
+## New in v1.1 — CLI enhancements
+
+### `--focus <csv>` — narrow the run to a subset of the 6 categories
+
+Restricts BOTH the LLM Step-1 rule pack AND the Step-2 ingest report to a
+subset of the 6 Sonar categories. Accepted tokens (comma-separated):
+
+- `bugs`, `vulnerabilities`, `hotspots`, `smells`, `duplications`, `complexity`
+
+Example:
+
+```bash
+npx ts-node run.ts --ingest sonar-findings.json --path /project \
+  --focus vulnerabilities,hotspots
+```
+
+The ingest filters `sonar-findings.json` rows to just the requested
+categories before rating math runs. Ratings for excluded categories fall
+back to `A` (empty set).
+
+### `--auto-ingest` / `--watch` — one-command two-step
+
+Step 1 is LLM-driven and cannot be launched by the dispatcher. Instead:
+
+```bash
+npx ts-node run.ts --path /project --auto-ingest
+# → prints:  Two-step mode: run 'sonar scan my project at /project' in the
+#            AI chat to produce sonar-findings.json, then this dispatcher
+#            will auto-ingest.
+# → polls every 2s for ./sonar-findings.json (or --findings-path <path>)
+# → runs Step 2 automatically once the file appears
+# → times out after --watch-timeout <seconds> (default 300)
+```
+
+`--watch` is an alias of `--auto-ingest`.
+
+### `--no-fail` — opt out of the CI Quality-Gate exit code
+
+By default, Step 2 exits with code **1** when the Quality Gate is FAIL, so
+the run can be wired into a required CI check. Pass `--no-fail` to preserve
+the pre-v1.1 behaviour (always exit 0) for CI configs with their own gate
+logic.
+
+### AST-based cyclomatic complexity
+
+The Step-2 ingest now runs a real per-function cyclomatic count via the
+shared tree-sitter harness (Java for `aem`/`commerce-paas` variant/`spring`/
+`sling`; JS/TS for `app-builder`/`commerce-saas`/`eds`/`eds-commerce`; PHP
+for `commerce-paas`). Functions with cyclomatic complexity:
+
+- `> 15` → HIGH `Complexity` smell
+- `> 25` → CRITICAL `Complexity` smell
+
+These are appended to the LLM findings **before** rating math runs, so they
+drive the Maintainability rating and the Quality Gate.
 
 ---
 

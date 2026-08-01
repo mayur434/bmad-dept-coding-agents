@@ -16,8 +16,13 @@ import {
   sortFindings,
   normalizeFinding,
 } from "../../../shared/core/types";
+import { computeRatingBundle } from "../../../shared/scoring";
+import { emitFindingsCache } from "../../../shared/findings";
+import { currentBranch } from "../../../shared/git";
 import { StackProfile } from "../engines/profiles";
-import { computeRatings, buildRatingRecommendations } from "./ratings";
+import { buildRatingRecommendations } from "./ratings";
+import { parseFocus, applyFocus, ParsedFocus } from "./focus";
+import { computeComplexity, topByComplexity } from "./complexity";
 
 // ── JSON → Finding mapping ───────────────────────────────────────────────────
 
@@ -210,10 +215,24 @@ export interface IngestOptions {
    */
   role: string;
   roleFromCli: boolean;
+  /** --focus csv (bugs,vulnerabilities,hotspots,smells,duplications,complexity). null → all 6. */
+  focus?: string | null;
+  /** --no-fail: never exit non-zero on a Quality Gate FAIL. Default false → exit 1 on FAIL. */
+  noFail?: boolean;
 }
 
 export async function ingest(opts: IngestOptions): Promise<void> {
   const { jsonPath, projectRoot, profile, outputDir, argv, role, roleFromCli } = opts;
+  const noFail = !!opts.noFail;
+
+  // Parse --focus (throws with a clear message on unknown tokens).
+  let focus: ParsedFocus;
+  try {
+    focus = parseFocus(opts.focus ?? null);
+  } catch (e) {
+    console.error(`❌ ${(e as Error).message}`);
+    process.exit(1);
+  }
 
   if (!fs.existsSync(jsonPath)) {
     console.error(`❌ Findings JSON not found: ${jsonPath}`);
@@ -249,8 +268,41 @@ export async function ingest(opts: IngestOptions): Promise<void> {
     effectiveRole = jsonRole;
   }
 
-  const findings: Finding[] = parsed.findings.map((r, i) => mapFinding(r, i));
-  const ratings = computeRatings(findings);
+  const rawFindings: Finding[] = parsed.findings.map((r, i) => mapFinding(r, i));
+
+  // ── AST-based cyclomatic complexity ────────────────────────────────────
+  // Real per-function CC via the shared tree-sitter harnesses. Findings
+  // with cc > 15 become HIGH "Complexity" smells; cc > 25 become CRITICAL.
+  let complexityFindings: Finding[] = [];
+  try {
+    const cx = await computeComplexity({ projectRoot, profile });
+    complexityFindings = cx.findings;
+    const top = topByComplexity(cx, 3)
+      .map((f) => `${f.signature} (cc=${f.complexity})`)
+      .join(", ");
+    process.stderr.write(
+      `[sonar-complexity] scanned ${cx.filesScanned} files, ${cx.functionsCounted} functions` +
+        (top ? `, top-3: ${top}` : "") +
+        ` — ${complexityFindings.length} finding(s) above threshold\n`,
+    );
+  } catch (e) {
+    process.stderr.write(
+      `[sonar-complexity] WARN: complexity pass failed: ${(e as Error).message}\n`,
+    );
+  }
+
+  // Merge LLM findings + complexity findings, then apply --focus filter.
+  const allFindings = [...rawFindings, ...complexityFindings];
+  const { kept, dropped } = applyFocus(allFindings, focus);
+  if (!focus.all) {
+    process.stderr.write(
+      `[sonar-focus] filtering to ${focus.tokens.length} categor${focus.tokens.length === 1 ? "y" : "ies"}: ` +
+        `${focus.tokens.join(", ")} — ${dropped} findings dropped, ${kept.length} kept\n`,
+    );
+  }
+  const findings: Finding[] = kept;
+
+  const ratings = computeRatingBundle(findings);
   const recommendations = buildRatingRecommendations(findings, ratings);
 
   const gateIcon = ratings.qualityGate === "PASS" ? "✅" : "❌";
@@ -292,6 +344,32 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   // Post-process: add Vulnerabilities sheet with color-coded rows
   await addVulnerabilitiesSheet(res.xlsxPath, findings);
 
+  // ── Findings cache for cross-agent consumption ─────────────────────────
+  try {
+    emitFindingsCache({
+      projectRoot,
+      agent: "sonar-scan",
+      stack: profile.id,
+      branch: res.meta.workingBranch ?? currentBranch(projectRoot) ?? "nobranch",
+      timestamp: res.meta.timestamp ?? "",
+      reportPath: path.relative(projectRoot, res.xlsxPath),
+      findings,
+      meta: {
+        qualityGate: ratings.qualityGate,
+        reliability: ratings.reliability,
+        security: ratings.security,
+        maintainability: ratings.maintainability,
+        role: effectiveRole,
+        focus: focus.all ? "all" : focus.tokens.join(","),
+      },
+    });
+  } catch (e) {
+    // emitFindingsCache is already non-fatal, but belt-and-suspenders.
+    process.stderr.write(
+      `[sonar-findings] WARN: cache emit skipped: ${(e as Error).message}\n`,
+    );
+  }
+
   console.log(`\n📊 Report:     ${res.xlsxPath}`);
   console.log(`              (Vulnerabilities sheet: ${findings.filter((f) => f.category === "Vulnerability" || f.category === "Security Hotspot").length} finding(s))`);
   if (res.mdPath) console.log(`📝 Markdown:   ${res.mdPath}`);
@@ -299,4 +377,22 @@ export async function ingest(opts: IngestOptions): Promise<void> {
   console.log("\n" + "═".repeat(60));
   console.log(` ${gateIcon} Sonar scan complete — Quality Gate ${ratings.qualityGate}`);
   console.log("═".repeat(60));
+
+  // ── CI Quality Gate: non-zero exit on FAIL (unless --no-fail) ──────────
+  if (ratings.qualityGate === "FAIL") {
+    if (noFail) {
+      process.stderr.write(
+        `[sonar-gate] Quality Gate: FAIL (Reliability=${ratings.reliability}, Security=${ratings.security}, Maintainability=${ratings.maintainability}) — --no-fail set, exiting 0.\n`,
+      );
+    } else {
+      process.stderr.write(
+        `[sonar-gate] Quality Gate: FAIL (Reliability=${ratings.reliability}, Security=${ratings.security}, Maintainability=${ratings.maintainability}) — exiting non-zero. Pass --no-fail to suppress.\n`,
+      );
+      process.exit(1);
+    }
+  } else {
+    process.stderr.write(
+      `[sonar-gate] Quality Gate: PASS (Reliability=${ratings.reliability}, Security=${ratings.security}, Maintainability=${ratings.maintainability}).\n`,
+    );
+  }
 }

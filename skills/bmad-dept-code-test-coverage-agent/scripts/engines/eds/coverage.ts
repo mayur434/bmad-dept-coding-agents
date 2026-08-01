@@ -7,6 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 import fg from "fast-glob";
 import { BaseEngine, CoverageOptions, CoverageReport, CoverageGap } from "../../shared/base";
+import { applySharedPriority } from "../../priority/coverage-priority";
 
 export class EdsEngine extends BaseEngine {
   readonly name = "Edge Delivery Services";
@@ -53,6 +54,7 @@ export class EdsEngine extends BaseEngine {
       });
     }
 
+    await applySharedPriority(gaps, projectPath, this.id);
     return {
       projectName: path.basename(projectPath),
       engine: this.id,
@@ -60,7 +62,7 @@ export class EdsEngine extends BaseEngine {
       testedFiles: testedCount,
       untestedFiles: sourceFiles.length - testedCount,
       coveragePercent: sourceFiles.length > 0 ? Math.round((testedCount / sourceFiles.length) * 100) : 0,
-      gaps: gaps.sort((a, b) => this.priorityWeight(a.priority) - this.priorityWeight(b.priority)),
+      gaps,
       frameworkBreakdown: [{ framework: "unit", totalFiles: sourceFiles.length, testedFiles: testedCount, untestedFiles: sourceFiles.length - testedCount, coveragePercent: sourceFiles.length > 0 ? Math.round((testedCount / sourceFiles.length) * 100) : 0 }],
     };
   }

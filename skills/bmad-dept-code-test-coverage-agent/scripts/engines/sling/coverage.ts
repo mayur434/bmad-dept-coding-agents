@@ -7,6 +7,7 @@ import * as fs from "fs";
 import * as path from "path";
 import fg from "fast-glob";
 import { BaseEngine, CoverageOptions, CoverageReport, CoverageGap } from "../../shared/base";
+import { applySharedPriority } from "../../priority/coverage-priority";
 
 export class SlingEngine extends BaseEngine {
   readonly name = "Apache Sling / Shaft";
@@ -44,6 +45,7 @@ export class SlingEngine extends BaseEngine {
 
     const t="unit";
     const pct = sourceFiles.length > 0 ? Math.round((testedCount / sourceFiles.length) * 100) : 0;
+    await applySharedPriority(gaps, projectPath, this.id);
     return {
       projectName: path.basename(projectPath),
       engine: this.id,
@@ -51,7 +53,7 @@ export class SlingEngine extends BaseEngine {
       testedFiles: testedCount,
       untestedFiles: sourceFiles.length - testedCount,
       coveragePercent: pct,
-      gaps: gaps.sort((a, b) => weight(a.priority) - weight(b.priority)).slice(0, 100),
+      gaps: gaps.slice(0, 100),
       frameworkBreakdown: [{ framework: t, totalFiles: sourceFiles.length, testedFiles: testedCount, untestedFiles: sourceFiles.length - testedCount, coveragePercent: pct }],
     };
   }

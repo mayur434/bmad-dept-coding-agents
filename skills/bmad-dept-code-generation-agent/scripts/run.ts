@@ -345,10 +345,15 @@ async function main(): Promise<void> {
     await scaffold({
       stack, type, name,
       pkg: flag(args, "--package"),
+      project: flag(args, "--project"),
       projectRoot,
       outputDir: flag(args, "--output"),
       dryRun: args.includes("--dry-run"),
       force: args.includes("--force"),
+      noTestStub: args.includes("--no-test-stub"),
+      forceName: args.includes("--force-name"),
+      conventionsPath: flag(args, "--conventions"),
+      secure: args.includes("--secure") ? true : undefined,
       role: resolvedRole.role,
       roleSource: resolvedRole.source,
     });
@@ -373,9 +378,14 @@ function printGenerationHelp(projectRoot?: string): void {
   console.log("  --type <type>                 Scaffolder type (see --list-types)");
   console.log("  --name <Name>                 Artifact name");
   console.log("  --package <pkg>               Java/PHP package (when applicable)");
+  console.log("  --project <slug>              Project slug for AEM IaC scaffolders (dispatcher/CFM/XF/pipeline)");
   console.log("  --output <dir>                Override output directory");
   console.log("  --dry-run                     Print planned files, write nothing");
   console.log("  --force                       Overwrite existing files");
+  console.log("  --no-test-stub                Skip the matching test stub for this scaffold");
+  console.log("  --force-name                  Skip .bmad/conventions.yaml name validation");
+  console.log("  --conventions <path>          Override the .bmad/conventions.yaml path");
+  console.log("  --secure                      Apply per-type security hardening (auth, escaping, CSRF, headers, redaction)");
   console.log("  --preflight                   Print preflight only, then exit");
   console.log("  --no-preflight                Skip the preflight advisory");
   console.log("  --create-branch               Cut dca/generation-<stack>-<timestamp> before writing");

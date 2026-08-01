@@ -40,6 +40,18 @@ interface Args {
   noInstall: boolean;
   interactive: boolean;
   technical: boolean;
+  /** csv of focus categories (bugs,vulnerabilities,hotspots,smells,duplications,complexity). */
+  focus: string | null;
+  /** --no-fail: never exit non-zero on Quality Gate FAIL (opt-out for CI configs with their own gate). */
+  noFail: boolean;
+  /** --auto-ingest: watch for sonar-findings.json to appear, then run Step 2. */
+  autoIngest: boolean;
+  /** --watch: alias for --auto-ingest. */
+  watch: boolean;
+  /** --findings-path <path>: where to look for sonar-findings.json (default ./sonar-findings.json). */
+  findingsPath: string | null;
+  /** --watch-timeout <seconds>: how long to poll before giving up (default 300 = 5min). */
+  watchTimeoutSec: number;
 }
 
 function parseArgs(): Args {
@@ -58,6 +70,12 @@ function parseArgs(): Args {
     noInstall: false,
     interactive: false,
     technical: false,
+    focus: null,
+    noFail: false,
+    autoIngest: false,
+    watch: false,
+    findingsPath: null,
+    watchTimeoutSec: 300,
   };
   const argv = process.argv.slice(2);
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -87,6 +105,21 @@ function parseArgs(): Args {
       case "--no-install": a.noInstall = true; break;
       case "--interactive": a.interactive = true; break;
       case "--technical": a.technical = true; break;
+      case "--focus": a.focus = argv[++i]; break;
+      case "--no-fail": a.noFail = true; break;
+      case "--auto-ingest": a.autoIngest = true; break;
+      case "--watch": a.watch = true; break;
+      case "--findings-path": a.findingsPath = argv[++i]; break;
+      case "--watch-timeout": {
+        const raw = argv[++i];
+        const n = Number(raw);
+        if (!Number.isFinite(n) || n <= 0) {
+          console.error(`❌ --watch-timeout expects seconds > 0 (got '${raw}')`);
+          process.exit(1);
+        }
+        a.watchTimeoutSec = n;
+        break;
+      }
       case "--help":
         console.log(`BMAD Sonar Scan Agent
 
@@ -114,6 +147,33 @@ Options:
   --no-preflight         Suppress the preflight advisory
   --list-engines         List available rule packs (one per stack)
   --help                 Show this help
+
+Focus filter (Sonar categories):
+  --focus <csv>          Restrict the ingest report + rating math to a subset of the
+                         6 Sonar categories. Accepted tokens (comma-separated):
+                           bugs, vulnerabilities, hotspots, smells, duplications, complexity
+                         Examples:
+                           --focus vulnerabilities,hotspots
+                           --focus complexity
+                         Default (flag omitted): all 6 categories (current behavior).
+                         Step 1 (LLM scan): SKILL.md instructs the LLM to emit only the
+                         requested categories when --focus is set; this CLI cannot enforce
+                         that but WILL filter the ingest input to match.
+
+CI Quality Gate:
+  --no-fail              Never exit non-zero on Quality Gate FAIL (default behaviour prior
+                         to v1.1). Opt-out for CI configs that use their own gate logic.
+                         Default: on Quality Gate FAIL the process exits with code 1.
+
+Two-step chaining:
+  --auto-ingest          Wait for sonar-findings.json to appear in the CWD (or at
+                         --findings-path), then automatically run Step 2 (ingest).
+                         Step 1 (LLM scan) is LLM-driven — this dispatcher cannot invoke
+                         it. Instead: run 'sonar scan my project at <path>' in the AI
+                         chat, and this CLI will pick up the JSON as soon as it lands.
+  --watch                Alias of --auto-ingest.
+  --findings-path <path> Where to look for sonar-findings.json (default: ./sonar-findings.json).
+  --watch-timeout <sec>  How long to poll before giving up (default: 300 seconds / 5 min).
 
 Install control (first-run):
   --yes-install         Install missing dependencies without confirmation.
@@ -270,10 +330,35 @@ async function main(): Promise<void> {
     if (args.preflight) return;
   }
 
+  // ── --auto-ingest / --watch: poll for sonar-findings.json ──────────────
+  // Step 1 is LLM-driven and cannot be launched from here. Instead, we watch
+  // the filesystem for the JSON the AI chat writes; once it appears we hand
+  // off to the normal ingest path.
+  const wantWatch = args.autoIngest || args.watch;
+  if (wantWatch && !args.ingestJson) {
+    const watchTarget = resolve(args.findingsPath ?? join(projectPath, "sonar-findings.json"));
+    process.stderr.write(
+      `[sonar-auto-ingest] Two-step mode: run 'sonar scan my project at ${projectPath}' in the AI chat to produce sonar-findings.json, then this dispatcher will auto-ingest.\n`,
+    );
+    process.stderr.write(
+      `[sonar-auto-ingest] Watching for ${watchTarget} (timeout ${args.watchTimeoutSec}s, poll every 2s)…\n`,
+    );
+    const foundPath = await pollForFile(watchTarget, args.watchTimeoutSec * 1000, 2000);
+    if (!foundPath) {
+      console.error(
+        `❌ [sonar-auto-ingest] Timed out after ${args.watchTimeoutSec}s waiting for ${watchTarget}. Rerun once the LLM scan has written it.`,
+      );
+      process.exit(1);
+    }
+    process.stderr.write(`[sonar-auto-ingest] Found ${foundPath} — proceeding to ingest.\n`);
+    args.ingestJson = foundPath;
+  }
+
   if (!args.ingestJson) {
     console.error("❌ --ingest <findings.json> is required for Step 2.");
     console.error("   Run the LLM scan step first (via BMAD skill workflow) to produce sonar-findings.json.");
     console.error("   Tip: rerun with --interactive to be prompted step-by-step, or add 'mode: interactive' to .bmad/intake.yaml.");
+    console.error("   Tip: rerun with --auto-ingest (or --watch) to poll for the file automatically.");
     process.exit(1);
   }
 
@@ -297,7 +382,19 @@ async function main(): Promise<void> {
     argv: process.argv,
     role: resolvedRoleCode,
     roleFromCli: args.role !== undefined && args.role !== "",
+    focus: args.focus,
+    noFail: args.noFail,
   });
+}
+
+/** Poll for `target` to exist. Returns absolute path on success, null on timeout. */
+async function pollForFile(target: string, timeoutMs: number, intervalMs: number): Promise<string | null> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (existsSync(target)) return target;
+    await new Promise((r) => setTimeout(r, intervalMs));
+  }
+  return null;
 }
 
 main().catch((err) => {

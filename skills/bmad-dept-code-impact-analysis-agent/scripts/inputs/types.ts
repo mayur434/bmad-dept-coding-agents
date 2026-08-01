@@ -8,7 +8,7 @@
 export interface InputItem {
   /** Stable id (BUG-1234 / REQ-07 / row index). */
   id: string;
-  kind: "bug" | "requirement";
+  kind: "bug" | "requirement" | "pr";
   title: string;
   description: string;
   /** Optional module/component/label hint that narrows the search. */

@@ -89,8 +89,8 @@ function resolveRulePackPaths(): { ams: string; acs: string } {
   ];
 
   for (const base of candidates) {
-    const ams = path.join(base, 'aemams', 'rules.md');
-    const acs = path.join(base, 'aemcs', 'rules.md');
+    const ams = path.join(base, 'aem', 'aemams', 'rules.md');
+    const acs = path.join(base, 'aem', 'aemcs', 'rules.md');
     if (fs.existsSync(ams) || fs.existsSync(acs)) {
       return { ams, acs };
     }
@@ -99,8 +99,8 @@ function resolveRulePackPaths(): { ams: string; acs: string } {
   // Fallback: absolute path from workspace root
   const workspaceRoot = path.resolve(scriptDir, '..', '..', '..');
   return {
-    ams: path.join(workspaceRoot, 'resources', 'rule-packs', 'aemams', 'rules.md'),
-    acs: path.join(workspaceRoot, 'resources', 'rule-packs', 'aemcs', 'rules.md'),
+    ams: path.join(workspaceRoot, 'resources', 'rule-packs', 'aem', 'aemams', 'rules.md'),
+    acs: path.join(workspaceRoot, 'resources', 'rule-packs', 'aem', 'aemcs', 'rules.md'),
   };
 }
 

@@ -95,6 +95,8 @@ async function main(): Promise<void> {
     console.log("  npx ts-node run.ts --role <code>                 Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content");
     console.log("                                                   (persisted at <project>/.bmad/role.yaml; --role wins for one run)");
     console.log("  npx ts-node run.ts --list-engines                Show available engines");
+    console.log("  npx ts-node run.ts --since <ref|ts|last>         Regression / delta vs a prior cached audit run");
+    console.log("                                                   (git ref, ISO-8601 timestamp, or 'last')");
     console.log("\nInstall control (first-run):");
     console.log("  --yes-install         Install missing dependencies without confirmation.");
     console.log("  --no-install          Error out if dependencies missing (do not install).");
