@@ -4,7 +4,14 @@ description = "AI-driven code generation across the 8 supported stacks (aem, com
 version = "1.1.0"
 
 [skill.tools]
-required = ["claude-code"]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.). Discover the full list with
+# `npx bmad-method install --list-tools`.
+required = ["*"]
 
 [skill.activation]
 keywords = ["generate", "create component", "scaffold", "sling model", "htl", "osgi service", "content fragment model", "experience fragment", "editable template", "dispatcher config", "cloud manager", "unit test", "aem component", "magento module", "commerce module", "commerce plugin", "plugin interceptor", "observer", "graphql resolver", "admin grid", "admin form", "storefront block", "console command", "cron job", "message queue", "db_schema", "webapi", "rest api", "commerce test", "eav attribute", "sling", "spring", "spring boot", "app builder", "commerce saas", "eds", "eds commerce", "set role", "switch role", "what's my role", "show my role", "role catalog"]

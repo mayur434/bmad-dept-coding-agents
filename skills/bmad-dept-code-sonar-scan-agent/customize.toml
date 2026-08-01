@@ -4,7 +4,14 @@ description = "LLM-driven SonarQube-style code quality analysis for Adobe Commer
 version = "1.0.0"
 
 [skill.tools]
-required = ["claude-code"]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.). Discover the full list with
+# `npx bmad-method install --list-tools`.
+required = ["*"]
 
 [skill.activation]
 keywords = ["sonar", "sonar scan", "code quality", "vulnerability scan", "security hotspot", "code smell", "reliability rating", "quality gate", "duplication", "cognitive complexity", "sonarqube", "sonarcloud", "code vulnerabilities", "security scan", "aem", "commerce", "commerce saas", "sling", "spring", "app builder", "eds", "eds commerce", "set role", "switch role", "what's my role", "show my role", "role catalog"]

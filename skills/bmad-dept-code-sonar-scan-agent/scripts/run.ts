@@ -16,10 +16,14 @@
 
 import { resolve, join, basename } from "path";
 import { existsSync } from "fs";
-import { PROFILES, profileById, detectProfile } from "./engines/profiles";
-import { ingest } from "./sonar/ingest";
-import { runPreflight, renderPreflight } from "../../shared/preflight";
+// Node-core-only + role/install (dep-free) imports are safe on first run.
+// Every other shared/* and local module that transitively requires
+// third-party packages (exceljs, fast-glob, mammoth) is loaded lazily
+// via require() inside main() AFTER ensureDepsInstalled().
 import { resolveRole, parseRoleFlag } from "../../shared/role";
+import { ensureDepsInstalled } from "../../shared/install";
+import { resolveIntake, askAll, confirmRun, Question } from "../../shared/interactive";
+import { PROFILES, profileById, detectProfile } from "./engines/profiles";
 
 interface Args {
   path: string;
@@ -32,6 +36,10 @@ interface Args {
   noPreflight: boolean;
   createBranch: boolean;
   sourceBranch: string | null;
+  yesInstall: boolean;
+  noInstall: boolean;
+  interactive: boolean;
+  technical: boolean;
 }
 
 function parseArgs(): Args {
@@ -46,6 +54,10 @@ function parseArgs(): Args {
     noPreflight: false,
     createBranch: false,
     sourceBranch: null,
+    yesInstall: false,
+    noInstall: false,
+    interactive: false,
+    technical: false,
   };
   const argv = process.argv.slice(2);
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -71,6 +83,10 @@ function parseArgs(): Args {
       case "--no-preflight": a.noPreflight = true; break;
       case "--create-branch": a.createBranch = true; break;
       case "--source-branch": a.sourceBranch = argv[++i]; break;
+      case "--yes-install": a.yesInstall = true; break;
+      case "--no-install": a.noInstall = true; break;
+      case "--interactive": a.interactive = true; break;
+      case "--technical": a.technical = true; break;
       case "--help":
         console.log(`BMAD Sonar Scan Agent
 
@@ -97,7 +113,18 @@ Options:
   --preflight            Print LLM/context advisory and exit
   --no-preflight         Suppress the preflight advisory
   --list-engines         List available rule packs (one per stack)
-  --help                 Show this help`);
+  --help                 Show this help
+
+Install control (first-run):
+  --yes-install         Install missing dependencies without confirmation.
+  --no-install          Error out if dependencies missing (do not install).
+                        Default: prompt for confirmation on first run.
+
+Intake mode:
+  --interactive         Prompt step-by-step for missing inputs; persist choice to .bmad/intake.yaml.
+  --technical           Force technical mode; missing required inputs error out (current default).
+                        Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),
+                        falling back to technical when the file is absent.`);
         process.exit(0);
     }
   }
@@ -107,6 +134,15 @@ Options:
 async function main(): Promise<void> {
   const args = parseArgs();
 
+  if (args.yesInstall && args.noInstall) {
+    console.error("❌ --yes-install and --no-install are mutually exclusive.");
+    process.exit(1);
+  }
+  if (args.interactive && args.technical) {
+    console.error("❌ --interactive and --technical are mutually exclusive.");
+    process.exit(1);
+  }
+
   if (args.listEngines) {
     console.log("Available sonar-scan rule packs:\n");
     for (const p of PROFILES) {
@@ -114,6 +150,86 @@ async function main(): Promise<void> {
     }
     console.log("  (aliases: aemcs, aemams → aem; commerce → commerce-paas)");
     return;
+  }
+
+  // First-run dependency check. Runs BEFORE the heavy modules are
+  // require()'d below — sonar/ingest and shared/preflight transitively
+  // need exceljs / fast-glob.
+  const bootstrap = await ensureDepsInstalled({
+    agentName: "sonar-scan",
+    yes: args.yesInstall,
+    no: args.noInstall,
+  });
+  if (bootstrap.exitCode !== 0) process.exit(bootstrap.exitCode);
+
+  // Lazy loads — safe now that node_modules is guaranteed present.
+  const { ingest } = require("./sonar/ingest") as typeof import("./sonar/ingest");
+  const { runPreflight, renderPreflight } = require("../../shared/preflight") as typeof import("../../shared/preflight");
+
+  // ── Intake mode: --interactive prompts for missing inputs; --technical is
+  // the current (silent-error) default. Persisted at <project>/.bmad/intake.yaml.
+  const intakeRoot = args.path && args.path !== "." ? resolve(args.path) : process.cwd();
+  const intake = resolveIntake({
+    projectRoot: intakeRoot,
+    cliFlag: args.interactive ? "interactive" : args.technical ? "technical" : undefined,
+  });
+  process.stderr.write(`[dca-interactive] intake mode: ${intake.mode} (source: ${intake.source})\n`);
+
+  if (intake.mode === "interactive") {
+    const questions: Question[] = [
+      { key: "path", prompt: "What's the project path?", default: process.cwd() },
+      {
+        key: "engine",
+        prompt: "Which stack?",
+        choices: ["auto", "aem", "commerce-paas", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"],
+        default: "auto",
+      },
+      {
+        key: "ingest-existing",
+        prompt: "Do you already have a sonar-findings.json to ingest? (n runs Step 1 LLM scan; y ingests an existing file)",
+        choices: ["y", "n"],
+        default: "n",
+      },
+      {
+        key: "ingest",
+        prompt: "Path to sonar-findings.json",
+        when: (a) => a["ingest-existing"] === "y",
+      },
+      {
+        key: "create-branch",
+        prompt: "Cut a working branch from production?",
+        choices: ["y", "n"],
+        default: "y",
+      },
+    ];
+    const existing: Record<string, string | undefined> = {
+      path: args.path && args.path !== "." ? args.path : undefined,
+      engine: args.engine ?? undefined,
+      ingest: args.ingestJson ?? undefined,
+    };
+    const answers = await askAll({ questions, existing });
+    if (answers.path && (args.path === "." || !args.path)) args.path = answers.path;
+    if (answers.engine && answers.engine !== "auto" && !args.engine) args.engine = answers.engine;
+    if (answers.ingest && !args.ingestJson) args.ingestJson = answers.ingest;
+    if (answers["ingest-existing"] === "n") {
+      process.stderr.write(
+        "[dca-interactive] Note: this is Step 1 of a 2-step run — the LLM scan writes sonar-findings.json (see SKILL.md), then re-run with --ingest to produce the report.\n",
+      );
+    }
+    if (answers["create-branch"] === "y") process.argv.push("--create-branch");
+
+    const summaryCmd = [
+      "npx ts-node run.ts",
+      args.path ? `--path ${args.path}` : "",
+      args.engine ? `--engine ${args.engine}` : "",
+      args.ingestJson ? `--ingest ${args.ingestJson}` : "",
+      answers["create-branch"] === "y" ? "--create-branch" : "",
+    ].filter(Boolean).join(" ");
+    const proceed = await confirmRun(summaryCmd);
+    if (!proceed) {
+      console.log("[dca-interactive] Copy the command above to run manually. Exiting.");
+      return;
+    }
   }
 
   const projectPath = resolve(args.path);
@@ -157,6 +273,7 @@ async function main(): Promise<void> {
   if (!args.ingestJson) {
     console.error("❌ --ingest <findings.json> is required for Step 2.");
     console.error("   Run the LLM scan step first (via BMAD skill workflow) to produce sonar-findings.json.");
+    console.error("   Tip: rerun with --interactive to be prompted step-by-step, or add 'mode: interactive' to .bmad/intake.yaml.");
     process.exit(1);
   }
 

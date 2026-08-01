@@ -96,7 +96,13 @@ If you are trying to *author or extend* the plugin (add a new stack engine, add 
 
 ### AI coding tool
 
-The plugin is designed for **Claude Code** (the reference host — every install command uses `--tools claude-code`). Because it is a BMAD module, other BMAD-compatible tools should work in principle — the framework itself claims support for tools like **Cursor**, **VS Code + Copilot**, and other IDEs — but the reference test bed is Claude Code. If you install into a different host, verify the activation keywords in each agent's `customize.toml` are honored and confirm the CLI dispatch path with a smoke run (see [§3](#3-install)).
+The plugin works with **any AI coding assistant BMAD Method supports** — 44+ tools including **Claude Code**, **Cursor**, **GitHub Copilot** (VS Code), **Codex**, **Cline**, **Windsurf**, **Gemini CLI**, **Roo Code**, **Kilo**, **Sourcegraph Amp**, **Kiro**, **Junie**, **Warp**, **Zencoder**, **Qwen Coder**, and more. Pass the tool ID via `--tools <id>` when installing (see [§3](#3-install)). Discover the full list — with each tool's install directory — via:
+
+```bash
+npx bmad-method install --list-tools
+```
+
+**Claude Code is the reference test bed** (every install example in this doc uses `--tools claude-code`), and the four BMAD-recommended tools are `claude-code`, `cursor`, `github-copilot`, and `codex`. Other tools should work in principle — SKILL.md prose is tool-agnostic, activation keywords are enforced by whatever host reads `customize.toml`, and the bootstrap script resolves its own path from `dirname "$0"` — but if you install into a non-reference host, do a smoke run per [§3](#3-install) to confirm the CLI dispatch path resolves under whichever directory that tool uses (see the tool-directory table below).
 
 ### Recommended
 
@@ -124,6 +130,35 @@ npx bmad-method install \
   --yes
 ```
 
+#### Installing for tools other than Claude Code
+
+The `--tools` value chooses which AI coding assistant this install targets. Substitute `--tools <id>` in the block above with any BMAD-supported tool ID:
+
+| Tool | `--tools <id>` | Installed under |
+|------|----------------|-----------------|
+| Claude Code (default, recommended) | `claude-code` | `.claude/skills/` |
+| Cursor (recommended) | `cursor` | `.agents/skills/` |
+| GitHub Copilot — VS Code (recommended) | `github-copilot` | `.agents/skills/` |
+| Codex (recommended) | `codex` | `.agents/skills/` |
+| Cline | `cline` | `.cline/skills/` |
+| Windsurf | `windsurf` | `.agents/skills/` |
+| Gemini CLI | `gemini` | `.agents/skills/` |
+| Roo Code | `roo` | `.agents/skills/` |
+| Sourcegraph Amp | `amp` | `.agents/skills/` |
+| Kiro | `kiro` | `.kiro/skills/` |
+| Junie | `junie` | `.junie/skills/` |
+| Warp | `warp` | `.agents/skills/` |
+| Zencoder | `zencoder` | `.zencoder/skills/` |
+| Qwen Coder | `qwen` | `.qwen/skills/` |
+
+30+ additional tools are supported (KiloCoder, CodeBuddy, CodeWhale, Mistral Vibe, Kimi Code, OpenHands, OpenCode, Ona, Replit, Rovo Dev, Trae, Kode, iFlow, and others). Get the exhaustive list — including each tool's exact install directory — with:
+
+```bash
+npx bmad-method install --list-tools
+```
+
+The plugin auto-adapts: SKILL.md is tool-agnostic, and the bootstrap script (`shared/bootstrap.sh`) resolves its own path from `dirname "$0"` so it works regardless of where BMAD placed it. Wherever this manual writes `.claude/skills/…`, replace it with your tool's directory (see the "Non-Claude tools" note under the auto-install section below).
+
 ### Fresh install (from a local clone)
 
 Point `--custom-source` at the repo's **`skills/`** folder, not the repo root:
@@ -140,9 +175,41 @@ npx bmad-method install \
   --yes
 ```
 
-### Post-install: install dependencies
+### Post-install: dependencies (auto-install on first use)
 
-Every agent depends on the top-level **`shared/`** foundation (`@bmad/dca-shared`) — install it FIRST, then each agent's `scripts/` folder you intend to use:
+Every agent depends on the top-level **`shared/`** foundation (`@bmad/dca-shared`) plus its own `scripts/` folder. **You do not need to install these by hand.** The first time you invoke any agent, a bootstrap step detects missing `node_modules` and asks — on a single line — whether to install:
+
+> `[dca-bootstrap] First-run dependency install needed — ~80MB across shared/ and <agent>/ (~30–60s). Proceed? (Y/n)`
+
+Answer **Y** (or press Enter) and the bootstrap installs `shared/` first, then this agent's `scripts/`, both silently. Subsequent runs are silent no-ops. The install is roughly ~80MB total — most of it is the `tree-sitter-wasms` bundle and `web-tree-sitter` under `shared/`, the rest is per-agent dependencies. Typical wall-clock time is 30–60 seconds on a normal network.
+
+**Bootstrap script.** The dispatcher shells out to `skills/shared/bootstrap.sh` (POSIX) — a Node twin (`bootstrap.js`) ships alongside it for Windows. Direct invocation:
+
+```bash
+bash .claude/skills/shared/bootstrap.sh <agent-name> [--yes|--no]
+```
+
+> **Non-Claude tools use a different path.** For Cursor / Copilot / Codex / most tools the base is `.agents/skills/` (BMAD's shared bucket); for tools that isolate to their own folder it's `.cline/skills/`, `.kiro/skills/`, `.junie/skills/`, `.zencoder/skills/`, etc. If unsure, run `find . -name 'shared' -path '*bmad-dept*' -type d 2>/dev/null` (or the broader `find . -type d -name 'bmad-dept-code-audit-agent' 2>/dev/null | head`) from the project root to locate the shared foundation. Substitute that path for `.claude/skills/` throughout this manual. The bootstrap script itself is path-agnostic.
+
+Where `<agent-name>` is one of: `audit`, `sonar-scan`, `generation`, `impact-analysis`, `test-coverage`. Exit codes:
+
+| Code | Meaning |
+|------|---------|
+| `0`  | Success (installed) or silent no-op (deps already present). |
+| `2`  | Deps missing and `--no` was passed — nothing was installed. |
+| `3`  | User declined the interactive prompt. |
+| `4`  | `npm install` errored — inspect the printed npm output. |
+
+**Dispatcher flags (equivalent to bootstrap `--yes` / `--no`).** Every agent's `run.ts` accepts two mutually exclusive flags that get forwarded to the bootstrap:
+
+- `--yes-install` — skip the prompt and install any missing deps. Use in CI or non-interactive scripts.
+- `--no-install` — never install; exit with code 2 if anything is missing. Use in air-gapped environments where you pre-populate `node_modules`.
+
+Both flags are documented per-agent in [Appendix B](#appendix-b--full-cli-flag-reference).
+
+#### Manual fallback (CI / headless / air-gapped)
+
+If you'd rather run the installs yourself — e.g. in CI without a TTY, in an air-gapped environment where you'll pre-populate `node_modules`, or when the interactive prompt confuses your automation — install `shared/` FIRST, then each agent's `scripts/` folder you intend to use:
 
 ```bash
 # 1. shared foundation (required by every agent)
@@ -156,9 +223,9 @@ cd .claude/skills/bmad-dept-code-impact-analysis-agent/scripts && npm install
 cd .claude/skills/bmad-dept-code-test-coverage-agent/scripts   && npm install
 ```
 
-Each agent's `SKILL.md` also contains a pre-flight step that auto-installs missing `node_modules` silently on first run — pre-installing manually just saves you the wait on the first invocation.
+Prefer this when running in CI without a TTY, in an air-gapped environment where you'll pre-populate `node_modules`, or when the interactive prompt confuses your automation.
 
-### Two verification steps every consumer should run
+### Three verification steps every consumer should run
 
 **1. Confirm the install path.** Depending on your host's layout, skills may land in `.claude/skills/…` (Claude Code default) or `bmad/dca/agents/…` (some BMAD installers). Locate one agent so you know where the rest live:
 
@@ -176,6 +243,14 @@ npx ts-node run.ts --help
 ```
 
 You should see the audit help text listing `--path`, `--engine`, `--format`, `--list-engines`, etc.
+
+**3. Confirm dependencies are healthy without installing anything.** Run the bootstrap in `--no` mode against any agent — it exits `0` if `shared/` + that agent's `scripts/` `node_modules` are both present, or exits `2` if anything is missing (nothing is installed):
+
+```bash
+bash .claude/skills/shared/bootstrap.sh audit --no
+```
+
+Useful in CI pre-flight, air-gapped smoke checks, and when debugging "why did my agent try to install on run N?".
 
 ### Update
 
@@ -1175,6 +1250,8 @@ Use for: AMS → AEMaaCS migration prep. Focuses the LLM on cloud-readiness gaps
 |---------|--------------------|
 | **Can't find `.claude/skills/…`** — the CLI paths in this manual don't resolve. | Depending on your BMAD installer's layout, skills may install to `bmad/dca/agents/…` instead. Locate one agent with `find . -type d -name "bmad-dept-code-audit-agent"` and use that path as the base. |
 | **`Error: Cannot find module 'web-tree-sitter'`** or WASM load errors on first Tier-1 scan. | Dependencies weren't installed. Run `cd .claude/skills/shared && npm install`, then repeat for the specific agent's `scripts/` folder. Confirm Node.js is ≥ v20.12 — older Node can't load the WASM. |
+| **Bootstrap declined but agent won't proceed.** — The agent exits with code `3` after you answered `n` to the first-run install prompt. | Rerun the agent with `--yes-install` to force the install, or run the [manual fallback](#manual-fallback-ci--headless--air-gapped) sequence, then retry the agent. If you meant to opt out permanently in this environment, use `--no-install` instead so the exit reason is unambiguous (code `2`, "deps missing"). |
+| **Install fails behind a corporate proxy.** — `[dca-bootstrap]` errors out with `npm` proxy / registry connection errors. | The bootstrap uses `npm install` under the hood. Before the first agent invocation, set `npm config set proxy http://your-proxy` and `npm config set https-proxy http://your-proxy` (or export `HTTP_PROXY` / `HTTPS_PROXY`). If your team already provisions proxy settings via `NPM_CONFIG_*` env vars, run the [manual fallback](#manual-fallback-ci--headless--air-gapped) sequence with those exported, then retry the agent with `--no-install` to confirm it now no-ops silently. |
 | **`Error: --ingest <findings.json> is required for Step 2`** on Sonar Scan. | You ran Step 2 without Step 1. Trigger the LLM scan first (chat: `sonar scan my project`) so `sonar-findings.json` is written to the configured `sonar_output` directory, then re-run `--ingest`. |
 | **MCP server not connecting** (Code Generation LLM/MCP path). | Run `npx ts-node run.ts --setup` from the generation agent's `scripts/` folder. Confirm `.mcp.json`, `.bmad/mcp-registry.toml`, and `.env` were written at your project root. Then restart your host (Claude Code / IDE) so it re-reads `.mcp.json`. |
 | **Preflight recommends LLM but project is huge** — or **recommends STATIC even though project is small**. | The advisor uses the assumed context window from env vars — the model detection may be wrong. Verify by running `--preflight` alone and reading the printed model. Override the assumption by exporting the `BMAD_TOKEN_BUDGET_TOTAL` env var, or just ignore the advisory (it never blocks). |
@@ -1185,6 +1262,7 @@ Use for: AMS → AEMaaCS migration prep. Focuses the LLM on cloud-readiness gaps
 | **`No auto-detect match`** — the dispatcher errored out. | Pass `--engine <id>` explicitly. If your project genuinely doesn't match any of the 8, confirm you're in the right directory (`--path`). |
 | **Audit's `--bugs` didn't accept my file** vs. **Impact Analysis's `--bugs` did**. | The two `--bugs` flags accept different formats. Audit's Commerce engine `--bugs` is an `.xlsx` bug report; Impact Analysis's `--bugs` is a Proofhub CSV export. Use the format the agent's docs specify. |
 | **Sonar's Vulnerabilities sheet is empty even though the LLM found issues**. | The LLM must set `category: "Vulnerability"` (or `"Security Hotspot"`) on each finding in `sonar-findings.json`. Open the JSON and check the `category` field; the ingest step routes rows to the Vulnerabilities sheet by that string. |
+| **"Which tool is the plugin installed under?"** — the CLI paths in this manual don't match what you see on disk. | Run `find . -name 'bmad-dept-code-audit-agent' -type d 2>/dev/null \| head` from the project root; the path prefix tells you (`.claude/skills/` → Claude Code, `.agents/skills/` → Cursor/Copilot/Codex/most tools, `.cline/skills/` → Cline, `.kiro/skills/` → Kiro, `.junie/skills/` → Junie, etc.). All bootstrap and `run.ts` invocations work from any of these paths — substitute the prefix in every command in this manual. |
 
 Additional troubleshooting prompts (copy-paste to the agent chat) live in [PROMPTS.md §8](PROMPTS.md).
 
@@ -1345,6 +1423,8 @@ Every documented CLI flag across all five agents. **Applicable agents** column: 
 | `--source-branch <name>` | A, S, G, I, T | string | auto | Base branch for `--create-branch`. Default cascade: `production → main → master → develop`. | |
 | `--preflight` | A, S, G, I, T | bool | false | Print the model/context advisory and exit. | See [§8](#8-preflight-mode-static--llm--hybrid). |
 | `--no-preflight` | A, S, G, I, T | bool | false | Suppress the preflight advisory that otherwise prints on every run. | |
+| `--yes-install` | A, S, G, I, T | bool | false | Skip the first-run install confirmation prompt; always install missing deps. | Mutually exclusive with `--no-install`. For CI or scripts. See [§3 Post-install](#3-install). |
+| `--no-install` | A, S, G, I, T | bool | false | Do not install missing deps; error out if any are missing. | Mutually exclusive with `--yes-install`. Exit code 2 if deps missing. For air-gapped environments. See [§3 Post-install](#3-install). |
 | `--role <code>` | A, S, G, I, T | enum | resolved from `.bmad/role.yaml` or `generic` | Override the resolved role for this run. One of: `ea`, `tl`, `de`, `qa`, `devops`, `security`, `pm`, `ba`, `migration`, `content`, `generic`. Per-run only — does NOT persist. | See [§4a](#4a-role-based-operation-new) for role definitions and adaptation behavior. |
 | `--help` / `-h` | A, S, G, I, T | bool | false | Show help. | |
 

@@ -8,10 +8,13 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { scaffold, GENERATORS, listTypes } from "./scaffold";
-import { runPreflight, renderPreflight } from "../../shared/preflight";
-import { maybeCutStandardBranch } from "../../shared/output";
+// Node-core-only + role/install (dep-free) imports are safe on first run.
+// scaffold, shared/preflight, and shared/output transitively require
+// third-party packages (mammoth, fast-glob, exceljs, etc.) and MUST be
+// loaded lazily via require() below AFTER ensureDepsInstalled().
 import { resolveRole, parseRoleFlag } from "../../shared/role";
+import { ensureDepsInstalled } from "../../shared/install";
+import { resolveIntake, askAll, confirmRun, Question } from "../../shared/interactive";
 
 const SKILL_ROOT = path.resolve(__dirname, "..");
 const ASSETS_DIR = path.join(SKILL_ROOT, "assets");
@@ -166,6 +169,8 @@ function flag(args: string[], name: string): string | undefined {
 }
 
 function listScaffoldTypes(): void {
+  // Lazy-require: needs node_modules (ensureDepsInstalled already ran).
+  const { GENERATORS, listTypes } = require("./scaffold") as typeof import("./scaffold");
   console.log("Deterministic scaffolders (npx ts-node run.ts --scaffold --engine <stack> --type <type> --name <Name>):");
   for (const stack of Object.keys(GENERATORS)) {
     console.log(`  ${stack}:`);
@@ -177,6 +182,41 @@ function listScaffoldTypes(): void {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const projectRoot = path.resolve(flag(args, "--path") ?? ".");
+
+  const yesInstall = args.includes("--yes-install");
+  const noInstall = args.includes("--no-install");
+  if (yesInstall && noInstall) {
+    console.error("❌ --yes-install and --no-install are mutually exclusive.");
+    process.exit(1);
+  }
+  const interactiveFlag = args.includes("--interactive");
+  const technicalFlag = args.includes("--technical");
+  if (interactiveFlag && technicalFlag) {
+    console.error("❌ --interactive and --technical are mutually exclusive.");
+    process.exit(1);
+  }
+
+  // Print help without touching node_modules — allow --help before install.
+  const helpOnly = args.includes("--help") || args.includes("-h");
+  if (helpOnly && !args.includes("--scaffold") && !args.includes("--setup") && !args.includes("--detect") && !args.includes("--list-types") && !args.includes("--list-templates")) {
+    printGenerationHelp();
+    return;
+  }
+
+  // First-run dependency check. Runs BEFORE the heavy shared/* modules and
+  // ./scaffold are require()'d below — they transitively need mammoth,
+  // fast-glob, exceljs, etc.
+  const bootstrap = await ensureDepsInstalled({
+    agentName: "generation",
+    yes: yesInstall,
+    no: noInstall,
+  });
+  if (bootstrap.exitCode !== 0) process.exit(bootstrap.exitCode);
+
+  // Lazy loads — safe now that node_modules is guaranteed present.
+  const { scaffold } = require("./scaffold") as typeof import("./scaffold");
+  const { runPreflight, renderPreflight } = require("../../shared/preflight") as typeof import("../../shared/preflight");
+  const { maybeCutStandardBranch } = require("../../shared/output") as typeof import("../../shared/output");
 
   // ── Role resolution (--role flag > .bmad/role.yaml > generic fallback) ──
   // Accepts both `--role=ea` and `--role ea` via the shared helper.
@@ -200,6 +240,81 @@ async function main(): Promise<void> {
     `[dca-role] ${resolvedRole.role.name} (source: ${resolvedRole.source})\n`,
   );
 
+  // ── Intake mode: --interactive prompts for missing inputs; --technical is
+  // the current (silent-error) default. Persisted at <project>/.bmad/intake.yaml.
+  const intake = resolveIntake({
+    projectRoot,
+    cliFlag: interactiveFlag ? "interactive" : technicalFlag ? "technical" : undefined,
+  });
+  process.stderr.write(`[dca-interactive] intake mode: ${intake.mode} (source: ${intake.source})\n`);
+
+  if (intake.mode === "interactive" && !args.includes("--setup") && !args.includes("--detect") && !args.includes("--list-templates") && !args.includes("--list-types")) {
+    const { GENERATORS, listTypes: listTypesFn } = require("./scaffold/generators") as typeof import("./scaffold/generators");
+    const stackChoices = Object.keys(GENERATORS);
+    const questions: Question[] = [
+      { key: "path", prompt: "What's the project path?", default: process.cwd() },
+      {
+        key: "engine",
+        prompt: "Which stack?",
+        choices: stackChoices,
+      },
+      {
+        key: "type",
+        prompt: "What type of artifact?",
+        choices: [],
+        when: () => true,
+      },
+      { key: "name", prompt: "What name? (e.g. HeroBanner, OrderService)" },
+      { key: "package", prompt: "Package/namespace override (Enter to use detected default)", optional: true },
+      {
+        key: "dry-run",
+        prompt: "Dry run (preview only) or actually create files?",
+        choices: ["y", "n"],
+        default: "n",
+      },
+    ];
+    // Type choices depend on the engine picked at runtime — patch the choices
+    // list in place after the engine question is answered by using `when` to
+    // reset choices on each iteration.
+    const dynamicTypeQ = questions[2]!;
+    dynamicTypeQ.when = (a) => {
+      const engine = a.engine;
+      dynamicTypeQ.choices = engine ? listTypesFn(engine) : [];
+      return true;
+    };
+    const existing: Record<string, string | undefined> = {
+      path: projectRoot !== process.cwd() ? projectRoot : undefined,
+      engine: flag(args, "--engine"),
+      type: flag(args, "--type"),
+      name: flag(args, "--name"),
+      package: flag(args, "--package"),
+    };
+    const answers = await askAll({ questions, existing });
+    // Force scaffold dispatch below.
+    if (!args.includes("--scaffold")) args.push("--scaffold");
+    if (answers.engine && !flag(args, "--engine")) args.push("--engine", answers.engine);
+    if (answers.type && !flag(args, "--type")) args.push("--type", answers.type);
+    if (answers.name && !flag(args, "--name")) args.push("--name", answers.name);
+    if (answers.package && !flag(args, "--package")) args.push("--package", answers.package);
+    if (answers["dry-run"] === "y" && !args.includes("--dry-run")) args.push("--dry-run");
+
+    const summaryCmd = [
+      "npx ts-node run.ts",
+      "--scaffold",
+      "--path", projectRoot,
+      "--engine", flag(args, "--engine") ?? "",
+      "--type", flag(args, "--type") ?? "",
+      "--name", flag(args, "--name") ?? "",
+      flag(args, "--package") ? `--package ${flag(args, "--package")}` : "",
+      answers["dry-run"] === "y" ? "--dry-run" : "",
+    ].filter(Boolean).join(" ");
+    const proceed = await confirmRun(summaryCmd);
+    if (!proceed) {
+      console.log("[dca-interactive] Copy the command above to run manually. Exiting.");
+      return;
+    }
+  }
+
   if (args.includes("--setup")) {
     console.log("⚡ BMAD Code Generation Agent — MCP Setup");
     console.log(`   Project: ${projectRoot}\n`);
@@ -216,6 +331,7 @@ async function main(): Promise<void> {
     const name = flag(args, "--name");
     if (!stack || !type || !name) {
       console.error("❌ --scaffold requires --engine <stack> --type <type> --name <Name>");
+      console.error("   Tip: rerun with --interactive to be prompted step-by-step, or add 'mode: interactive' to .bmad/intake.yaml.");
       listScaffoldTypes();
       process.exit(1);
     }
@@ -239,8 +355,12 @@ async function main(): Promise<void> {
     return;
   }
 
+  printGenerationHelp(projectRoot);
+}
+
+function printGenerationHelp(projectRoot?: string): void {
   console.log("⚡ BMAD Code Generation Agent");
-  console.log(`   Path: ${projectRoot}`);
+  if (projectRoot) console.log(`   Path: ${projectRoot}`);
   console.log("\nUsage:");
   console.log("  --setup                       Install MCP config for LLM/MCP generation");
   console.log("  --detect                      Detect project structure");
@@ -262,6 +382,15 @@ async function main(): Promise<void> {
   console.log("  --source-branch <name>        Base branch for --create-branch (default: production/main/master/develop)");
   console.log("  --role <code>                 Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content");
   console.log("                                (persisted at <project>/.bmad/role.yaml; --role wins for one run)");
+  console.log("\nInstall control (first-run):");
+  console.log("  --yes-install                 Install missing dependencies without confirmation.");
+  console.log("  --no-install                  Error out if dependencies missing (do not install).");
+  console.log("                                Default: prompt for confirmation on first run.");
+  console.log("\nIntake mode:");
+  console.log("  --interactive                 Prompt step-by-step for missing scaffold inputs; persist choice to .bmad/intake.yaml.");
+  console.log("  --technical                   Force technical mode; missing required inputs error out (current default).");
+  console.log("                                Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),");
+  console.log("                                falling back to technical when the file is absent.");
   console.log("\nFor complex/custom generation, use the LLM path (SKILL.md + resource packs).");
 }
 

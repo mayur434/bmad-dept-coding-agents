@@ -63,6 +63,62 @@ This skill activates when the user asks to:
 - Analyze patch upgrade impact
 - Export audit findings
 
+## Intake mode (interactive vs technical)
+
+> **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
+
+When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command as the first response. Ask which drive style they prefer:
+
+> "Should I drive this **interactively** (I ask you step-by-step questions and run everything for you) or **technically** (I show you the CLI command with each flag explained, and you decide whether to run it or have me run it)?"
+
+Save the answer to `.bmad/intake.yaml` (adjacent to `.bmad/role.yaml`) with keys `mode: interactive|technical` and `set_at: <ISO-8601>`. On subsequent runs, read the file silently and skip the prompt unless the user asks to switch.
+
+To change intake mode later, the user says **"switch intake to interactive"** or **"switch intake to technical"** — overwrite `.bmad/intake.yaml` with the new choice.
+
+**Sequencing note.** The `Preflight` (LLM/context advisory) and the `Pre-flight: Auto-install Dependencies` bootstrap sections below must NOT run before the intake picker resolves. Order for a fresh activation:
+1. Resolve intake mode (ask, or read `.bmad/intake.yaml`).
+2. If technical → show the command + flag explanations, then run it (with the user's OK) or hand off.
+3. If interactive → collect the intake questions below, then run silently.
+4. Preflight + bootstrap run just before dispatch, once inputs are collected.
+
+### Interactive mode (recommended for first-timers)
+
+Ask one question per turn, in this order. Skip any question the user has already answered in their initial prompt.
+
+1. "What's the project path? (defaults to current working directory)"
+2. "Which stack? (auto-detect / `aem` / `commerce` / `commerce-saas` / `sling` / `spring` / `app-builder` / `eds` / `eds-commerce`)"
+3. "Full audit (deterministic scan + LLM), scan-only (fast Tier-1), or deep-audit (LLM only)?"
+4. "Any extra inputs? (BRD `.docx` path / bug CSV path / DB `.sql` dump path — press Enter to skip)"
+5. "Cut a working branch from production? (Y/n)"
+6. "Ready to run? (Y/n)"
+
+Once every required input is collected, run the command internally (do NOT show it unless the user asks) and stream the results back conversationally:
+> "Scanning your project…" → "Found 42 findings (12 CRITICAL, 30 HIGH)…" → "Report saved to `audit-reports/audit-main-20260801_120000-agent-report.xlsx`. Want me to summarize the CRITICAL items?"
+
+### Technical mode (for users who want CLI transparency)
+
+Show the fully-formed command in a `bash` code block with one flag per line:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
+  --path /path/to/project \
+  --engine auto \
+  --create-branch --source-branch production \
+  --preflight
+```
+
+Below the block, add a bulleted list explaining each flag in plain English:
+
+- `--path` — the project root to audit; the folder the scanner will walk.
+- `--engine auto` — auto-detect the stack from project signals; pass an explicit engine ID to override.
+- `--create-branch --source-branch production` — cut a working `dca/audit-<stack>-<timestamp>` branch from `production` before writing any outputs.
+- `--preflight` — show the LLM/context-window advisor before dispatch so the user can see the mode recommendation.
+
+Then ask: **"Want me to run this now, or will you copy-paste it?"**
+
+- If **run for me** → execute silently and stream results (same as interactive mode).
+- If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/audit-reports/`. Come back with 'summarize the findings' when you're done."
+
 ## Role-aware behavior
 
 The Audit agent adapts its **default mode**, **output flavor**, and **recommended follow-up** to the role of the person driving the run. Role selection is a **shared** concept across the 5-agent DCA suite and is persisted per-project at `<projectRoot>/.bmad/role.yaml` (see `skills/shared/role/ROLES.md`).
@@ -166,14 +222,34 @@ tokens — and use the LLM (Tier-2) to interpret/deepen the findings. Lean more 
 
 ## Pre-flight: Auto-install Dependencies
 
-Before running any audit, check if Node dependencies are installed. If not, install them automatically:
+Before ANY command execution, run the shared bootstrap. It installs the `shared/` foundation
+(if missing) + this agent's `scripts/` deps in the correct order, with a one-line confirmation
+prompt so the user knows what's happening. First-time cost is ~80MB / ~30–60s; subsequent
+runs are silent no-ops.
 
+**POSIX (macOS, Linux, WSL):**
 ```bash
-# Check and install (works on macOS, Linux, Windows WSL)
-cd .claude/skills/bmad-dept-code-audit-agent/scripts && [ -d node_modules ] || npm install --silent
+bash .claude/skills/shared/bootstrap.sh audit
 ```
 
-Do NOT ask the user for permission to install these — they are required for the scanner to function. Just install silently if missing.
+**Windows (or when sh is unavailable):**
+```bash
+node .claude/skills/shared/bootstrap.js audit
+```
+
+**Headless / CI mode (skip prompt):**
+```bash
+bash .claude/skills/shared/bootstrap.sh audit --yes    # install without asking
+bash .claude/skills/shared/bootstrap.sh audit --no     # error if deps missing, don't install
+```
+
+**Behavior:**
+- Both node_modules present → silent no-op (exit 0)
+- Either missing → confirmation prompt, then install if approved
+- User declines → exit 3, agent should tell user "Deps required. Run manually: cd .claude/skills/shared && npm install && cd ../bmad-dept-code-audit-agent/scripts && npm install"
+- Install failure → exit 4, agent should surface the npm error
+
+**Instructions to the AI:** Do NOT skip this step. The bootstrap script handles the confirmation — you do NOT need to ask the user separately. If bootstrap exits non-zero, halt and report the exit code. If your dispatcher (`run.ts`) also accepts `--yes-install`/`--no-install`, pass those to bootstrap accordingly.
 
 ## Consent: Ask Audit Mode
 

@@ -185,6 +185,60 @@ path with the resource packs. Note the `--engine` key is not always the resource
 `resources/sling-shaft/`, `spring` → `resources/spring-boot/`; `commerce-saas`, `app-builder`, `eds`, and
 `eds-commerce` map directly to their like-named `resources/` packs.
 
+## Intake mode (interactive vs technical)
+
+> **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
+
+When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command (scaffolder or LLM/MCP dispatch) as the first response. Ask which drive style they prefer:
+
+> "Should I drive this **interactively** (I ask you step-by-step questions and run everything for you) or **technically** (I show you the CLI command with each flag explained, and you decide whether to run it or have me run it)?"
+
+Save the answer to `.bmad/intake.yaml` (adjacent to `.bmad/role.yaml`) with keys `mode: interactive|technical` and `set_at: <ISO-8601>`. On subsequent runs, read the file silently and skip the prompt unless the user asks to switch.
+
+To change intake mode later, the user says **"switch intake to interactive"** or **"switch intake to technical"** — overwrite `.bmad/intake.yaml` with the new choice.
+
+**Sequencing note.** The `Preflight`, `Pre-flight: Auto-install Dependencies`, `Pre-flight`, and `Step 0: Interactive Intake` sections below must NOT run before the intake picker resolves. When `intake.mode = interactive`, Step 0's per-scope intake questions become the ordered interactive script. When `intake.mode = technical`, the Step 0 questionnaire is skipped in favor of the fully-formed CLI command shown below. Order for a fresh activation:
+1. Resolve intake mode (ask, or read `.bmad/intake.yaml`).
+2. If technical → show the scaffolder command + flag explanations, then run it (with the user's OK) or hand off.
+3. If interactive → collect the intake questions below, then run silently.
+4. Preflight + bootstrap run just before dispatch, once inputs are collected.
+
+### Interactive mode (recommended for first-timers)
+
+Ask one question per turn, in this order. Skip any question the user has already answered in their initial prompt.
+
+1. "What's the project path?"
+2. "Which stack? (`aem` / `sling` / `spring` / `commerce-paas` / `commerce-saas` / `app-builder` / `eds` / `eds-commerce`)"
+3. "What type of artifact? (list the scaffolder types for that stack — e.g. for `aem`: `sling-model` / `osgi-service` / `sling-servlet` / `component` / `workflow-process`)"
+4. "What name? (e.g. `HeroBanner`, `OrderService`, `CheckoutController`)"
+5. "Any package/namespace override? (defaults to the project's detected namespace)"
+6. "Dry run (preview only) or actually create the files?"
+
+Once every required input is collected, run the command internally (do NOT show it unless the user asks) and stream results conversationally:
+> "Scaffolding your Sling Model…" → "Wrote 4 files (Model + interface + test stub + config)…" → "Report saved to `generation-reports/generation-main-20260801_120000-agent-report.xlsx`. Want me to open the generated Model?"
+
+### Technical mode (for users who want CLI transparency)
+
+Show the fully-formed command in a `bash` code block with one flag per line:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-generation-agent/scripts/run.ts \
+  --path /path/to/project \
+  --scaffold --engine aem --type sling-model --name HeroBanner \
+  --dry-run
+```
+
+Below the block, add a bulleted list explaining each flag in plain English:
+
+- `--path` — the project root; used to detect conventions (base package, module layout) and to place generated files.
+- `--scaffold --engine aem --type sling-model --name HeroBanner` — invoke the deterministic scaffolder for the AEM Sling-Model type named `HeroBanner`.
+- `--dry-run` — preview which files would be created without touching disk; drop this flag to actually write the scaffold.
+
+Then ask: **"Want me to run this now, or will you copy-paste it?"**
+
+- If **run for me** → execute silently and stream results (same as interactive mode).
+- If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/generation-reports/`. Come back with 'summarize what was generated' when you're done."
+
 ## Role-aware behavior
 
 The agent adapts its generation approach to the caller's role — one of ten codes (`ea`, `tl`, `de`, `qa`, `devops`, `security`, `pm`, `ba`, `migration`, `content`), or `generic` when no role is selected. Role changes *what* the agent scaffolds, *which conventions* it enforces, and *which follow-ups* it suggests. See `skills/shared/role/ROLES.md` for the full catalog.
@@ -258,6 +312,37 @@ It prints the detected **model + context window**, the **project size**, the **f
 repeatable) and the **LLM/MCP** path (Tier-2) for custom/business logic, especially when the project fits the
 window. Surface it like: *"You're on `<model>` (~`<ctx>`). I recommend the **<scaffolder|LLM>** path here. Proceed?"*
 (the advisory also prints on every scaffold run unless `--no-preflight`).
+
+## Pre-flight: Auto-install Dependencies
+
+Before ANY command execution, run the shared bootstrap. It installs the `shared/` foundation
+(if missing) + this agent's `scripts/` deps in the correct order, with a one-line confirmation
+prompt so the user knows what's happening. First-time cost is ~80MB / ~30–60s; subsequent
+runs are silent no-ops.
+
+**POSIX (macOS, Linux, WSL):**
+```bash
+bash .claude/skills/shared/bootstrap.sh generation
+```
+
+**Windows (or when sh is unavailable):**
+```bash
+node .claude/skills/shared/bootstrap.js generation
+```
+
+**Headless / CI mode (skip prompt):**
+```bash
+bash .claude/skills/shared/bootstrap.sh generation --yes    # install without asking
+bash .claude/skills/shared/bootstrap.sh generation --no     # error if deps missing, don't install
+```
+
+**Behavior:**
+- Both node_modules present → silent no-op (exit 0)
+- Either missing → confirmation prompt, then install if approved
+- User declines → exit 3, agent should tell user "Deps required. Run manually: cd .claude/skills/shared && npm install && cd ../bmad-dept-code-generation-agent/scripts && npm install"
+- Install failure → exit 4, agent should surface the npm error
+
+**Instructions to the AI:** Do NOT skip this step. The bootstrap script handles the confirmation — you do NOT need to ask the user separately. If bootstrap exits non-zero, halt and report the exit code. If your dispatcher (`run.ts`) also accepts `--yes-install`/`--no-install`, pass those to bootstrap accordingly.
 
 ## Pre-flight
 

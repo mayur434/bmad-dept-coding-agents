@@ -43,6 +43,66 @@ This skill activates when the user asks to:
 
 ---
 
+## Intake mode (interactive vs technical)
+
+> **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
+
+When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command as the first response. Ask which drive style they prefer:
+
+> "Should I drive this **interactively** (I ask you step-by-step questions and run everything for you) or **technically** (I show you the CLI command with each flag explained, and you decide whether to run it or have me run it)?"
+
+Save the answer to `.bmad/intake.yaml` (adjacent to `.bmad/role.yaml`) with keys `mode: interactive|technical` and `set_at: <ISO-8601>`. On subsequent runs, read the file silently and skip the prompt unless the user asks to switch.
+
+To change intake mode later, the user says **"switch intake to interactive"** or **"switch intake to technical"** — overwrite `.bmad/intake.yaml` with the new choice.
+
+**Sequencing note.** Sonar-scan is a **two-step** tool (LLM scan → deterministic ingest). The intake picker resolves once for the whole session and covers both steps. The `Preflight` and `Pre-flight: Auto-install Dependencies` sections below must NOT run before the intake picker resolves. Order for a fresh activation:
+1. Resolve intake mode (ask, or read `.bmad/intake.yaml`).
+2. If technical → show the Step 1 prompt-shape and the Step 2 ingest command with flag explanations, then run each with the user's OK.
+3. If interactive → collect the intake questions below, then perform Step 1 (LLM scan) and Step 2 (ingest) silently.
+4. Preflight + bootstrap run just before dispatch, once inputs are collected.
+
+### Interactive mode (recommended for first-timers)
+
+Ask one question per turn, in this order. Skip any question the user has already answered in their initial prompt.
+
+1. "What's the project path? (defaults to current working directory)"
+2. "Which stack? (auto-detect / `aem` / `commerce-paas` / `commerce-saas` / `sling` / `spring` / `app-builder` / `eds` / `eds-commerce`)"
+3. "This is a 2-step run — (a) LLM scan produces `sonar-findings.json`, then (b) ingest the JSON into the Excel report + Quality Gate. Do you already have a `sonar-findings.json`, or should I start from scratch?"
+4. "Cut a working branch from production? (Y/n)"
+
+Once every required input is collected, drive both steps internally (do NOT show the raw commands unless the user asks) and stream results conversationally:
+> "Reasoning over your Spring Boot project…" → "Wrote 17 findings to `sonar-reports/sonar-findings.json`…" → "Ingested. Quality Gate: FAIL (Security = C). Report saved to `sonar-reports/sonar-scan-main-20260801_120000-agent-report.xlsx`. Want me to summarize the Vulnerabilities sheet?"
+
+### Technical mode (for users who want CLI transparency)
+
+**Step 1** — the LLM scan is agent-driven; the "command" is the natural-language prompt to yourself, shown in a `text` code block so the user can see what you'll do:
+
+```text
+sonar scan my project at /path/to/project focused on the 6 Sonar categories
+```
+
+**Step 2** — the deterministic ingest is a real CLI. Show it in a `bash` code block with one flag per line:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts \
+  --ingest ./sonar-findings.json \
+  --path /path/to/project \
+  --create-branch
+```
+
+Below the block, add a bulleted list explaining each flag in plain English:
+
+- `--ingest` — the `sonar-findings.json` produced by Step 1 (or supplied by the user); the ingest reads and validates it into `Finding[]`.
+- `--path` — the project root; used to compute the working branch name, output directory, and ratings baseline.
+- `--create-branch` — cut a working `dca/sonar-scan-<stack>-<timestamp>` branch (from `production`/`main`/`master`/`develop`) before writing outputs.
+
+Then ask: **"Want me to run this now, or will you copy-paste it?"**
+
+- If **run for me** → execute silently and stream results (same as interactive mode).
+- If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/sonar-reports/`. Come back with 'summarize the Quality Gate' when you're done."
+
+---
+
 ## Prompt → Action Resolution
 
 Resolve the user's natural language prompt to the correct action **before** running preflight or scan.
@@ -317,9 +377,34 @@ For HYBRID mode: scan the highest-risk directories first (e.g. `src/main/java/`,
 
 ## Pre-flight: Auto-install Dependencies
 
+Before ANY command execution, run the shared bootstrap. It installs the `shared/` foundation
+(if missing) + this agent's `scripts/` deps in the correct order, with a one-line confirmation
+prompt so the user knows what's happening. First-time cost is ~80MB / ~30–60s; subsequent
+runs are silent no-ops.
+
+**POSIX (macOS, Linux, WSL):**
 ```bash
-cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
+bash .claude/skills/shared/bootstrap.sh sonar-scan
 ```
+
+**Windows (or when sh is unavailable):**
+```bash
+node .claude/skills/shared/bootstrap.js sonar-scan
+```
+
+**Headless / CI mode (skip prompt):**
+```bash
+bash .claude/skills/shared/bootstrap.sh sonar-scan --yes    # install without asking
+bash .claude/skills/shared/bootstrap.sh sonar-scan --no     # error if deps missing, don't install
+```
+
+**Behavior:**
+- Both node_modules present → silent no-op (exit 0)
+- Either missing → confirmation prompt, then install if approved
+- User declines → exit 3, agent should tell user "Deps required. Run manually: cd .claude/skills/shared && npm install && cd ../bmad-dept-code-sonar-scan-agent/scripts && npm install"
+- Install failure → exit 4, agent should surface the npm error
+
+**Instructions to the AI:** Do NOT skip this step. The bootstrap script handles the confirmation — you do NOT need to ask the user separately. If bootstrap exits non-zero, halt and report the exit code. If your dispatcher (`run.ts`) also accepts `--yes-install`/`--no-install`, pass those to bootstrap accordingly.
 
 ---
 

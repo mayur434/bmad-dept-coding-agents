@@ -4,7 +4,14 @@ description = "Test coverage analyzer and generator for Adobe Commerce (PaaS & S
 version = "1.0.0"
 
 [skill.tools]
-required = ["claude-code"]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.). Discover the full list with
+# `npx bmad-method install --list-tools`.
+required = ["*"]
 
 [skill.activation]
 keywords = ["test coverage", "unit test", "integration test", "test generation", "coverage report", "missing tests", "test gap", "generate tests", "test plan", "sling", "spring", "app builder", "commerce saas", "eds", "eds commerce", "set role", "switch role", "what's my role", "show my role", "role catalog"]

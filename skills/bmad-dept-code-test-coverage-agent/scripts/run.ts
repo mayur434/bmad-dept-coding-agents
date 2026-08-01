@@ -14,12 +14,17 @@
 import { resolve, basename, join } from "path";
 import { existsSync } from "fs";
 import * as readline from "readline";
-import { TestFramework, DetectionStrategy, CoverageReport, CoverageGap } from "./shared/base";
-import { emitStandardOutputs, maybeCutStandardBranch } from "../../shared/output";
+// Node-core-only + role/install (dep-free) + type-only imports are safe on
+// first run. shared/output, shared/preflight, shared/coverage, and the
+// engine modules transitively require third-party packages (exceljs,
+// fast-glob, ...) and MUST be loaded lazily via require() inside main()
+// AFTER ensureDepsInstalled().
+import type { TestFramework, DetectionStrategy, CoverageReport, CoverageGap } from "./shared/base";
 import type { Finding, Severity } from "../../shared/core/types";
-import { runPreflight, renderPreflight } from "../../shared/preflight";
-import { discoverReport, parseReport, runCoverage, CoverageResult } from "../../shared/coverage";
+import type { CoverageResult } from "../../shared/coverage";
 import { resolveRole, parseRoleFlag } from "../../shared/role";
+import { ensureDepsInstalled } from "../../shared/install";
+import { resolveIntake, askAll, confirmRun, Question } from "../../shared/interactive";
 
 // ---------------------------------------------------------------------------
 // CLI Argument Parsing
@@ -35,6 +40,7 @@ interface Args {
   frameworks: TestFramework[] | null;
   strategy: DetectionStrategy | null;
   interactive: boolean;
+  technical: boolean;
   listEngines: boolean;
   coverageReport: string | null;
   runCoverage: boolean;
@@ -43,6 +49,8 @@ interface Args {
   preflight: boolean;
   noPreflight: boolean;
   role: string | undefined;
+  yesInstall: boolean;
+  noInstall: boolean;
 }
 
 function parseArgs(): Args {
@@ -57,6 +65,7 @@ function parseArgs(): Args {
     frameworks: null,
     strategy: null,
     interactive: false,
+    technical: false,
     listEngines: false,
     coverageReport: null,
     runCoverage: false,
@@ -65,6 +74,8 @@ function parseArgs(): Args {
     preflight: false,
     noPreflight: false,
     role: undefined,
+    yesInstall: false,
+    noInstall: false,
   };
 
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -108,6 +119,9 @@ function parseArgs(): Args {
       case "--interactive":
         parsed.interactive = true;
         break;
+      case "--technical":
+        parsed.technical = true;
+        break;
       case "--list-engines":
         parsed.listEngines = true;
         break;
@@ -128,6 +142,12 @@ function parseArgs(): Args {
         break;
       case "--no-preflight":
         parsed.noPreflight = true;
+        break;
+      case "--yes-install":
+        parsed.yesInstall = true;
+        break;
+      case "--no-install":
+        parsed.noInstall = true;
         break;
       case "--help":
         printHelp();
@@ -154,7 +174,11 @@ Options:
   --output <dir>                   Output directory for reports
   --frameworks <list>              Comma-separated: unit,integration,mftf,api-functional,js,static,performance
   --strategy <strategy>            Detection: filename, namespace, annotation, all (default: all)
-  --interactive                    Prompt which frameworks/strategy to use
+  --interactive                    Prompt step-by-step for missing intake inputs + frameworks/strategy;
+                                   persists choice to .bmad/intake.yaml.
+  --technical                      Force technical mode; missing required inputs error out (current default).
+                                   Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),
+                                   falling back to technical when the file is absent.
   --coverage-report <file>         Parse a JaCoCo/Istanbul/LCOV/Clover report for real line/branch %
   --run-coverage                   Run the project's coverage tool first, then parse it
   --create-branch                  Cut standard branch dca/test-coverage-<stack>-<timestamp> before writing outputs
@@ -165,6 +189,11 @@ Options:
                                    (persisted at <project>/.bmad/role.yaml; --role wins for one run)
   --list-engines                   List available engines
   --help                           Show this help
+
+Install control (first-run):
+  --yes-install                    Install missing dependencies without confirmation.
+  --no-install                     Error out if dependencies missing (do not install).
+                                   Default: prompt for confirmation on first run.
 
 Engines:
   aem           AEM as a Cloud Service / AMS
@@ -188,10 +217,9 @@ Frameworks (Commerce):
 }
 
 // ---------------------------------------------------------------------------
-// Engine Registry
+// Engine Registry — lazy-loaded from main() after ensureDepsInstalled()
+// (engine modules transitively require third-party packages).
 // ---------------------------------------------------------------------------
-
-import { getEngine, listEngines } from "./engines/registry";
 
 // ---------------------------------------------------------------------------
 // Interactive Prompt
@@ -282,6 +310,9 @@ function coverageToFindings(report: CoverageReport): Finding[] {
 
 /** Emit the three standardized outputs (report + markdown + CHANGE-LOG). */
 async function emitCoverageOutputs(report: CoverageReport, projectPath: string, args: Args): Promise<void> {
+  // Lazy require: shared/output pulls in exceljs; safe because this helper
+  // is only called from main() AFTER ensureDepsInstalled() has succeeded.
+  const { emitStandardOutputs } = require("../../shared/output") as typeof import("../../shared/output");
   const findings = coverageToFindings(report);
   const outputDir = args.output ?? join(projectPath, "test-coverage-reports");
   const extra: Record<string, string | number> = {
@@ -325,6 +356,9 @@ function flagVal(name: string): string | null {
 
 /** Optionally run the tool, then discover + parse a real coverage report. */
 function resolveRealCoverage(projectPath: string, engineId: string): CoverageResult | null {
+  // Lazy require: shared/coverage pulls in fast-glob; safe because this helper
+  // is only called from main() AFTER ensureDepsInstalled() has succeeded.
+  const { discoverReport, parseReport, runCoverage } = require("../../shared/coverage") as typeof import("../../shared/coverage");
   const explicit = flagVal("--coverage-report");
   if (process.argv.includes("--run-coverage")) {
     console.log("   ⏱  Running the project's coverage tool (this builds/tests the project)...");
@@ -367,14 +401,118 @@ function applyRealCoverage(report: CoverageReport, cov: CoverageResult, projectP
 async function main(): Promise<void> {
   const args = parseArgs();
 
+  if (args.yesInstall && args.noInstall) {
+    console.error("❌ --yes-install and --no-install are mutually exclusive.");
+    process.exit(1);
+  }
+  if (args.interactive && args.technical) {
+    console.error("❌ --interactive and --technical are mutually exclusive.");
+    process.exit(1);
+  }
+
+  // First-run dependency check. Runs BEFORE the heavy modules are
+  // require()'d below — engines/registry, shared/output, shared/preflight,
+  // and shared/coverage transitively need fast-glob / exceljs / ...
+  const bootstrap = await ensureDepsInstalled({
+    agentName: "test-coverage",
+    yes: args.yesInstall,
+    no: args.noInstall,
+  });
+  if (bootstrap.exitCode !== 0) process.exit(bootstrap.exitCode);
+
+  // Lazy loads — safe now that node_modules is guaranteed present.
+  // (emitCoverageOutputs and resolveRealCoverage lazy-require their own deps.)
+  const { getEngine, listEngines } = require("./engines/registry") as typeof import("./engines/registry");
+  const { maybeCutStandardBranch } = require("../../shared/output") as typeof import("../../shared/output");
+  const { runPreflight, renderPreflight } = require("../../shared/preflight") as typeof import("../../shared/preflight");
+
   if (args.listEngines) {
     listEngines();
     return;
   }
 
+  // ── Intake mode: --interactive prompts for missing inputs; --technical is
+  // the current (silent-error) default. Persisted at <project>/.bmad/intake.yaml.
+  const intakeRoot = args.path && args.path !== "." ? resolve(args.path) : process.cwd();
+  const intake = resolveIntake({
+    projectRoot: intakeRoot,
+    cliFlag: args.interactive ? "interactive" : args.technical ? "technical" : undefined,
+  });
+  process.stderr.write(`[dca-interactive] intake mode: ${intake.mode} (source: ${intake.source})\n`);
+
+  if (intake.mode === "interactive") {
+    const questions: Question[] = [
+      { key: "path", prompt: "What's the project path?", default: process.cwd() },
+      {
+        key: "engine",
+        prompt: "Which stack?",
+        choices: ["auto", "aem", "commerce", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"],
+        default: "auto",
+      },
+      {
+        key: "mode",
+        prompt: "Mode: analyze (find gaps), generate (LLM writes tests), or full (both)?",
+        choices: ["analyze", "generate", "full"],
+        default: "full",
+      },
+      {
+        key: "coverage-source",
+        prompt: "Coverage source: existing report / run project tool / filename estimate?",
+        choices: ["report", "run", "estimate"],
+        default: "estimate",
+      },
+      {
+        key: "coverage-report",
+        prompt: "Path to JaCoCo/Istanbul/LCOV/Clover report",
+        when: (a) => a["coverage-source"] === "report",
+      },
+      {
+        key: "create-branch",
+        prompt: "Cut a working branch from production?",
+        choices: ["y", "n"],
+        default: "y",
+      },
+    ];
+    const existing: Record<string, string | undefined> = {
+      path: args.path && args.path !== "." ? args.path : undefined,
+      engine: args.engine ?? undefined,
+      mode: args.mode,
+      "coverage-report": args.coverageReport ?? undefined,
+    };
+    const answers = await askAll({ questions, existing });
+    if (answers.path && (args.path === "." || !args.path)) args.path = answers.path;
+    if (answers.engine && answers.engine !== "auto" && !args.engine) args.engine = answers.engine;
+    if (answers.mode) args.mode = answers.mode as Args["mode"];
+    if (answers["coverage-report"] && !args.coverageReport) args.coverageReport = answers["coverage-report"];
+    if (answers["coverage-source"] === "run") {
+      args.runCoverage = true;
+      if (!process.argv.includes("--run-coverage")) process.argv.push("--run-coverage");
+    }
+    if (answers["create-branch"] === "y") {
+      args.createBranch = true;
+      if (!process.argv.includes("--create-branch")) process.argv.push("--create-branch");
+    }
+
+    const summaryCmd = [
+      "npx ts-node run.ts",
+      args.path ? `--path ${args.path}` : "",
+      args.engine ? `--engine ${args.engine}` : "",
+      `--mode ${args.mode}`,
+      args.coverageReport ? `--coverage-report ${args.coverageReport}` : "",
+      args.runCoverage ? "--run-coverage" : "",
+      answers["create-branch"] === "y" ? "--create-branch" : "",
+    ].filter(Boolean).join(" ");
+    const proceed = await confirmRun(summaryCmd);
+    if (!proceed) {
+      console.log("[dca-interactive] Copy the command above to run manually. Exiting.");
+      return;
+    }
+  }
+
   const projectPath = resolve(args.path);
   if (!existsSync(projectPath)) {
     console.error(`❌ Project path not found: ${projectPath}`);
+    console.error("   Tip: rerun with --interactive to be prompted step-by-step, or add 'mode: interactive' to .bmad/intake.yaml.");
     process.exit(1);
   }
 

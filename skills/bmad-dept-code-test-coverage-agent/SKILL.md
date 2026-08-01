@@ -57,6 +57,61 @@ This skill activates when the user asks to:
 - Produce a coverage report
 - Generate tests for specific files or components
 
+## Intake mode (interactive vs technical)
+
+> **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
+
+When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command as the first response. Ask which drive style they prefer:
+
+> "Should I drive this **interactively** (I ask you step-by-step questions and run everything for you) or **technically** (I show you the CLI command with each flag explained, and you decide whether to run it or have me run it)?"
+
+Save the answer to `.bmad/intake.yaml` (adjacent to `.bmad/role.yaml`) with keys `mode: interactive|technical` and `set_at: <ISO-8601>`. On subsequent runs, read the file silently and skip the prompt unless the user asks to switch.
+
+To change intake mode later, the user says **"switch intake to interactive"** or **"switch intake to technical"** — overwrite `.bmad/intake.yaml` with the new choice.
+
+**Sequencing note.** The `Preflight`, `Pre-flight: Auto-install Dependencies`, and `Consent: Ask Coverage Mode` sections below must NOT run before the intake picker resolves. Order for a fresh activation:
+1. Resolve intake mode (ask, or read `.bmad/intake.yaml`).
+2. If technical → show the coverage command + flag explanations, then run it (with the user's OK) or hand off.
+3. If interactive → collect the intake questions below, then run silently.
+4. Preflight + bootstrap run just before dispatch, once inputs are collected.
+
+### Interactive mode (recommended for first-timers)
+
+Ask one question per turn, in this order. Skip any question the user has already answered in their initial prompt.
+
+1. "What's the project path?"
+2. "Which stack? (auto-detect / `aem` / `commerce` / `commerce-saas` / `sling` / `spring` / `app-builder` / `eds` / `eds-commerce`)"
+3. "Mode: **analyze** (find gaps), **generate** (LLM writes tests to 100%), or **full** (both)?"
+4. "Do you have an existing coverage report I should ingest (path to a JaCoCo/Istanbul/LCOV/Clover file), or should I run the project's coverage tool now (`--run-coverage`), or fall back to the fast filename estimate (Enter to skip)?"
+5. "Cut a working branch from production? (Y/n)"
+
+Once every required input is collected, run the command internally (do NOT show it unless the user asks) and stream results conversationally:
+> "Analyzing your Spring project…" → "Found 132 source files, 78% real line coverage, 41 gaps sorted by priority…" → "Report saved to `test-coverage-reports/test-coverage-main-20260801_120000-agent-report.xlsx`. Want me to write tests for the top 10 gaps?"
+
+### Technical mode (for users who want CLI transparency)
+
+Show the fully-formed command in a `bash` code block with one flag per line:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-test-coverage-agent/scripts/run.ts \
+  --path /path/to/project \
+  --mode full \
+  --coverage-report ./target/site/jacoco/jacoco.xml \
+  --create-branch
+```
+
+Below the block, add a bulleted list explaining each flag in plain English:
+
+- `--path` — the project root to analyze; the scanner walks this tree for source and test files.
+- `--mode full` — run Tier-1 gap analysis and hand the top-priority gaps to Tier-2 test generation.
+- `--coverage-report` — path to an existing JaCoCo/Istanbul/LCOV/Clover report; when present, `Coverage %` becomes real line/branch coverage instead of the filename estimate.
+- `--create-branch` — cut a working `dca/test-coverage-<stack>-<timestamp>` branch (from `production`/`main`/`master`/`develop`) before writing outputs.
+
+Then ask: **"Want me to run this now, or will you copy-paste it?"**
+
+- If **run for me** → execute silently and stream results (same as interactive mode).
+- If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/test-coverage-reports/`. Come back with 'summarize the coverage gaps' when you're done."
+
 ## Role-aware behavior
 
 The Test Coverage agent adapts its **default mode**, **output emphasis**, and **recommended follow-up** to the role of the person driving the run. Role selection is a **shared** concept across the 5-agent DCA suite and is persisted per-project at `<projectRoot>/.bmad/role.yaml` (see `skills/shared/role/ROLES.md`).
@@ -160,11 +215,34 @@ then run the full command (the advisory also prints on every normal run unless `
 
 ## Pre-flight: Auto-install Dependencies
 
-Before ANY command execution, silently run:
+Before ANY command execution, run the shared bootstrap. It installs the `shared/` foundation
+(if missing) + this agent's `scripts/` deps in the correct order, with a one-line confirmation
+prompt so the user knows what's happening. First-time cost is ~80MB / ~30–60s; subsequent
+runs are silent no-ops.
+
+**POSIX (macOS, Linux, WSL):**
 ```bash
-cd {skill_path}/scripts && [ -d node_modules ] || npm install --silent
+bash .claude/skills/shared/bootstrap.sh test-coverage
 ```
-Do NOT ask the user. Do NOT print install output unless it fails.
+
+**Windows (or when sh is unavailable):**
+```bash
+node .claude/skills/shared/bootstrap.js test-coverage
+```
+
+**Headless / CI mode (skip prompt):**
+```bash
+bash .claude/skills/shared/bootstrap.sh test-coverage --yes    # install without asking
+bash .claude/skills/shared/bootstrap.sh test-coverage --no     # error if deps missing, don't install
+```
+
+**Behavior:**
+- Both node_modules present → silent no-op (exit 0)
+- Either missing → confirmation prompt, then install if approved
+- User declines → exit 3, agent should tell user "Deps required. Run manually: cd .claude/skills/shared && npm install && cd ../bmad-dept-code-test-coverage-agent/scripts && npm install"
+- Install failure → exit 4, agent should surface the npm error
+
+**Instructions to the AI:** Do NOT skip this step. The bootstrap script handles the confirmation — you do NOT need to ask the user separately. If bootstrap exits non-zero, halt and report the exit code. If your dispatcher (`run.ts`) also accepts `--yes-install`/`--no-install`, pass those to bootstrap accordingly.
 
 ## Consent: Ask Coverage Mode
 

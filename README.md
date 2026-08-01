@@ -36,6 +36,7 @@
 ## TL;DR
 
 - **What it is** — a single BMAD module (`dca`, v4.0.0) that plugs five specialist AI coding agents into Claude Code (or any BMAD-compatible tool) via `npx bmad-method install`.
+- **Compatibility** — works with every AI coding tool BMAD Method supports (44+ IDs): Claude Code, Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini CLI, Roo Code, Kilo, Sourcegraph Amp, Kiro, Junie, Warp, Zencoder, and more. Pass `--tools <id>` at install (see [Install for other AI coding tools](#install-for-other-ai-coding-tools)).
 - **What it delivers** — Tier 1 deterministic TypeScript engines (tree-sitter AST + regex) plus Tier 2 LLM knowledge packs, funnelled through one shared reporting foundation.
 - **What you get, every run** — a standardized `<agent>-<branch>-<timestamp>-agent-report.xlsx` + Markdown twin + `CHANGE-LOG.md` entry, with an optional working branch cut on demand.
 - **Who it's for** — Enterprise Architects, tech leads, and delivery engineers on Adobe Commerce (PaaS/SaaS), AEMaaCS/AMS, Adobe App Builder, Apache Sling/Shaft, Spring Boot, and Edge Delivery Services projects.
@@ -351,12 +352,74 @@ npx bmad-method install \
   --yes
 ```
 
-Install the shared foundation first, then each agent's `scripts/`:
+See the [Post-install](#post-install-auto-install-on-first-use) section below for what happens on your first agent invocation — no manual `npm install` needed.
+
+### Install for other AI coding tools
+
+The `dca` module works with any AI coding assistant BMAD Method supports. Pass the tool ID via `--tools`:
+
+| Tool | `--tools <id>` | Installed under |
+|------|----------------|-----------------|
+| Claude Code (default, recommended) | `claude-code` | `.claude/skills/` |
+| Cursor (recommended) | `cursor` | `.agents/skills/` |
+| GitHub Copilot (recommended) | `github-copilot` | `.agents/skills/` |
+| Codex (recommended) | `codex` | `.agents/skills/` |
+| Cline | `cline` | `.cline/skills/` |
+| Windsurf | `windsurf` | `.agents/skills/` |
+| Gemini CLI | `gemini` | `.agents/skills/` |
+| Roo Code | `roo` | `.agents/skills/` |
+| Sourcegraph Amp | `amp` | `.agents/skills/` |
+| Kiro | `kiro` | `.kiro/skills/` |
+| Junie | `junie` | `.junie/skills/` |
+| Warp | `warp` | `.agents/skills/` |
+| Zencoder | `zencoder` | `.zencoder/skills/` |
+| Qwen Coder | `qwen` | `.qwen/skills/` |
+| ...and 30+ more | | |
+
+Example — install into a Cursor project:
+
+```bash
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools cursor \
+  --yes
+```
+
+Discover the full 44-tool list (and each one's install directory) with:
+
+```bash
+npx bmad-method install --list-tools
+```
+
+> Each tool installs the plugin under its own conventional path — `.claude/skills/` for Claude Code, `.agents/skills/` for the shared multi-tool bucket, `.cursor/skills/`-style per-tool folders for tools that prefer isolation. The bootstrap script (`bash <skill-path>/shared/bootstrap.sh <agent>`) resolves paths from `dirname "$0"`, so it works regardless of which directory BMAD chose. Substitute `.claude/skills/` in this doc with your tool's directory throughout the commands below.
+
+### Post-install: auto-install on first use
+
+**No manual steps needed.** The first time you invoke any agent, it detects missing Node dependencies and asks — one line — whether to install:
+
+> `[dca-bootstrap] First-run dependency install needed — ~80MB across shared/ and <agent>/ (~30–60s). Proceed? (Y/n)`
+
+Confirm with **Y** (or Enter). The bootstrap installs the `shared/` foundation first, then this agent's `scripts/`, both silently. Subsequent runs are silent no-ops (both `node_modules` already present).
+
+**Headless / CI (skip the prompt).** Every `run.ts` accepts two mutually exclusive flags:
+
+```
+--yes-install   Install missing deps without asking.
+--no-install    Error if deps missing (never install).
+```
+
+**Fallback (manual, if you'd rather):**
 
 ```bash
 cd .claude/skills/shared && npm install
-cd ../bmad-dept-code-audit-agent/scripts && npm install
+cd ../bmad-dept-code-<agent-name>-agent/scripts && npm install
 ```
+
+where `<agent-name>` is one of: `audit`, `sonar-scan`, `generation`, `impact-analysis`, `test-coverage`.
+
+Full details, per-agent flag reference, and troubleshooting live in **[MANUAL.md](MANUAL.md)**.
 
 ### Update
 

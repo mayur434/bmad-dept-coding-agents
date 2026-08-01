@@ -15,3 +15,5 @@ export * from "./report";
 export * from "./git";
 export * from "./output";
 export * from "./role";
+export * from "./install";
+export * from "./interactive";

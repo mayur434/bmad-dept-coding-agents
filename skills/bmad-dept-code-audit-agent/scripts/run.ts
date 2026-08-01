@@ -15,13 +15,30 @@
 
 import * as fs from "fs";
 import * as path from "path";
-import { detectPlatform, getEngine, listEngines } from "./engines/registry";
-import { runPreflight, renderPreflight } from "../../shared/preflight";
-import { maybeCutStandardBranch } from "../../shared/output";
+// Node-core-only imports above are safe on first run (before node_modules
+// exists). shared/role and shared/install use no third-party packages;
+// every other shared/* module transitively requires exceljs, fast-glob, etc.
+// and MUST be loaded lazily via require() below AFTER ensureDepsInstalled().
 import { resolveRole, parseRoleFlag } from "../../shared/role";
+import { ensureDepsInstalled } from "../../shared/install";
+import { resolveIntake, askAll, confirmRun, Question } from "../../shared/interactive";
 
-function parseArgs(argv: string[]): { engine?: string; path?: string; format?: string; role?: string; listEngines: boolean; help: boolean; remaining: string[] } {
-  const result = { engine: undefined as string | undefined, path: undefined as string | undefined, format: undefined as string | undefined, role: undefined as string | undefined, listEngines: false, help: false, remaining: [] as string[] };
+interface AuditArgs {
+  engine?: string;
+  path?: string;
+  format?: string;
+  role?: string;
+  listEngines: boolean;
+  help: boolean;
+  yesInstall: boolean;
+  noInstall: boolean;
+  interactive: boolean;
+  technical: boolean;
+  remaining: string[];
+}
+
+function parseArgs(argv: string[]): AuditArgs {
+  const result: AuditArgs = { engine: undefined, path: undefined, format: undefined, role: undefined, listEngines: false, help: false, yesInstall: false, noInstall: false, interactive: false, technical: false, remaining: [] };
   // --role=<code> and --role <code> are both handled by the shared helper.
   result.role = parseRoleFlag(argv);
   let i = 0;
@@ -39,6 +56,14 @@ function parseArgs(argv: string[]): { engine?: string; path?: string; format?: s
       // parseRoleFlag already captured it — swallow the token.
     } else if (argv[i] === "--list-engines") {
       result.listEngines = true;
+    } else if (argv[i] === "--yes-install") {
+      result.yesInstall = true;
+    } else if (argv[i] === "--no-install") {
+      result.noInstall = true;
+    } else if (argv[i] === "--interactive") {
+      result.interactive = true;
+    } else if (argv[i] === "--technical") {
+      result.technical = true;
     } else if (argv[i] === "-h" || argv[i] === "--help") {
       result.help = true;
     } else {
@@ -52,14 +77,13 @@ function parseArgs(argv: string[]): { engine?: string; path?: string; format?: s
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
-  if (args.listEngines) {
-    console.log("Available audit engines:");
-    console.log("─".repeat(50));
-    for (const [eid, desc] of listEngines()) {
-      console.log(`  ${eid.padEnd(15)} ${desc}`);
-    }
-    console.log(`\nUsage: npx ts-node run.ts --engine <name> --path /project [engine-specific flags]`);
-    return;
+  if (args.yesInstall && args.noInstall) {
+    console.error("❌ --yes-install and --no-install are mutually exclusive.");
+    process.exit(1);
+  }
+  if (args.interactive && args.technical) {
+    console.error("❌ --interactive and --technical are mutually exclusive.");
+    process.exit(1);
   }
 
   if (args.help && !args.engine) {
@@ -71,7 +95,106 @@ async function main(): Promise<void> {
     console.log("  npx ts-node run.ts --role <code>                 Role adaptation: ea|tl|de|qa|devops|security|pm|ba|migration|content");
     console.log("                                                   (persisted at <project>/.bmad/role.yaml; --role wins for one run)");
     console.log("  npx ts-node run.ts --list-engines                Show available engines");
+    console.log("\nInstall control (first-run):");
+    console.log("  --yes-install         Install missing dependencies without confirmation.");
+    console.log("  --no-install          Error out if dependencies missing (do not install).");
+    console.log("                        Default: prompt for confirmation on first run.");
+    console.log("\nIntake mode:");
+    console.log("  --interactive         Prompt step-by-step for missing inputs; persist choice to .bmad/intake.yaml.");
+    console.log("  --technical           Force technical mode; missing required inputs error out (current default).");
+    console.log("                        Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),");
+    console.log("                        falling back to technical when the file is absent.");
     console.log("\nEngine-specific help: npx ts-node run.ts --engine <name> --help");
+    return;
+  }
+
+  // First-run dependency check. Runs BEFORE the heavy shared/* modules are
+  // require()'d below — they transitively need exceljs / fast-glob / etc.
+  const bootstrap = await ensureDepsInstalled({
+    agentName: "audit",
+    yes: args.yesInstall,
+    no: args.noInstall,
+  });
+  if (bootstrap.exitCode !== 0) process.exit(bootstrap.exitCode);
+
+  // Lazy loads — safe now that node_modules is guaranteed present.
+  const { detectPlatform, getEngine, listEngines } = require("./engines/registry") as typeof import("./engines/registry");
+  const { runPreflight, renderPreflight } = require("../../shared/preflight") as typeof import("../../shared/preflight");
+  const { maybeCutStandardBranch } = require("../../shared/output") as typeof import("../../shared/output");
+
+  // ── Intake mode: --interactive prompts for missing inputs; --technical is
+  // the current (silent-error) default. Persisted at <project>/.bmad/intake.yaml
+  // so subsequent runs without a flag honor the same choice.
+  const intakeRoot = args.path ? path.resolve(args.path) : process.cwd();
+  const intake = resolveIntake({
+    projectRoot: intakeRoot,
+    cliFlag: args.interactive ? "interactive" : args.technical ? "technical" : undefined,
+  });
+  process.stderr.write(`[dca-interactive] intake mode: ${intake.mode} (source: ${intake.source})\n`);
+
+  if (intake.mode === "interactive" && !args.listEngines && !args.help) {
+    const questions: Question[] = [
+      { key: "path", prompt: "What's the project path?", default: process.cwd() },
+      {
+        key: "engine",
+        prompt: "Which stack?",
+        choices: ["auto", "aem", "commerce", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"],
+        default: "auto",
+      },
+      {
+        key: "mode",
+        prompt: "Full audit, scan-only (fast Tier-1), or deep-audit (LLM only)?",
+        choices: ["full", "scan-only", "deep-audit"],
+        default: "full",
+      },
+      { key: "brd", prompt: "BRD .docx path (Enter to skip)", optional: true },
+      { key: "bugs", prompt: "Bug CSV path (Enter to skip)", optional: true },
+      {
+        key: "db",
+        prompt: "DB .sql dump path (Enter to skip)",
+        optional: true,
+        when: (a) => (a.engine ?? "").toLowerCase() === "commerce",
+      },
+      {
+        key: "create-branch",
+        prompt: "Cut a working branch from production?",
+        choices: ["y", "n"],
+        default: "y",
+      },
+    ];
+    const existing: Record<string, string | undefined> = {
+      path: args.path,
+      engine: args.engine,
+    };
+    const answers = await askAll({ questions, existing });
+    if (answers.path && !args.path) args.path = answers.path;
+    if (answers.engine && !args.engine && answers.engine !== "auto") args.engine = answers.engine;
+    if (answers.mode) args.remaining.push("--mode", answers.mode);
+    if (answers.brd) args.remaining.push("--brd", answers.brd);
+    if (answers.bugs) args.remaining.push("--bugs", answers.bugs);
+    if (answers.db) args.remaining.push("--db", answers.db);
+    if (answers["create-branch"] === "y") args.remaining.push("--create-branch");
+
+    const summaryCmd = [
+      "npx ts-node run.ts",
+      args.path ? `--path ${args.path}` : "",
+      args.engine ? `--engine ${args.engine}` : "",
+      ...args.remaining,
+    ].filter(Boolean).join(" ");
+    const proceed = await confirmRun(summaryCmd);
+    if (!proceed) {
+      console.log("[dca-interactive] Copy the command above to run manually. Exiting.");
+      return;
+    }
+  }
+
+  if (args.listEngines) {
+    console.log("Available audit engines:");
+    console.log("─".repeat(50));
+    for (const [eid, desc] of listEngines()) {
+      console.log(`  ${eid.padEnd(15)} ${desc}`);
+    }
+    console.log(`\nUsage: npx ts-node run.ts --engine <name> --path /project [engine-specific flags]`);
     return;
   }
 
@@ -91,6 +214,7 @@ async function main(): Promise<void> {
     if (!projectPath) {
       console.error("❌ Error: Either --engine or --path is required.");
       console.error("   Use --list-engines to see available platforms.");
+      console.error("   Tip: rerun with --interactive to be prompted step-by-step, or add 'mode: interactive' to .bmad/intake.yaml.");
       process.exit(1);
     }
 
