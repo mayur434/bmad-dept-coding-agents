@@ -1,13 +1,13 @@
 [skill]
 name = "bmad-dept-code-generation-agent"
-description = "AI-driven code generation for AEM (AEMaaCS with MCP + AEM AMS), Apache Sling/Shaft, Spring Boot, Adobe Commerce (PaaS & SaaS), App Builder, EDS, and EDS+Commerce. Produces production-ready code following platform best practices, security standards, and scalable architecture."
+description = "AI-driven code generation across the 8 supported stacks (aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce). Combines deterministic scaffolders and LLM/MCP generation, and emits the standardized generation report (Excel + CHANGE-LOG.md) with an optional dca/generation-<stack>-<timestamp> working branch."
 version = "1.1.0"
 
 [skill.tools]
 required = ["claude-code"]
 
 [skill.activation]
-keywords = ["generate", "create component", "scaffold", "sling model", "htl", "osgi service", "content fragment model", "experience fragment", "editable template", "dispatcher config", "cloud manager", "unit test", "aem component", "magento module", "commerce module", "commerce plugin", "plugin interceptor", "observer", "graphql resolver", "admin grid", "admin form", "storefront block", "console command", "cron job", "message queue", "db_schema", "webapi", "rest api", "commerce test", "eav attribute"]
+keywords = ["generate", "create component", "scaffold", "sling model", "htl", "osgi service", "content fragment model", "experience fragment", "editable template", "dispatcher config", "cloud manager", "unit test", "aem component", "magento module", "commerce module", "commerce plugin", "plugin interceptor", "observer", "graphql resolver", "admin grid", "admin form", "storefront block", "console command", "cron job", "message queue", "db_schema", "webapi", "rest api", "commerce test", "eav attribute", "sling", "spring", "spring boot", "app builder", "commerce saas", "eds", "eds commerce"]
 
 [skill.scripts]
 dispatcher = "scripts/run.ts"

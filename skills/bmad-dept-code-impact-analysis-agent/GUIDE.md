@@ -33,7 +33,7 @@ The shared foundation is installed first (every agent imports it), then this
 agent's scripts:
 
 ```bash
-# Shared foundation (required by all four agents)
+# Shared foundation (required by all five agents)
 cd .claude/skills/shared && npm install
 
 # This agent's scripts

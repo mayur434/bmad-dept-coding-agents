@@ -1,12 +1,16 @@
 {
-  "name": "bmad-dept-code-agent-scripts",
+  "name": "bmad-dept-code-audit-scripts",
   "version": "4.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.12.0"
+  },
   "scripts": {
     "audit": "npx ts-node run.ts",
     "list-engines": "npx ts-node run.ts --list-engines"
   },
   "dependencies": {
+    "@bmad/dca-shared": "file:../../shared",
     "@types/pdfkit": "^0.17.6",
     "exceljs": "^4.4.0",
     "fast-glob": "^3.3.0",

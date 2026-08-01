@@ -31,10 +31,17 @@ interface Args {
   brd: string | null;
   output: string | null;
   listEngines: boolean;
+  createBranch: boolean;
+  sourceBranch: string | null;
+  preflight: boolean;
+  noPreflight: boolean;
 }
 
 function parseArgs(): Args {
-  const a: Args = { path: ".", engine: null, bugs: null, brd: null, output: null, listEngines: false };
+  const a: Args = {
+    path: ".", engine: null, bugs: null, brd: null, output: null, listEngines: false,
+    createBranch: false, sourceBranch: null, preflight: false, noPreflight: false,
+  };
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
     switch (argv[i]) {
@@ -44,6 +51,10 @@ function parseArgs(): Args {
       case "--brd": a.brd = argv[++i]; break;
       case "--output": a.output = argv[++i]; break;
       case "--list-engines": a.listEngines = true; break;
+      case "--create-branch": a.createBranch = true; break;
+      case "--source-branch": a.sourceBranch = argv[++i]; break;
+      case "--preflight": a.preflight = true; break;
+      case "--no-preflight": a.noPreflight = true; break;
       case "--help":
         console.log(`BMAD Impact Analysis Agent
 
@@ -51,13 +62,17 @@ Usage:
   npx ts-node run.ts --path <dir> [--bugs export.csv] [--brd doc.docx] [options]
 
 Options:
-  --path <dir>       Project root (default: .)
-  --bugs <csv>       Proofhub bug/task CSV export
-  --brd <doc>        BRD document (.docx / .md / .txt)
-  --engine <id>      Stack engine (auto-detect if omitted)
-  --output <dir>     Report output dir (default: <path>/impact-reports)
-  --list-engines     List available stack engines
-  --help             Show this help`);
+  --path <dir>            Project root (default: .)
+  --bugs <csv>            Proofhub bug/task CSV export
+  --brd <doc>             BRD document (.docx / .md / .txt)
+  --engine <id>           Stack engine (auto-detect if omitted)
+  --output <dir>          Report output dir (default: <path>/impact-reports)
+  --list-engines          List available stack engines
+  --create-branch         Cut standard working branch dca/impact-<stack>-<ts> before writing outputs
+  --source-branch <name>  Base branch for --create-branch (default: production/main/master/develop)
+  --preflight             Print preflight advisory (model + project fit) and exit
+  --no-preflight          Skip the preflight advisory on a normal run
+  --help                  Show this help`);
         process.exit(0);
     }
   }

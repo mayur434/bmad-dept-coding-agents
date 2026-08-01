@@ -3,7 +3,7 @@ name: "BMAD DEPT Code Agent"
 header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
 subheader: "Code audit, generation, impact analysis, sonar scan, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
 description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
-default_selected: false
+default_selected: true
 recommendedModules: [bmm]
 requiredModules: [core]
 
@@ -38,7 +38,7 @@ agents:
 
   - code: bmad-dept-code-sonar-scan-agent
     name: Sonar Scanner
-    title: Code Quality & Security Scan Specialist
+    title: Code Quality Scan Specialist
     icon: "🛡️"
     description: "LLM-driven SonarQube-style code quality analysis across all 8 stacks. Covers Bugs, Vulnerabilities, Security Hotspots, Code Smells, Duplications, and Complexity. Produces Reliability/Security/Maintainability ratings (A–E), a pass/fail Quality Gate, and a dedicated Vulnerabilities Excel sheet with color-coded severity rows and concrete recommended fixes."
     team: software-development
@@ -52,14 +52,38 @@ audit_output:
 audit_engine:
   prompt: "Default audit engine (auto-detects if not set)?"
   default: "auto"
-  single-select: ["auto", "aem", "commerce", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
+  single-select: ["auto", "aem", "commerce", "commerce-paas", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
 
 audit_namespace:
   prompt: "Custom module namespace for Commerce projects?"
   default: "Custom"
 
+generation_output:
+  prompt: "Where should scaffold + generation reports be stored?"
+  default: "{output_folder}/generation-reports"
+  result: "{project-root}/{value}"
+
+impact_output:
+  prompt: "Where should impact analysis reports be stored?"
+  default: "{output_folder}/impact-reports"
+  result: "{project-root}/{value}"
+
+test_coverage_output:
+  prompt: "Where should test coverage reports be stored?"
+  default: "{output_folder}/test-coverage-reports"
+  result: "{project-root}/{value}"
+
+sonar_output:
+  prompt: "Where should sonar-scan reports be stored?"
+  default: "{output_folder}/sonar-reports"
+  result: "{project-root}/{value}"
+
 directories:
   - "{audit_output}"
+  - "{generation_output}"
+  - "{impact_output}"
+  - "{test_coverage_output}"
+  - "{sonar_output}"
 
 post-install-notes: |
   BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage).

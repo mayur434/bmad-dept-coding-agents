@@ -1,6 +1,6 @@
 ---
 name: bmad-dept-code-generation-agent
-description: "AI-driven code generation agent (one of the four agents in the BMAD DEPT Code Agent suite). Generates production-ready code across 8 engine stacks — AEM (AEMaaCS via MCP + AEM AMS via LLM skills), Apache Sling/Shaft, Spring Boot, Adobe Commerce PaaS (Magento 2), Adobe Commerce SaaS, Adobe App Builder (API Mesh, Commerce Admin UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute), Edge Delivery Services, and EDS+Commerce — via deterministic scaffolders and LLM/MCP generation, following platform best practices, security standards, and scalable architecture."
+description: "AI-driven code generation agent (one of the 5 agents in the BMAD DEPT Code Agent suite — audit, generation, impact-analysis, sonar-scan, test-coverage). Generates production-ready code across 8 engine stacks — AEM (AEMaaCS via MCP + AEM AMS via LLM skills), Apache Sling/Shaft, Spring Boot, Adobe Commerce PaaS (Magento 2), Adobe Commerce SaaS, Adobe App Builder (API Mesh, Commerce Admin UI Extensibility, AEM UI Extensibility, Experience Cloud Shell, Asset Compute), Edge Delivery Services, and EDS+Commerce — via deterministic scaffolders and LLM/MCP generation, following platform best practices, security standards, and scalable architecture."
 ---
 
 # BMAD DEPT Code Agent — Generation Skill

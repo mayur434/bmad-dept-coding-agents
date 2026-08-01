@@ -143,11 +143,7 @@ async function main(): Promise<void> {
   }
 
   // Dispatch to engine
-  const engineDirName = engineId.replace(/-/g, "_");
-  let engineDir = path.join(__dirname, "engines", engineDirName);
-  if (!fs.existsSync(engineDir)) {
-    engineDir = path.join(__dirname, "engines", engineId);
-  }
+  const engineDir = path.join(__dirname, "engines", engineId);
 
   if (!fs.existsSync(engineDir)) {
     console.error(`⚠️  Engine '${engineId}' is registered but not yet implemented.`);

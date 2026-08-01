@@ -35,6 +35,12 @@ interface Args {
   strategy: DetectionStrategy | null;
   interactive: boolean;
   listEngines: boolean;
+  coverageReport: string | null;
+  runCoverage: boolean;
+  createBranch: boolean;
+  sourceBranch: string | null;
+  preflight: boolean;
+  noPreflight: boolean;
 }
 
 function parseArgs(): Args {
@@ -50,6 +56,12 @@ function parseArgs(): Args {
     strategy: null,
     interactive: false,
     listEngines: false,
+    coverageReport: null,
+    runCoverage: false,
+    createBranch: false,
+    sourceBranch: null,
+    preflight: false,
+    noPreflight: false,
   };
 
   for (let i = 0; i < args.length; i++) {
@@ -84,6 +96,24 @@ function parseArgs(): Args {
       case "--list-engines":
         parsed.listEngines = true;
         break;
+      case "--coverage-report":
+        parsed.coverageReport = args[++i];
+        break;
+      case "--run-coverage":
+        parsed.runCoverage = true;
+        break;
+      case "--create-branch":
+        parsed.createBranch = true;
+        break;
+      case "--source-branch":
+        parsed.sourceBranch = args[++i];
+        break;
+      case "--preflight":
+        parsed.preflight = true;
+        break;
+      case "--no-preflight":
+        parsed.noPreflight = true;
+        break;
       case "--help":
         printHelp();
         process.exit(0);
@@ -110,12 +140,22 @@ Options:
   --frameworks <list>              Comma-separated: unit,integration,mftf,api-functional,js,static,performance
   --strategy <strategy>            Detection: filename, namespace, annotation, all (default: all)
   --interactive                    Prompt which frameworks/strategy to use
+  --coverage-report <file>         Parse a JaCoCo/Istanbul/LCOV/Clover report for real line/branch %
+  --run-coverage                   Run the project's coverage tool first, then parse it
+  --create-branch                  Cut standard branch dca/test-coverage-<stack>-<timestamp> before writing outputs
+  --source-branch <name>           Source branch for --create-branch (default: production/main/master/develop)
+  --preflight                      Print model/context + STATIC/LLM/HYBRID advisory and exit
+  --no-preflight                   Suppress the preflight advisory that otherwise prints on every run
   --list-engines                   List available engines
   --help                           Show this help
 
 Engines:
-  commerce      Adobe Commerce / Magento 2
-  aem           AEM as a Cloud Service
+  aem           AEM as a Cloud Service / AMS
+  commerce      Adobe Commerce / Magento 2 (PaaS)
+  commerce-saas Adobe Commerce SaaS (storefront + drop-ins)
+  sling         Apache Sling / Shaft (sling-12)
+  spring        Spring Boot
+  app-builder   Adobe App Builder
   eds           Edge Delivery Services
   eds-commerce  EDS + Commerce Hybrid
 

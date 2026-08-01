@@ -15,7 +15,7 @@ import { BaseEngine } from "../shared/base";
 import { CommerceEngine } from "./commerce/coverage";
 import { AemEngine } from "./aem/coverage";
 import { EdsEngine } from "./eds/coverage";
-import { EdsCommerceEngine } from "./eds_commerce/coverage";
+import { EdsCommerceEngine } from "./eds-commerce/coverage";
 import { SlingEngine } from "./sling/coverage";
 import { SpringEngine } from "./spring/coverage";
 import { AppBuilderEngine } from "./app-builder/coverage";
@@ -127,9 +127,15 @@ const ENGINES: EngineEntry[] = [
 // Public API
 // ---------------------------------------------------------------------------
 
+// Aliases: caller IDs that resolve to a registered engine.
+const ENGINE_ALIASES: Record<string, string> = {
+  "commerce-paas": "commerce",
+};
+
 export function getEngine(engineId: string | null, projectPath: string): BaseEngine | null {
   if (engineId) {
-    const entry = ENGINES.find((e) => e.id === engineId);
+    const resolvedId = ENGINE_ALIASES[engineId] ?? engineId;
+    const entry = ENGINES.find((e) => e.id === resolvedId);
     if (!entry) {
       console.error(`❌ Unknown engine: ${engineId}`);
       listEngines();

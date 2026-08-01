@@ -1,5 +1,19 @@
+# NOTE: This is a per-agent minimal copy of the top-level ../../module.yaml.
+# The top-level file is authoritative; keep this in sync if BMAD requires it.
+# Only this agent's entry is included here.
+
 code: dca
 name: "BMAD DEPT Code Agent"
-header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe platforms"
-subheader: "Code audit, generation, impact analysis, scanning, and test coverage for Commerce, AEM, EDS"
-description: "Multi-agent AI suite (audit, generation, impact, test coverage) for AEMaaCS/AMS, Commerce PaaS + SaaS, App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-impact-analysis-agent
+    name: Impact Analyst
+    title: Code Impact Analysis Specialist
+    icon: "💥"
+    description: "Impact analysis from a Proofhub bug export or a BRD document (Word/Markdown). Traces impacted code, computes reverse-dependency blast radius, and scores risk across all supported stacks; emits an Input-Traceability report."
+    team: software-development
+
+impact_output:
+  prompt: "Where should impact analysis reports be stored?"
+  default: "{output_folder}/impact-reports"
+  result: "{project-root}/{value}"

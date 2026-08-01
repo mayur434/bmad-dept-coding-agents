@@ -1,12 +1,18 @@
 {
-  "name": "bmad-code-generation-scripts",
+  "name": "bmad-dept-code-generation-scripts",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=20.12.0"
+  },
   "scripts": {
     "setup": "npx ts-node scripts/run.ts --setup",
     "detect": "npx ts-node scripts/run.ts --detect",
     "list-templates": "npx ts-node scripts/run.ts --list-templates",
     "scaffold": "npx ts-node scripts/run.ts --scaffold"
+  },
+  "dependencies": {
+    "@bmad/dca-shared": "file:../../shared"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

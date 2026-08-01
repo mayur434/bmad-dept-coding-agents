@@ -1,5 +1,8 @@
-code,name,action,description,agent,platform,tier,mode,keywords,example_prompt,output,status,notes
-tca,Test Coverage,analyze,"Analyze test coverage gaps",bmad-dept-code-test-coverage-agent,all,1,scanner,"test coverage,coverage gaps,untested code","analyze test coverage",Excel + JSON,implemented,Tier 1 scanner
-tca,Test Coverage,generate,"Generate missing tests via LLM",bmad-dept-code-test-coverage-agent,all,2,llm,"generate tests,unit test,create tests","generate tests for the Checkout module",Test files,implemented,Tier 2 LLM
-tca,Test Coverage,full,"Analyze gaps then generate tests",bmad-dept-code-test-coverage-agent,all,both,combined,"full test coverage,complete coverage","full test coverage",Excel + Tests,implemented,Combined
-tca,Test Coverage,plan,"Create prioritized test plan",bmad-dept-code-test-coverage-agent,all,1,scanner,"test plan,coverage plan","create test plan",Markdown,implemented,Analysis output
+# NOTE: This is a per-agent minimal copy of the top-level ../../module-help.csv.
+# The top-level skills/module-help.csv is authoritative; keep this in sync if BMAD requires it.
+# Only rows for bmad-dept-code-test-coverage-agent are included here.
+module,skill,display-name,menu-code,description,action,args,phase,preceded-by,followed-by,required,output-location,outputs,example-prompts,prompt-template
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Coverage Analyze,TA,Analyze test-coverage gaps (Tier 1); real line/branch coverage when a report is present.,analyze,--mode analyze --path {project_path},anytime,,,false,{audit_output},coverage report,,
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Real Coverage,TR,Run the project coverage tool (JaCoCo/Jest/PHPUnit) and report real line/branch %.,analyze,--mode analyze --run-coverage --path {project_path},anytime,,,false,{audit_output},coverage report,,
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Generate Tests,TG,Generate tests to 100% (Tier 2 LLM) for the coverage gaps.,generate,--mode generate --path {project_path},anytime,,,false,,test files,,
+BMAD DEPT Code Agent,bmad-dept-code-test-coverage-agent,Full Coverage,TF,Analyze gaps then generate tests to 100%.,full,--mode full --path {project_path},anytime,,,false,{audit_output},coverage report|test files,,

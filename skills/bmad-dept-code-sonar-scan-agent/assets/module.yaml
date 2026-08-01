@@ -1,5 +1,27 @@
+# NOTE: This is a per-agent copy scoped to the sonar-scan agent only.
+# The top-level ../../module.yaml is the authoritative multi-agent manifest;
+# keep this file in sync with its sonar-scan-agent entry + sonar_output config
+# if BMAD requires per-agent copies.
+
 code: dca
 name: "BMAD DEPT Code Agent"
 header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
 subheader: "Code audit, generation, impact analysis, sonar scan, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
 description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-sonar-scan-agent
+    name: Sonar Scanner
+    title: Code Quality Scan Specialist
+    icon: "🛡️"
+    description: "LLM-driven SonarQube-style code quality analysis across all 8 stacks. Covers Bugs, Vulnerabilities, Security Hotspots, Code Smells, Duplications, and Complexity. Produces Reliability/Security/Maintainability ratings (A–E), a pass/fail Quality Gate, and a dedicated Vulnerabilities Excel sheet with color-coded severity rows and concrete recommended fixes."
+    team: software-development
+
+# Configuration variables (subset relevant to this agent)
+sonar_output:
+  prompt: "Where should sonar-scan reports be stored?"
+  default: "{output_folder}/sonar-reports"
+  result: "{project-root}/{value}"
+
+directories:
+  - "{sonar_output}"

@@ -21,7 +21,7 @@ BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Observer,CO,Genera
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce API,CA,Generate REST/SOAP API endpoint (interface + impl + webapi.xml + acl).,generate,--scope api,anytime,,,false,,api files,,
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce GraphQL,CG,Generate GraphQL resolver + schema.graphqls.,generate,--scope graphql,anytime,,,false,,graphql files,,
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Admin Grid,AG,Generate admin UI grid (listing.xml + controller + data provider).,generate,--scope admin-grid,anytime,,,false,,admin grid files,,
-BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Admin Form,AF,Generate admin UI form (form.xml + save/edit/delete controllers).,generate,--scope admin-form,anytime,,,false,,admin form files,,
+BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Admin Form,CF,Generate admin UI form (form.xml + save/edit/delete controllers).,generate,--scope admin-form,anytime,,,false,,admin form files,,
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Block,CB,Generate storefront block + ViewModel + .phtml template.,generate,--scope block,anytime,,,false,,block + template,,
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce CLI,CL,Generate console command registered via di.xml.,generate,--scope cli,anytime,,,false,,command class + di.xml,,
 BMAD DEPT Code Agent,bmad-dept-code-generation-agent,Commerce Cron,CR,Generate cron job with locking + crontab.xml.,generate,--scope cron,anytime,,,false,,cron class + crontab.xml,,

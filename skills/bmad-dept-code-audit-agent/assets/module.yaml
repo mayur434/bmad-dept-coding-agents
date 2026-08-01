@@ -1,8 +1,10 @@
+# NOTE: This is a per-agent copy of the top-level ../../module.yaml.
+# The top-level file is authoritative; keep this in sync if BMAD requires it.
 code: dca
 name: "BMAD DEPT Code Agent"
-header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe platforms"
-subheader: "Code audit, generation, impact analysis, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
-description: "Multi-agent AI suite (audit, generation, impact, test coverage) for AEMaaCS/AMS, Commerce PaaS + SaaS, App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
 default_selected: false
 recommendedModules: [bmm]
 requiredModules: [core]
@@ -12,7 +14,7 @@ agents:
     name: Auditor
     title: Code Audit Specialist
     icon: "🔍"
-    description: "Enterprise code auditor. Performs deterministic static analysis (42+ categories) and AI-driven semantic analysis across Commerce, AEM, and EDS platforms."
+    description: "Enterprise code auditor. Deterministic tree-sitter AST + regex static analysis and AI-driven semantic analysis across AEMaaCS/AMS, Commerce PaaS/SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, and EDS (+ EDS+Commerce). Emits a standardized Excel report + CHANGE-LOG."
     team: software-development
 
 # Configuration variables
@@ -24,7 +26,7 @@ audit_output:
 audit_engine:
   prompt: "Default audit engine (auto-detects if not set)?"
   default: "auto"
-  single-select: ["auto", "aem", "commerce", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
+  single-select: ["auto", "aem", "commerce", "commerce-paas", "commerce-saas", "sling", "spring", "app-builder", "eds", "eds-commerce"]
 
 audit_namespace:
   prompt: "Custom module namespace for Commerce projects?"

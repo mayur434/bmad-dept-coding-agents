@@ -9,7 +9,7 @@ description: "Two-tier test coverage agent (part of BMAD DEPT Code Agent suite).
 
 Two-tier test coverage system for enterprise Adobe projects across 8 stacks: AEM (AEMaaCS + AEM AMS), Adobe Commerce PaaS (Magento 2), Adobe Commerce SaaS, Apache Sling / Shaft (sling-12), Spring Boot, Adobe App Builder, Edge Delivery Services (EDS), and EDS + Commerce hybrid implementations.
 
-This is one of the four agents in the BMAD DEPT Code Agent suite (audit, generation, impact-analysis, test-coverage). Its Tier-1 gap analysis, real-coverage parsing, standardized report, CHANGE-LOG, and optional branch-cut are shared with the other three agents.
+This is one of the five agents in the BMAD DEPT Code Agent suite (audit, sonar-scan, generation, impact-analysis, test-coverage). Its Tier-1 gap analysis, real-coverage parsing, standardized report, CHANGE-LOG, and optional branch-cut are shared with the other four via the common `skills/shared/` foundation.
 
 ### Tier 1 — Deterministic Coverage Analysis (TypeScript/Node.js)
 
@@ -241,7 +241,6 @@ for `aem`/`sling`/`spring`/`eds`/`eds-commerce`, `js` for `app-builder`/`commerc
 ### EDS + Commerce — engine `eds-commerce`
 - Combines EDS test patterns with Commerce drop-in mocking (Jest + jsdom + Babel + mocked `@dropins` / `configs.js` / `fetch`)
 - Additional: drop-in component tests, Commerce API integration tests
-- On disk the engine directory is `eds_commerce` (underscore) while the canonical engine ID is `eds-commerce` (hyphen)
 
 ## Output Formats
 

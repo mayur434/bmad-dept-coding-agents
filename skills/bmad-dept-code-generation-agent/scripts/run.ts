@@ -1,4 +1,4 @@
-#!/usr/bin/env npx ts-node
+#!/usr/bin/env ts-node
 /**
  * BMAD Code Generation Agent — Dispatcher
  * =========================================
@@ -217,10 +217,24 @@ async function main(): Promise<void> {
   console.log("⚡ BMAD Code Generation Agent");
   console.log(`   Path: ${projectRoot}`);
   console.log("\nUsage:");
-  console.log("  --setup                    Install MCP config for LLM/MCP generation");
-  console.log("  --detect                   Detect project structure");
-  console.log("  --list-types               List deterministic scaffolders");
-  console.log("  --scaffold --engine <stack> --type <type> --name <Name> [--package p] [--dry-run]");
+  console.log("  --setup                       Install MCP config for LLM/MCP generation");
+  console.log("  --detect                      Detect project structure");
+  console.log("  --list-types                  List deterministic scaffolders");
+  console.log("  --list-templates              List available generation templates");
+  console.log("  --scaffold --engine <stack> --type <type> --name <Name> [flags]");
+  console.log("\nFlags (scaffold):");
+  console.log("  --path <dir>                  Project root (default: cwd)");
+  console.log("  --engine <stack>              Target stack: aem | sling | spring | commerce-paas | commerce-saas | app-builder | eds | eds-commerce");
+  console.log("  --type <type>                 Scaffolder type (see --list-types)");
+  console.log("  --name <Name>                 Artifact name");
+  console.log("  --package <pkg>               Java/PHP package (when applicable)");
+  console.log("  --output <dir>                Override output directory");
+  console.log("  --dry-run                     Print planned files, write nothing");
+  console.log("  --force                       Overwrite existing files");
+  console.log("  --preflight                   Print preflight only, then exit");
+  console.log("  --no-preflight                Skip the preflight advisory");
+  console.log("  --create-branch               Cut dca/generation-<stack>-<timestamp> before writing");
+  console.log("  --source-branch <name>        Base branch for --create-branch (default: production/main/master/develop)");
   console.log("\nFor complex/custom generation, use the LLM path (SKILL.md + resource packs).");
 }
 

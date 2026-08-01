@@ -1,5 +1,21 @@
+# NOTE: This is a per-agent minimal copy of the top-level ../../module.yaml.
+# The top-level skills/module.yaml is authoritative; keep this in sync if BMAD requires it.
+# It carries only the shared suite metadata + this agent's own registration.
 code: dca
 name: "BMAD DEPT Code Agent"
-header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe platforms"
-subheader: "Code audit, generation, impact analysis, scanning, and test coverage for Commerce, AEM, EDS"
-description: "Multi-agent AI suite (audit, generation, impact, test coverage) for AEMaaCS/AMS, Commerce PaaS + SaaS, App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-test-coverage-agent
+    name: Test Coverage
+    title: Test Coverage Specialist
+    icon: "🧪"
+    description: "Two-tier test coverage. Tier 1: gap analysis + real line/branch coverage (JaCoCo/Istanbul/Clover/LCOV). Tier 2: LLM test generation to 100% per framework (JUnit + AEM/Sling Mocks, Spring Test/MockMvc, PHPUnit/MFTF, Jest)."
+    team: software-development
+
+test_coverage_output:
+  prompt: "Where should test coverage reports be stored?"
+  default: "{output_folder}/test-coverage-reports"
+  result: "{project-root}/{value}"

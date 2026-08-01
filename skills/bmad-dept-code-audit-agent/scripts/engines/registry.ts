@@ -43,8 +43,14 @@ export function detectPlatform(projectPath: string): string[] {
   return matches;
 }
 
+// Aliases: caller IDs that resolve to a registered engine.
+const ENGINE_ALIASES: Record<string, string> = {
+  "commerce-paas": "commerce",
+};
+
 export function getEngine(platformId: string): EngineEntry | undefined {
-  return ENGINES[platformId];
+  const resolved = ENGINE_ALIASES[platformId] ?? platformId;
+  return ENGINES[resolved];
 }
 
 export function listEngines(): Array<[string, string]> {
@@ -106,4 +112,4 @@ register("app-builder", "Adobe App Builder / I/O Runtime", detectAppBuilder, "en
 register("commerce-saas", "Adobe Commerce SaaS (Catalog/Live Search/drop-ins)", detectCommerceSaas, "engines/commerce-saas/audit");
 register("aem", "AEM as a Cloud Service", detectAem, "engines/aem/audit");
 register("eds", "Edge Delivery Services", detectEds, "engines/eds/audit");
-register("eds-commerce", "EDS + Commerce Hybrid", detectEdsCommerce, "engines/eds_commerce/audit");
+register("eds-commerce", "EDS + Commerce Hybrid", detectEdsCommerce, "engines/eds-commerce/audit");

@@ -27,6 +27,8 @@ interface Args {
   listEngines: boolean;
   preflight: boolean;
   noPreflight: boolean;
+  createBranch: boolean;
+  sourceBranch: string | null;
 }
 
 function parseArgs(): Args {
@@ -38,6 +40,8 @@ function parseArgs(): Args {
     listEngines: false,
     preflight: false,
     noPreflight: false,
+    createBranch: false,
+    sourceBranch: null,
   };
   const argv = process.argv.slice(2);
   for (let i = 0; i < argv.length; i++) {
@@ -49,6 +53,8 @@ function parseArgs(): Args {
       case "--list-engines": a.listEngines = true; break;
       case "--preflight": a.preflight = true; break;
       case "--no-preflight": a.noPreflight = true; break;
+      case "--create-branch": a.createBranch = true; break;
+      case "--source-branch": a.sourceBranch = argv[++i]; break;
       case "--help":
         console.log(`BMAD Sonar Scan Agent
 
@@ -61,6 +67,7 @@ Options:
   --engine <id>          Force a stack (auto-detected from findings JSON if omitted)
   --output <dir>         Report output dir (default: <path>/sonar-reports)
   --create-branch        Cut standard branch dca/sonar-scan-<stack>-<timestamp>
+                         (takes effect only with --ingest)
   --source-branch <name> Source branch for --create-branch
   --preflight            Print LLM/context advisory and exit
   --no-preflight         Suppress the preflight advisory

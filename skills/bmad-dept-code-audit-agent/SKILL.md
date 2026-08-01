@@ -1,13 +1,13 @@
 ---
 name: bmad-dept-code-audit-agent
-description: "Two-tier code auditor — the Audit agent of the 4-agent BMAD DEPT Code Agent suite (audit, generation, impact-analysis, test-coverage). Tier 1: deterministic TypeScript/Node.js static analysis (tree-sitter AST + regex, zero tokens) across 8 stacks — Commerce (PaaS), Sling/Shaft, Spring Boot, App Builder, Commerce SaaS, AEM (AEMaaCS + AMS), EDS, and EDS+Commerce. Tier 2: LLM-driven deep semantic analysis via per-stack rule packs. Emits a standardized Excel report + Markdown twin + CHANGE-LOG."
+description: "Two-tier code auditor — the Audit agent of the 5-agent BMAD DEPT Code Agent suite (audit, generation, impact-analysis, sonar-scan, test-coverage). Tier 1: deterministic TypeScript/Node.js static analysis (tree-sitter AST + regex, zero tokens) across 8 stacks — AEM (AEMaaCS + AMS), Commerce (PaaS), Commerce SaaS, Sling/Shaft, Spring Boot, App Builder, EDS, and EDS+Commerce. Tier 2: LLM-driven deep semantic analysis via per-stack rule packs. Emits a standardized Excel report + Markdown twin + CHANGE-LOG."
 ---
 
 # BMAD DEPT Code Agent — Audit Skill
 
 ## Purpose
 
-The **Audit** agent — one of the four agents in the BMAD DEPT Code Agent suite (audit, generation, impact-analysis, test-coverage). It is a two-tier code audit system spanning **8 stacks**:
+The **Audit** agent — one of the five agents in the BMAD DEPT Code Agent suite (audit, generation, impact-analysis, sonar-scan, test-coverage). It is a two-tier code audit system spanning **8 stacks**:
 
 - **AEM** — AEM as a Cloud Service (AEMaaCS) + AEM AMS
 - **Adobe Commerce (PaaS)** — Magento 2
@@ -18,7 +18,7 @@ The **Audit** agent — one of the four agents in the BMAD DEPT Code Agent suite
 - **Edge Delivery Services (EDS)**
 - **EDS + Commerce** hybrid
 
-> The former standalone `scan-agent` has been retired. Its deterministic-scan capability now lives here as this agent's **Scan Only** action (Tier 1 only).
+> The former standalone deterministic `scan-agent` has been retired — its capability now lives here as this agent's **Scan Only** action (Tier 1 only). Note: this is distinct from the new LLM-driven **sonar-scan agent** (`bmad-dept-code-sonar-scan-agent`), which is a separate agent in the suite that performs SonarQube-style quality analysis (Bugs / Vulnerabilities / Security Hotspots / Code Smells / Duplications / Complexity) and emits a Quality Gate.
 
 ### Tier 1 — Deterministic Static Analysis (TypeScript/Node.js)
 

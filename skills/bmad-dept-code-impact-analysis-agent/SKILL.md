@@ -1,16 +1,18 @@
 ---
 name: bmad-dept-code-impact-analysis-agent
-description: "Code impact analysis agent (part of BMAD DEPT Code Agent suite). Evaluates blast radius of changes, traces dependency chains, and assesses risk for modifications, upgrades, and patches."
+description: "Code impact analysis agent (part of the BMAD DEPT Code Agent 5-agent suite: audit, generation, impact-analysis, sonar-scan, test-coverage). Evaluates blast radius of changes, traces dependency chains, and assesses risk for modifications, upgrades, and patches across all 8 supported stacks (aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce)."
 ---
 
 # BMAD DEPT Code Agent — Impact Analysis Skill
 
 ## Purpose
 
-Takes a **Proofhub bug export (CSV)** and/or a **BRD document (Word/Markdown/text)** as input, traces each
-bug/requirement onto the impacted code, computes the **blast radius** (reverse dependencies), scores risk, and
-emits the standardized impact report — including an **Input Traceability** sheet mapping every input item to
-the code it touches. Answers "what does fixing this bug / building this requirement affect?"
+One of the **5 agents** in the BMAD DEPT Code Agent suite (audit, generation, impact-analysis, sonar-scan,
+test-coverage). Takes a **Proofhub bug export (CSV)** and/or a **BRD document (Word/Markdown/text)** as input,
+traces each bug/requirement onto the impacted code, computes the **blast radius** (reverse dependencies), scores
+risk, and emits the standardized impact report — including an **Input Traceability** sheet mapping every input
+item to the code it touches. Answers "what does fixing this bug / building this requirement affect?" across the
+8 supported stacks (aem, commerce, commerce-saas, sling, spring, app-builder, eds, eds-commerce).
 
 ## Activation
 

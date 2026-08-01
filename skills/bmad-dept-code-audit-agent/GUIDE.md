@@ -32,7 +32,7 @@ After install, the skill lives at `.claude/skills/bmad-dept-code-audit-agent/`.
 
 ### Step 2: Install Node dependencies
 
-The four agents share a common TypeScript foundation (`skills/shared/`), so install **that first**, then the audit agent's own scripts:
+The five agents share a common TypeScript foundation (`skills/shared/`), so install **that first**, then the audit agent's own scripts:
 
 ```bash
 # 1. Shared foundation (exceljs, fast-glob, mammoth, tree-sitter-wasms, web-tree-sitter)
@@ -80,7 +80,7 @@ The agent will:
 3. Execute the scanner
 4. Present results / point to the generated Excel report
 
-> **"Scan Only"** — the former standalone scan-agent has been retired; its deterministic Tier-1 scan is now this agent's **Scan Only** action (menu code `SC`, `npx ts-node scripts/run.ts --path .`). There are exactly four agents in this module: audit, generation, impact-analysis, and test-coverage.
+> **"Scan Only"** — the former standalone deterministic scan-agent has been retired; its Tier-1 scan is now this agent's **Scan Only** action (menu code `SC`, `npx ts-node scripts/run.ts --path .`). The module ships **five agents**: audit, sonar-scan, generation, impact-analysis, and test-coverage. (Sonar Scan is a distinct LLM-driven quality-gate agent added later.)
 
 ### Step 4: Find your report
 
@@ -157,8 +157,6 @@ All eight engines are implemented and auto-detected (order in `registry.ts` is t
 | `aem` | AEM as a Cloud Service / AMS (Java) | legacy regex + Java AST pass | ✅ Ready |
 | `eds` | Edge Delivery Services (JS) | legacy regex + JS AST pass | ✅ Ready |
 | `eds-commerce` | EDS + Commerce Hybrid | legacy regex + reused EDS JS AST | ✅ Ready |
-
-> Note: the `eds-commerce` engine's on-disk directory is `scripts/engines/eds_commerce/` (underscore), while its canonical id — used in `--engine`, `registry.ts`, and the menu — is `eds-commerce` (hyphen).
 
 ```bash
 # List all engines
@@ -309,7 +307,7 @@ Each engine has its own `config.json`. For commerce: `scripts/engines/commerce/c
 ## Directory Structure
 
 ```
-bmad-dept-code-agent/                       # Module repository (code: dca, v3.0.0)
+bmad-dept-code-agent/                       # Module repository (code: dca, v4.0.0)
 ├── .claude-plugin/marketplace.json         # Plugin + version registry
 ├── skills/
 │   ├── module.yaml                         # BMAD module declaration (code: dca)
@@ -362,7 +360,7 @@ bmad-dept-code-agent/                       # Module repository (code: dca, v3.0
 │               ├── spring/                  # ✅ Java AST + regex/config
 │               ├── app-builder/             # ✅ JS AST + config
 │               ├── eds/                     # ✅ legacy regex + JS AST pass
-│               └── eds_commerce/            # ✅ reuses EDS JS AST (dir uses underscore)
+│               └── eds-commerce/            # ✅ reuses EDS JS AST
 ```
 
 When installed via BMAD into a project (`--tools claude-code`):
