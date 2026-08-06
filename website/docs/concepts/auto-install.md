@@ -5,8 +5,6 @@ sidebar_position: 6
 description: First-run dependency bootstrap — one prompt, ~80MB, headless overrides for CI.
 ---
 
-# Auto-install
-
 Every agent depends on the top-level **`shared/`** foundation (`@bmad/dca-shared`) plus its own `scripts/` folder. **You do not need to install these by hand.** The first time you invoke any agent, a bootstrap step detects missing `node_modules` and — with your confirmation — installs them.
 
 ## The bootstrap scripts
@@ -57,10 +55,14 @@ Every agent's `run.ts` accepts two mutually exclusive flags that get forwarded t
 
 Both flags work on every `run.ts` (Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage). Example — a CI-safe Audit:
 
-```bash
+```bash title="CI job"
 npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
   --path . --yes-install
 ```
+
+:::tip Always use `--yes-install` in CI
+CI environments have no TTY — without `--yes-install`, the bootstrap sees `n` and exits `3`. Combine with `--technical` and `--role devops` for the full non-interactive pattern.
+:::
 
 ## Manual fallback
 

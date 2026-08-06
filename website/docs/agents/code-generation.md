@@ -3,9 +3,13 @@ id: code-generation
 title: Code Generation
 sidebar_position: 3
 description: 24 deterministic scaffolders + 5 AEM IaC templates across 8 stacks, plus an LLM/MCP path with zero-config MCP auto-provisioning for AEM.
+keywords:
+  - scaffolder
+  - code generation
+  - aem scaffold
+  - commerce scaffold
+  - mcp
 ---
-
-# Code Generation (⚡)
 
 ## Purpose
 

@@ -1,10 +1,9 @@
 ---
+id: config-vars
 title: Config Vars
 sidebar_position: 2
 description: Every install-time config variable, `.env` variable, and `.bmad/` runtime file the DCA suite reads.
 ---
-
-# Config Vars
 
 Every knob that shapes the DCA suite: install-time module config variables (from `skills/module.yaml`), the `.env` token-budget variables (from `skills/.env.example`), and the runtime `.bmad/` files each agent reads on activation.
 
@@ -56,7 +55,7 @@ Listed under `directories:` in `skills/module.yaml`. Created (idempotent) on mod
 
 The template lives at `skills/.env.example`. Copy it to `.env` at the project root (or into `.claude/skills/.env` where the installer looks) and tune the numbers to match your host's model and pricing.
 
-```bash
+```bash title=".env (project root)"
 # Total token budget allocated per session (context window)
 BMAD_TOKEN_BUDGET_TOTAL=128000
 
@@ -99,7 +98,7 @@ Each project accumulates a `.bmad/` directory (git-ignored) that holds per-proje
 
 Written by the role picker on first agent activation, or manually to switch roles. Format:
 
-```yaml
+```yaml title=".bmad/role.yaml"
 # BMAD DCA — role selection
 # Set by the DCA agent suite on first activation; edit or delete to change.
 role: ea                        # one of: ea, tl, de, qa, devops, security, pm, ba, migration, content
@@ -115,7 +114,7 @@ Full role catalog: [`skills/shared/role/ROLES.md`](https://github.com/mayur434/b
 
 Written when an agent runs an intake questionnaire (e.g. picking the AEM `--platform` on ambiguous projects). Format:
 
-```yaml
+```yaml title=".bmad/intake.yaml"
 project_name: acme-storefront
 engine: aem
 platform: aemcs
@@ -139,7 +138,7 @@ Typical files:
 
 Optional project-local overrides that customize scaffolder output (package prefixes, namespace defaults, license header). Read by Code Generation on `--scaffold`. Format:
 
-```yaml
+```yaml title=".bmad/conventions.yaml"
 package_prefix: com.acme.storefront
 commerce_namespace: Acme
 license_header: |

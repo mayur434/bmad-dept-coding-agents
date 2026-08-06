@@ -2,11 +2,17 @@
 id: intro
 title: Overview
 sidebar_position: 1
-slug: /
 description: A five-agent AI suite (module code dca) for Adobe platform + JVM SDLC — one standardized report shape across 8 stacks.
+keywords:
+  - bmad
+  - dca
+  - adobe commerce
+  - aem
+  - sonar
+  - code audit
+  - ai coding agents
+  - docusaurus
 ---
-
-# Overview
 
 **BMAD DEPT Code Agent** (module code `dca`) is a five-agent AI suite for Adobe platform and JVM middleware SDLC. Every agent works standalone; every run emits the same three artifacts.
 

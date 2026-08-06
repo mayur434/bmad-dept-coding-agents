@@ -1,10 +1,9 @@
 ---
+id: audit
 title: Audit
 sidebar_position: 1
 description: Copy-paste prompts for the Code Audit agent, per stack, with cross-cutting flag templates and follow-up prompts.
 ---
-
-# Audit — prompt catalog
 
 Copy-paste prompts for the **Code Audit agent** (`bmad-dept-code-audit-agent`). Send the whole block or a single line — the agent parses natural language and resolves flags, paths, and engine automatically.
 

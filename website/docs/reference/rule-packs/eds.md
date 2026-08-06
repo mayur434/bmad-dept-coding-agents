@@ -1,10 +1,9 @@
 ---
+id: eds
 title: EDS
 sidebar_position: 7
 description: Audit + Sonar rule packs for Adobe Edge Delivery Services (EDS / Franklin / Helix).
 ---
-
-# Edge Delivery Services (EDS) — audit + sonar rule packs
 
 Covers **Adobe Edge Delivery Services** — vanilla-JS block-based storefronts served from Helix / Franklin, authored in Google Docs / SharePoint, and hydrated in the browser. Engine ID: `eds`. Aliases: Franklin, Helix.
 

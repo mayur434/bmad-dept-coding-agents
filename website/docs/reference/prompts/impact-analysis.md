@@ -1,10 +1,9 @@
 ---
+id: impact-analysis
 title: Impact Analysis
 sidebar_position: 4
 description: Copy-paste prompts for the Impact Analysis agent — Proofhub CSV, BRD, PR-diff, and blast-radius interpretation prompts.
 ---
-
-# Impact Analysis — prompt catalog
 
 Copy-paste prompts for the **Impact Analysis agent** (`bmad-dept-code-impact-analysis-agent`). This agent is **input-driven**, not scanner-driven: give it a Proofhub bug/task export (`--bugs`, CSV) and/or a BRD document (`--brd`; `.docx`, `.md`, `.txt`). At least one input is required.
 

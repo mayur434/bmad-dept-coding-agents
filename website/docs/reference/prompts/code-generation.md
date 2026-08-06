@@ -1,10 +1,9 @@
 ---
+id: code-generation
 title: Code Generation
 sidebar_position: 3
 description: Copy-paste prompts for the Code Generation agent — 24 deterministic scaffolders + 5 AEM IaC scaffolders + LLM/MCP prompts.
 ---
-
-# Code Generation — prompt catalog
 
 Copy-paste prompts for the **Code Generation agent** (`bmad-dept-code-generation-agent`). Two paths: **deterministic scaffolders** (correct-by-construction, zero tokens) and an **LLM / MCP** path for custom logic and IaC.
 

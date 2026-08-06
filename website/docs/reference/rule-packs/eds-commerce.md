@@ -1,10 +1,9 @@
 ---
+id: eds-commerce
 title: EDS + Commerce
 sidebar_position: 8
 description: Audit + Sonar rule packs for the EDS + Commerce hybrid storefront (drop-ins consuming Commerce SaaS APIs).
 ---
-
-# EDS + Commerce — audit + sonar rule packs
 
 Covers the **EDS + Commerce** hybrid — an EDS block-based storefront wired to Adobe Commerce SaaS APIs (Catalog Service, Live Search, Cart, Checkout) via the official `@dropins/storefront-*` drop-in components. Engine ID: `eds-commerce`.
 

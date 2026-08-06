@@ -1,10 +1,9 @@
 ---
+id: aem
 title: AEM
 sidebar_position: 1
 description: Audit + Sonar rule packs for Adobe Experience Manager (AEMaaCS + AMS).
 ---
-
-# AEM — audit + sonar rule packs
 
 The `aem` engine covers both **AEM as a Cloud Service (AEMaaCS)** and **AEM AMS (on-prem / Managed Services)**. Two sub-packs live under `resources/rule-packs/aem/`: `aemcs/` (AEMaaCS-focused, 96 rules) and `aemams/` (AMS-focused, 48 rules). Select with `--platform aemcs`, `--platform aemams`, or `--platform both`.
 

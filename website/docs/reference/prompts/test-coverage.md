@@ -1,10 +1,9 @@
 ---
+id: test-coverage
 title: Test Coverage
 sidebar_position: 5
 description: Copy-paste prompts for the Test Coverage agent — per-framework gap analysis, real coverage, LLM test generation, and mutation testing.
 ---
-
-# Test Coverage — prompt catalog
 
 Copy-paste prompts for the **Test Coverage agent** (`bmad-dept-code-test-coverage-agent`). Tier 1 is deterministic gap analysis + real line/branch coverage (JaCoCo / Istanbul / LCOV / Clover). Tier 2 is LLM test generation to 100% per framework.
 

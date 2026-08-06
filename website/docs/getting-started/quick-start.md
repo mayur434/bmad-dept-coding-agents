@@ -3,9 +3,13 @@ id: quick-start
 title: Quick Start
 sidebar_position: 3
 description: A 5-minute smoke test — one natural-language prompt per agent, then the full SDLC chain.
+keywords:
+  - quickstart
+  - audit
+  - sonar scan
+  - generate
+  - impact analysis
 ---
-
-# Quick Start
 
 Once the plugin is [installed](install), open your AI coding tool (Claude Code, Cursor, Copilot, …) in your project and paste any of these into chat. The agent auto-detects your stack and routes to the right engine — no flags required for the happy path.
 
@@ -93,7 +97,7 @@ npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts \
 npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts --list-engines
 ```
 
-Substitute `.claude/skills/` with your tool's directory (see [Install](install#install-for-other-ai-coding-tools)).
+Substitute `.claude/skills/` with your tool's directory (see [Install](install#fresh-install--pick-your-ai-coding-tool)).
 
 ## Try the full SDLC chain
 

@@ -1,10 +1,9 @@
 ---
+id: app-builder
 title: App Builder
 sidebar_position: 6
 description: Audit + Sonar rule packs for Adobe App Builder (IO Runtime actions, API Mesh, IO Events, UI Extensibility).
 ---
-
-# Adobe App Builder — audit + sonar rule packs
 
 Covers **Adobe App Builder** — serverless actions on IO Runtime, API Mesh for GraphQL stitching, IO Events for evented integrations, and UI Extensibility (UIX) for admin panel embeds. Engine ID: `app-builder`. Aliases: `app-builder-mesh`, `appbuilder`.
 

@@ -5,8 +5,6 @@ sidebar_position: 5
 description: Two intake modes — Q&A walk-through or full-CLI upfront — with per-project persistence at .bmad/intake.yaml.
 ---
 
-# Interactive vs Technical
-
 The **intake mode** determines *how* an agent gathers the inputs it needs — either by walking you through a Q&A (interactive) or by expecting the full CLI up front (technical). The picker fires on your first invocation, persists to `.bmad/intake.yaml`, and every subsequent run reads it silently.
 
 ## The intake picker

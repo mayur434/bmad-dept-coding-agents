@@ -3,9 +3,14 @@ id: test-coverage
 title: Test Coverage
 sidebar_position: 5
 description: Gap analysis + real line/branch coverage (JaCoCo / Istanbul / Clover / LCOV) + framework-aware LLM test generation to 100%, with a 6-factor priority model across all 8 engines.
+keywords:
+  - test coverage
+  - jacoco
+  - istanbul
+  - phpunit
+  - jest
+  - mutation testing
 ---
-
-# Test Coverage (🧪)
 
 ## Purpose
 

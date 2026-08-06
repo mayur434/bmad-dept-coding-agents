@@ -5,8 +5,6 @@ sidebar_position: 1
 description: Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage — one shared foundation, five independent specialists.
 ---
 
-# The 5 Agents
-
 Five independent AI coding agents, each with a deterministic Tier 1 (TypeScript) and an LLM-driven Tier 2, all funneled through one shared `@bmad/dca-shared` foundation so reports, changelog entries, git ops, and preflight look identical across the fleet.
 
 ## At a glance

@@ -1,10 +1,9 @@
 ---
+id: commerce
 title: Commerce
 sidebar_position: 2
 description: Audit + Sonar rule packs for Adobe Commerce PaaS (Magento 2 on-prem / cloud).
 ---
-
-# Commerce (PaaS) — audit + sonar rule packs
 
 Covers **Adobe Commerce on PaaS** — the PHP-based Magento 2 codebase (on-prem or Adobe Commerce Cloud). Engine IDs: `commerce` (canonical) or `commerce-paas` (alias). For the JavaScript / drop-in storefront, see [Commerce SaaS](commerce-saas).
 

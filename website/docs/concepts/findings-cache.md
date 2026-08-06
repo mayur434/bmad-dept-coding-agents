@@ -5,8 +5,6 @@ sidebar_position: 7
 description: Per-run JSON snapshots under .bmad/cache/ that downstream agents consume for cross-agent chaining.
 ---
 
-# Findings Cache
-
 Every successful agent run writes a JSON snapshot of its findings to `<projectRoot>/.bmad/cache/`. Downstream agents read the latest snapshot to enrich their own analysis — the mechanism that makes cross-agent chaining (audit → coverage, audit → impact, audit → sonar) work.
 
 ## What it is

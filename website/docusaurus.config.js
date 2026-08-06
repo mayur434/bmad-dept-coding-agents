@@ -20,13 +20,29 @@ const config = {
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
 
-  onBrokenLinks: 'warn',
+  onBrokenLinks: 'throw',
 
   markdown: {
+    mermaid: true,
     hooks: {
-      onBrokenMarkdownLinks: 'warn',
+      onBrokenMarkdownLinks: 'throw',
     },
   },
+
+  themes: [
+    '@docusaurus/theme-mermaid',
+    [
+      require.resolve('@easyops-cn/docusaurus-search-local'),
+      {
+        hashed: true,
+        indexDocs: true,
+        indexBlog: false,
+        docsRouteBasePath: '/',
+        highlightSearchTermsOnTargetPage: true,
+        explicitSearchResultPath: true,
+      },
+    ],
+  ],
 
   i18n: {
     defaultLocale: 'en',
@@ -43,6 +59,9 @@ const config = {
           sidebarPath: './sidebars.js',
           editUrl:
             'https://github.com/mayur434/bmad-dept-code-agent/edit/main/website/',
+          breadcrumbs: true,
+          showLastUpdateTime: true,
+          showLastUpdateAuthor: false,
         },
         blog: false,
         theme: {
@@ -55,6 +74,23 @@ const config = {
   themeConfig:
     /** @type {import('@docusaurus/preset-classic').ThemeConfig} */
     ({
+      image: 'img/social-card.svg',
+      metadata: [
+        { name: 'keywords', content: 'bmad, dca, adobe commerce, aem, sonar, code audit, ai coding agents' },
+        { name: 'twitter:card', content: 'summary_large_image' },
+        { name: 'twitter:site', content: '@mayur434' },
+        { property: 'og:type', content: 'website' },
+      ],
+      tableOfContents: {
+        minHeadingLevel: 2,
+        maxHeadingLevel: 4,
+      },
+      docs: {
+        sidebar: {
+          hideable: true,
+          autoCollapseCategories: false,
+        },
+      },
       colorMode: {
         defaultMode: 'light',
         disableSwitch: false,
@@ -64,7 +100,7 @@ const config = {
         title: 'BMAD DEPT Code Agent',
         logo: {
           alt: 'BMAD DEPT Code Agent',
-          src: 'img/favicon.svg',
+          src: 'img/logo.svg',
         },
         items: [
           {
@@ -75,8 +111,9 @@ const config = {
           },
           {
             href: 'https://github.com/mayur434/bmad-dept-code-agent',
-            label: 'GitHub',
             position: 'right',
+            className: 'header-github-link',
+            'aria-label': 'GitHub repository',
           },
         ],
       },
@@ -86,30 +123,30 @@ const config = {
           {
             title: 'Docs',
             items: [
-              { label: 'Getting Started', to: '/getting-started/prerequisites' },
+              { label: 'Getting Started', to: '/getting-started/install' },
               { label: 'Concepts', to: '/concepts/the-5-agents' },
               { label: 'Agents', to: '/agents/audit' },
+              { label: 'Reference', to: '/reference/cli-flags' },
             ],
           },
           {
-            title: 'Project',
+            title: 'Community',
             items: [
-              {
-                label: 'GitHub',
-                href: 'https://github.com/mayur434/bmad-dept-code-agent',
-              },
-              {
-                label: 'Changelog',
-                to: '/changelog',
-              },
-              {
-                label: 'Roadmap',
-                to: '/roadmap',
-              },
+              { label: 'GitHub Issues', href: 'https://github.com/mayur434/bmad-dept-code-agent/issues' },
+              { label: 'BMAD Method', href: 'https://github.com/bmadcode/bmad-method' },
+              { label: 'Contributing', to: '/contributing/authoring-a-new-skill' },
+            ],
+          },
+          {
+            title: 'More',
+            items: [
+              { label: 'Roadmap', to: '/roadmap' },
+              { label: 'Changelog', to: '/changelog' },
+              { label: 'License (MIT)', href: 'https://github.com/mayur434/bmad-dept-code-agent/blob/main/LICENSE' },
             ],
           },
         ],
-        copyright: `Copyright © ${new Date().getFullYear()} mayur434 · MIT License · <a href="https://github.com/mayur434/bmad-dept-code-agent">bmad-dept-code-agent</a>`,
+        copyright: `Copyright © ${new Date().getFullYear()} mayur434 · Built with Docusaurus`,
       },
       prism: {
         theme: prismThemes.github,

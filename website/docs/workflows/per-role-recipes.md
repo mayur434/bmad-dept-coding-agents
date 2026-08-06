@@ -5,8 +5,6 @@ sidebar_position: 2
 description: Realistic end-to-end workflows for each of the 10 roles — trigger phrases, resolved CLIs, expected outputs, and cross-agent next steps.
 ---
 
-# Per-role recipes
-
 Every DCA agent adapts its default mode, output flavor, and cross-agent handoff to the resolved [role](../concepts/role-adaptation). The recipes below show how each role actually uses the plugin end-to-end — trigger phrase, resolved CLI, expected output, and the natural next step.
 
 Set the role once per project (`.bmad/role.yaml`), or override per run with `--role <code>` on any dispatcher, or prefix a chat prompt with *"as `<role>`, …"*.

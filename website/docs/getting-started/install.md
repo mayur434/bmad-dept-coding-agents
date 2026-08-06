@@ -3,15 +3,43 @@ id: install
 title: Install
 sidebar_position: 2
 description: One npx command per AI coding tool — installs into your project, no manual npm install.
+keywords:
+  - install
+  - bmad-method
+  - claude code
+  - cursor
+  - github copilot
 ---
 
-# Install
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
 
 The plugin installs into a **target project directory** — the folder containing your Adobe / JVM source tree. BMAD drops the agent skills under a tool-specific directory (e.g. `.claude/skills/` for Claude Code, `.agents/skills/` for Cursor / Copilot / Codex).
 
-## Fresh install (default: Claude Code)
+:::note Auto-install of Node dependencies
+There is **no manual `npm install` step**. The first time you invoke any agent, a bootstrap detects missing `node_modules` and prompts once (~80MB, ~30–60s). See [Auto-install](../concepts/auto-install) for the full mechanics.
+:::
 
-```bash
+## Fresh install — pick your AI coding tool
+
+Substitute the tool you use. Claude Code is the reference host and the default.
+
+<Tabs groupId="ai-tool" defaultValue="claude-code" values={[
+  {label: 'Claude Code', value: 'claude-code'},
+  {label: 'Cursor', value: 'cursor'},
+  {label: 'GitHub Copilot', value: 'github-copilot'},
+  {label: 'Codex', value: 'codex'},
+  {label: 'Cline', value: 'cline'},
+  {label: 'Windsurf', value: 'windsurf'},
+  {label: 'Roo Code', value: 'roo'},
+  {label: 'Gemini CLI', value: 'gemini'},
+  {label: 'Junie', value: 'junie'},
+  {label: 'Kiro', value: 'kiro'},
+]}>
+
+<TabItem value="claude-code">
+
+```bash title="Terminal"
 cd /path/to/your-project
 
 npx bmad-method install \
@@ -22,18 +50,177 @@ npx bmad-method install \
   --yes
 ```
 
-That's it — no manual `npm install` needed. See [First Run](first-run) for what happens on your first agent invocation.
+Skills install under `.claude/skills/`.
 
-## Install for other AI coding tools
+</TabItem>
 
-Substitute `--tools <id>`:
+<TabItem value="cursor">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools cursor \
+  --yes
+```
+
+Skills install under `.agents/skills/`.
+
+</TabItem>
+
+<TabItem value="github-copilot">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools github-copilot \
+  --yes
+```
+
+Skills install under `.agents/skills/` (VS Code Copilot host).
+
+</TabItem>
+
+<TabItem value="codex">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools codex \
+  --yes
+```
+
+Skills install under `.agents/skills/`.
+
+</TabItem>
+
+<TabItem value="cline">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools cline \
+  --yes
+```
+
+Skills install under `.cline/skills/`.
+
+</TabItem>
+
+<TabItem value="windsurf">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools windsurf \
+  --yes
+```
+
+Skills install under `.agents/skills/`.
+
+</TabItem>
+
+<TabItem value="roo">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools roo \
+  --yes
+```
+
+Skills install under `.agents/skills/`.
+
+</TabItem>
+
+<TabItem value="gemini">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools gemini \
+  --yes
+```
+
+Skills install under `.agents/skills/`.
+
+</TabItem>
+
+<TabItem value="junie">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools junie \
+  --yes
+```
+
+Skills install under `.junie/skills/`.
+
+</TabItem>
+
+<TabItem value="kiro">
+
+```bash title="Terminal"
+cd /path/to/your-project
+
+npx bmad-method install \
+  --directory . \
+  --modules bmm \
+  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --tools kiro \
+  --yes
+```
+
+Skills install under `.kiro/skills/`.
+
+</TabItem>
+
+</Tabs>
+
+See [First Run](first-run) for what happens on your first agent invocation.
+
+## Full supported-tools list
+
+The 10 tabs above cover the common cases. BMAD supports 40+ AI coding tools total:
 
 | Tool | `--tools <id>` | Installed under |
 |------|----------------|-----------------|
-| Claude Code (default, recommended) | `claude-code` | `.claude/skills/` |
-| Cursor (recommended) | `cursor` | `.agents/skills/` |
-| GitHub Copilot — VS Code (recommended) | `github-copilot` | `.agents/skills/` |
-| Codex (recommended) | `codex` | `.agents/skills/` |
+| Claude Code (default) | `claude-code` | `.claude/skills/` |
+| Cursor | `cursor` | `.agents/skills/` |
+| GitHub Copilot (VS Code) | `github-copilot` | `.agents/skills/` |
+| Codex | `codex` | `.agents/skills/` |
 | Cline | `cline` | `.cline/skills/` |
 | Windsurf | `windsurf` | `.agents/skills/` |
 | Gemini CLI | `gemini` | `.agents/skills/` |
@@ -45,26 +232,17 @@ Substitute `--tools <id>`:
 | Zencoder | `zencoder` | `.zencoder/skills/` |
 | Qwen Coder | `qwen` | `.qwen/skills/` |
 
-30+ additional tools are supported (KiloCoder, CodeBuddy, CodeWhale, Mistral Vibe, Kimi Code, OpenHands, OpenCode, Ona, Replit, Rovo Dev, Trae, Kode, iFlow, others). Get the full list with:
+30+ additional tools are supported (KiloCoder, CodeBuddy, CodeWhale, Mistral Vibe, Kimi Code, OpenHands, OpenCode, Ona, Replit, Rovo Dev, Trae, Kode, iFlow, others).
 
-```bash
+:::tip Get the full list
+```bash title="Terminal"
 npx bmad-method install --list-tools
 ```
-
-Example — install into a Cursor project:
-
-```bash
-npx bmad-method install \
-  --directory . \
-  --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
-  --tools cursor \
-  --yes
-```
+:::
 
 :::info Wherever the docs say `.claude/skills/…`
 Substitute your tool's actual directory. To locate it after install:
-```bash
+```bash title="Terminal"
 find . -type d -name "bmad-dept-code-audit-agent" 2>/dev/null | head -3
 ```
 :::
@@ -73,7 +251,7 @@ find . -type d -name "bmad-dept-code-audit-agent" 2>/dev/null | head -3
 
 Point `--custom-source` at the repo's **`skills/`** folder, not the repo root:
 
-```bash
+```bash title="Terminal"
 git clone https://github.com/mayur434/bmad-dept-code-agent.git ~/src/dca
 cd /path/to/your-project
 
@@ -93,11 +271,15 @@ npx bmad-method install \
 
 Answer **Y** (or press Enter). The bootstrap installs `shared/` first, then the agent's `scripts/`, both silently. Subsequent runs are silent no-ops.
 
+:::warning Network-restricted environments
+The bootstrap calls `npm install`. In air-gapped or heavily-firewalled setups, pre-populate `node_modules` and pass `--no-install` on every agent invocation so the bootstrap never tries to reach the registry. Corporate proxies: set `npm config set proxy` / `https-proxy` before the first agent run.
+:::
+
 Full mechanics — bootstrap exit codes, headless overrides (`--yes-install` / `--no-install`), Windows Node twin — on the [Auto-install concept page](../concepts/auto-install).
 
 ## Update
 
-```bash
+```bash title="Terminal"
 cd /path/to/your-project
 
 # Quick update — preserves settings, syncs module files only
@@ -117,7 +299,7 @@ npx bmad-method install \
 
 ## Uninstall
 
-```bash
+```bash title="Terminal"
 npx bmad-method uninstall --directory .
 ```
 

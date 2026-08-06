@@ -5,8 +5,6 @@ sidebar_position: 4
 description: Ten roles tune every agent's default mode, output flavor, and recommended follow-up — from EA (executive MD) to DevOps (SARIF).
 ---
 
-# Role Adaptation
-
 Every one of the five agents adapts its default mode, output shape, and recommended follow-ups to the **role** of the person driving the run. Role handling is a shared foundation (`skills/shared/role/`) consumed by every agent, and it is entirely opt-out (set `role: generic` to disable).
 
 ## Why roles
@@ -42,7 +40,7 @@ Four ways, in resolution-priority order (highest wins for a given run):
     ```
 2. **Prefix a chat prompt** — *"as `<role>`, ..."*, e.g. *"as security, audit my project"*. Per-run only.
 3. **`.bmad/role.yaml`** — persisted; every subsequent run reads it silently.
-    ```yaml
+    ```yaml title=".bmad/role.yaml"
     # BMAD DCA — role selection
     role: ea                        # one of: ea, tl, de, qa, devops, security, pm, ba, migration, content
     set_at: 2026-08-06T02:53:00Z    # ISO-8601 UTC
@@ -50,6 +48,10 @@ Four ways, in resolution-priority order (highest wins for a given run):
     notes: |
       Optional free-text notes about the role choice.
     ```
+
+:::info Role persistence lives in `.bmad/role.yaml`
+The file is committed to the project (or gitignored, per your policy) — it does NOT live in your home directory. That's deliberate: different projects can have different default roles, and swapping projects swaps role gating automatically.
+:::
 4. **Install-time default** — `--set dca.default_role=<code>` on `npx bmad-method install` skips the first-activation picker.
 
 ### Interactive picker

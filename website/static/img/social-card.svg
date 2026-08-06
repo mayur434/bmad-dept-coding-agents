@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630" role="img" aria-label="BMAD DCA — Five AI agents for Adobe + JVM SDLC">
+  <title>BMAD DCA — Five AI agents for Adobe + JVM SDLC</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#EB1000"/>
+      <stop offset="100%" stop-color="#8A0800"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <g transform="translate(80, 100)">
+    <circle cx="50" cy="50" r="50" fill="#ffffff"/>
+    <text x="50" y="62" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="26" font-weight="700" fill="#EB1000">DCA</text>
+  </g>
+  <text x="80" y="290" font-family="Inter, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="82" font-weight="800" fill="#ffffff">BMAD DCA</text>
+  <text x="80" y="360" font-family="Inter, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="34" font-weight="500" fill="#ffe8e5">Five AI agents for Adobe + JVM SDLC</text>
+  <g transform="translate(80, 470)" font-size="52">
+    <text x="0" y="0">🔍</text>
+    <text x="90" y="0">🛡️</text>
+    <text x="180" y="0">⚡</text>
+    <text x="270" y="0">💥</text>
+    <text x="360" y="0">🧪</text>
+  </g>
+  <text x="80" y="590" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="22" fill="#ffe8e5" opacity="0.9">audit · sonar · generate · impact · coverage</text>
+</svg>

@@ -3,9 +3,13 @@ id: sonar-scan
 title: Sonar Scan
 sidebar_position: 2
 description: LLM-driven SonarQube-style code quality analysis — Bugs / Vulnerabilities / Hotspots / Smells / Duplications / Complexity, A–E ratings, Quality Gate, dedicated Vulnerabilities sheet.
+keywords:
+  - sonar
+  - quality gate
+  - code smells
+  - vulnerabilities
+  - security hotspots
 ---
-
-# Sonar Scan (🛡️)
 
 ## Purpose
 

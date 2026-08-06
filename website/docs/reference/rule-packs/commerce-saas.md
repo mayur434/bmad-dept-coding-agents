@@ -1,10 +1,9 @@
 ---
+id: commerce-saas
 title: Commerce SaaS
 sidebar_position: 3
 description: Audit + Sonar rule packs for Adobe Commerce SaaS (drop-ins / Storefront / Catalog Service / Live Search).
 ---
-
-# Commerce SaaS — audit + sonar rule packs
 
 Covers **Adobe Commerce as a Cloud Service (SaaS)** — an EDS/drop-in storefront + App Builder consuming the SaaS services: **Catalog Service**, **Live Search**, **Product Recommendations**, **Data Connection** (event forwarding), and the **Storefront Events SDK**. There is no `app/code` PHP tree; the code is storefront JS (drop-ins/blocks), integration JS (GraphQL to the SaaS services), config, and App Builder actions.
 

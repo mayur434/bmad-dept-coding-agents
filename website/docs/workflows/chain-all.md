@@ -1,11 +1,13 @@
 ---
 id: chain-all
-title: chain-all
+title: Chain-all
 sidebar_position: 1
 description: Run Audit → Sonar Scan → Test Coverage → Impact Analysis in one command, with a Markdown roll-up that reconciles blockers across the four stages.
+keywords:
+  - dca chain-all
+  - sdlc pass
+  - cross-agent orchestrator
 ---
-
-# chain-all — one command, four agents
 
 The `--chain-all` mode runs the SDLC pass end-to-end in one invocation. It spawns each agent's `run.ts` in sequence, chains their outputs through the shared findings cache, and emits a single Markdown roll-up under `dca-chain-reports/` that reconciles blockers across the four stages.
 

@@ -5,8 +5,6 @@ sidebar_position: 2
 description: Eight engine IDs, their aliases, the platforms they serve, and how auto-detection picks one.
 ---
 
-# The 8 Stacks
-
 Every agent registers the same 8 engines. The `--engine <id>` flag is identical everywhere; auto-detection iterates the registry in a fixed order and picks the first match (`eds-commerce` wins ties).
 
 ## The 8 engines
@@ -93,7 +91,7 @@ npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts --list-engi
 
 ## Per-stack rule packs
 
-Each engine ships a per-stack rule pack under `skills/bmad-dept-code-<agent>-agent/resources/`. Summaries per stack live in the [rule packs reference](../reference/rule-packs).
+Each engine ships a per-stack rule pack under `skills/bmad-dept-code-<agent>-agent/resources/`. Summaries per stack live in the [rule packs reference](../reference/rule-packs/aem).
 
 ## Next
 

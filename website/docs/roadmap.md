@@ -5,8 +5,6 @@ sidebar_position: 91
 description: Delivered features by phase, in-progress work, post-audit enhancements, explicitly-deferred items, and how to contribute.
 ---
 
-# Roadmap
-
 Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-code-agent/blob/main/IMPLEMENTATION-PLAN.md) §7 (phased roadmap) and the README's Roadmap Highlights section. All **45 delivered coverage cells** (5 agents × 9 in-scope stack variants) are ✅ complete — the items below are open enhancements, not blockers.
 
 ## Delivered — by phase

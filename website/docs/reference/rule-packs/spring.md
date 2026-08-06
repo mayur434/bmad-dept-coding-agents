@@ -1,10 +1,9 @@
 ---
+id: spring
 title: Spring
 sidebar_position: 5
 description: Audit + Sonar rule packs for Spring Boot services.
 ---
-
-# Spring Boot — audit + sonar rule packs
 
 Covers **Spring Boot** services — auto-configuration, stereotype annotations, Spring Data JPA, `application.yml` profiles, actuator, Spring Security, validation, and Kafka/RabbitMQ messaging. Engine ID: `spring`. Alias: `spring-boot`.
 

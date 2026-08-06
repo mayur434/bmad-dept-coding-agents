@@ -5,8 +5,6 @@ sidebar_position: 92
 description: Auto-maintained per-run log — each DCA agent invocation appends a Keep-a-Changelog entry to CHANGE-LOG.md at the project root.
 ---
 
-# Changelog
-
 `CHANGE-LOG.md` is **auto-maintained** by the DCA agents. Each run appends a dated entry (most recent first) spliced in right after the `<!-- dca:entries -->` marker. The writer is [`skills/shared/git/changelog.ts`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/shared/git/changelog.ts) and is called by every agent through the shared `emitStandardOutputs` pipeline.
 
 - **Location** — `<projectRoot>/CHANGE-LOG.md` (each installed project has its own; this repo also carries its own).

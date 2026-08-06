@@ -1,10 +1,9 @@
 ---
+id: adding-a-new-engine
 title: Adding a New Engine
 sidebar_position: 2
 description: How to add a new stack engine (e.g. a new Adobe product) under an existing DCA agent — folder scaffold, registry wiring, output emission, rule packs, and tests.
 ---
-
-# Adding a New Engine
 
 Add a new stack engine (a new `--engine` value) to an existing agent — for example, a new Adobe product surface under Audit, Sonar Scan, Impact Analysis, or Test Coverage.
 

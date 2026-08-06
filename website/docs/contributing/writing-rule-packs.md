@@ -1,10 +1,9 @@
 ---
+id: writing-rule-packs
 title: Writing Rule Packs
 sidebar_position: 3
 description: How to write rule packs — the per-stack `.md` files that carry Tier 2 LLM knowledge and cross-reference Tier 1 deterministic scanners.
 ---
-
-# Writing Rule Packs
 
 Rule packs are the per-stack knowledge base every DCA agent reads. They serve two audiences: the **LLM** (Tier 2 — reasons over source code against the rules) and the **deterministic scanner** (Tier 1 — TypeScript at `scripts/engines/<stack>/`) which references the same rule IDs. Both must stay in sync.
 

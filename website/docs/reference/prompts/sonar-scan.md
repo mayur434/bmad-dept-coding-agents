@@ -1,10 +1,9 @@
 ---
+id: sonar-scan
 title: Sonar Scan
 sidebar_position: 2
 description: Copy-paste prompts for the Sonar Scan agent, per stack, including the 2-step scan→ingest workflow and Quality Gate CI prompts.
 ---
-
-# Sonar Scan — prompt catalog
 
 Copy-paste prompts for the **Sonar Scan agent** (`bmad-dept-code-sonar-scan-agent`). The scan is a **two-step** workflow:
 

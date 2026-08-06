@@ -3,9 +3,13 @@ id: impact-analysis
 title: Impact Analysis
 sidebar_position: 4
 description: Input-driven reverse-dependency tracer over Proofhub bug CSVs, BRD docs, and PR diffs — impacted files, blast radius, risk score, audit cross-reference.
+keywords:
+  - impact analysis
+  - blast radius
+  - codeowners
+  - proofhub
+  - brd
 ---
-
-# Impact Analysis (💥)
 
 ## Purpose
 

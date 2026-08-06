@@ -1,10 +1,9 @@
 ---
+id: cli-flags
 title: CLI Flags
 sidebar_position: 1
 description: Consolidated CLI flag reference across all 5 DCA agents, the shared bootstrap, and the cross-agent chain orchestrator.
 ---
-
-# CLI Flags
 
 Every documented CLI flag across the five DCA agents (`run.ts` dispatchers), the shared bootstrap installer, and the `dca chain-all` cross-agent orchestrator.
 
@@ -29,9 +28,9 @@ Flags accepted by every agent's `run.ts` dispatcher.
 | Flag | Agents | Type | Default | Purpose | Notes |
 |------|:------:|------|---------|---------|-------|
 | `--path <dir>` | A, S, G, I, T | dir | `.` | Project root the agent operates on. | Absolute or relative; agents resolve to absolute. |
-| `--engine <id>` | A, S, G, I, T | enum | auto | Force a stack. Values: `aem`, `commerce`, `commerce-paas`, `commerce-saas`, `sling`, `spring`, `app-builder`, `eds`, `eds-commerce`. | Skip auto-detection. See [Engines](../concepts/engines). |
+| `--engine <id>` | A, S, G, I, T | enum | auto | Force a stack. Values: `aem`, `commerce`, `commerce-paas`, `commerce-saas`, `sling`, `spring`, `app-builder`, `eds`, `eds-commerce`. | Skip auto-detection. See [Engines](../concepts/the-8-stacks). |
 | `--role <code>` | A, S, G, I, T | enum | resolved | Override the resolved DCA role for a single run. One of: `ea`, `tl`, `de`, `qa`, `devops`, `security`, `pm`, `ba`, `migration`, `content`, `generic`. | Per-run only; does NOT persist to `.bmad/role.yaml`. |
-| `--preflight` | A, S, G, I, T | bool | false | Print the preflight advisory (STATIC / HYBRID / LLM) and exit. | See [Preflight](../concepts/preflight). |
+| `--preflight` | A, S, G, I, T | bool | false | Print the preflight advisory (STATIC / HYBRID / LLM) and exit. | See [Preflight](../concepts/the-5-agents). |
 | `--no-preflight` | A, S, G, I, T | bool | false | Suppress the preflight advisory that otherwise prints on every run. | Useful in CI where the advisory is noise. |
 | `--create-branch` | A, S, G, I, T | bool | false | Cut `dca/<agent>-<stack>-<timestamp>` before writing outputs. | Base branch cascade: `production` → `main` → `master` → `develop`. |
 | `--source-branch <name>` | A, S, G, I, T | string | auto | Base branch for `--create-branch`. | Overrides the auto cascade. |
@@ -170,7 +169,7 @@ Real-world flag combos, with a one-line rationale each.
 
 ### 1. Air-gapped CI: audit without any install prompt
 
-```bash
+```bash title="Air-gapped CI: audit without any install prompt"
 npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
   --path . --engine auto --no-install --no-preflight
 ```
@@ -179,7 +178,7 @@ Fails fast (exit 2) if deps are missing; the advisory noise is suppressed for ma
 
 ### 2. Cloud-readiness AMS → AEMaaCS migration baseline
 
-```bash
+```bash title="Cloud-readiness AMS → AEMaaCS migration baseline"
 npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
   --engine aem --platform aemams --format all --create-branch --source-branch production
 ```
@@ -188,7 +187,7 @@ Runs both PDF + Markdown + Excel on a `dca/audit-aem-<ts>` branch cut from `prod
 
 ### 3. Commerce PaaS full audit with DB + BRD + bug context
 
-```bash
+```bash title="Commerce PaaS full audit with DB + BRD + bug context"
 npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
   --engine commerce --db ./db/prod.sql \
   --brd ./docs/spec.docx --bugs ./reports/bugs.xlsx \
@@ -199,7 +198,7 @@ Combines all Commerce-only inputs on a fresh branch. Add `--namespace Acme` to s
 
 ### 4. Sonar Step 2 (ingest) after a chat-driven Step 1
 
-```bash
+```bash title="Sonar Step 2 (ingest) after a chat-driven Step 1"
 npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts \
   --ingest ./sonar-reports/sonar-findings.json \
   --engine aem --path . --create-branch
@@ -209,7 +208,7 @@ Deterministic ingest; produces the Quality Gate + Vulnerabilities sheet on a fre
 
 ### 5. Real coverage, then LLM-generate to 100%
 
-```bash
+```bash title="Real coverage, then LLM-generate to 100%"
 npx ts-node .claude/skills/bmad-dept-code-test-coverage-agent/scripts/run.ts \
   --mode full --run-coverage --engine spring --path .
 ```
@@ -218,7 +217,7 @@ Runs the project's own JaCoCo tooling first for a true baseline; Tier 2 then tar
 
 ### 6. Impact analysis from combined bugs + BRD, filtered to one module
 
-```bash
+```bash title="Impact analysis from combined bugs + BRD, filtered to one mo"
 npx ts-node .claude/skills/bmad-dept-code-impact-analysis-agent/scripts/run.ts \
   --bugs ./proofhub-export.csv --brd ./BRD.docx \
   --engine spring --focus-module payments --path .
@@ -228,7 +227,7 @@ Blast radius is scoped to `payments/*`; every input still appears in the traceab
 
 ### 7. Dry-run scaffolder review, then apply
 
-```bash
+```bash title="Dry-run scaffolder review, then apply"
 npx ts-node .claude/skills/bmad-dept-code-generation-agent/scripts/run.ts \
   --scaffold --engine aem --type component --name HeroBanner --dry-run
 # review the file list, then:
@@ -240,7 +239,7 @@ Verifies the planned file list before touching the tree; the second call cuts a 
 
 ### 8. Full pre-release gate on one shared branch
 
-```bash
+```bash title="Full pre-release gate on one shared branch"
 dca chain-all --path . --engine auto --create-branch --source-branch production \
   --bugs ./bugs.csv --brd ./BRD.docx --run-coverage
 ```

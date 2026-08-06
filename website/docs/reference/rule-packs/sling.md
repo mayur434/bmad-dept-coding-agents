@@ -1,10 +1,9 @@
 ---
+id: sling
 title: Sling
 sidebar_position: 4
 description: Audit + Sonar rule packs for Sling / Shaft (sling-12 middleware — Apache Sling + Felix + Oak).
 ---
-
-# Sling / Shaft — audit + sonar rule packs
 
 Covers the **Sling-12 / Shaft** middleware stack — Apache Sling + Felix OSGi + Oak repository, packaged as a feature-model / starter, typically running JVM services that expose REST via `SlingServlet` and OSGi DS components. Engine ID: `sling`. Aliases: `sling-shaft`.
 

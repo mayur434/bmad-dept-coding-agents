@@ -3,9 +3,13 @@ id: audit
 title: Audit
 sidebar_position: 1
 description: Two-tier code auditor — tree-sitter AST + regex (Tier 1) plus LLM deep semantic analysis (Tier 2) across all 8 stacks.
+keywords:
+  - code audit
+  - static analysis
+  - tree-sitter
+  - ast
+  - adobe commerce audit
 ---
-
-# Audit (🔍)
 
 ## Purpose
 

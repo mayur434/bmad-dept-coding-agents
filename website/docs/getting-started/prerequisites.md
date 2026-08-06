@@ -5,8 +5,6 @@ sidebar_position: 1
 description: Node 20.12+, Git, and one of 44+ supported AI coding tools — that's the whole list.
 ---
 
-# Prerequisites
-
 Everything you need before running [`npx bmad-method install`](install).
 
 ## Runtime

@@ -5,8 +5,6 @@ sidebar_position: 3
 description: Three artifacts per run — XLSX, MD twin, CHANGE-LOG entry — with a 15-column Summary contract and a fixed sheet order.
 ---
 
-# Standardized Outputs
-
 Every agent, every stack, every run — through one shared `emitStandardOutputs()` entry point (`skills/shared/output/emit.ts`) — writes the same three artifacts.
 
 ## The three outputs

@@ -1,10 +1,9 @@
 ---
+id: authoring-a-new-skill
 title: Authoring a New Skill
 sidebar_position: 1
 description: How to author a new BMAD skill module for the DCA plugin — folder scaffold, required files, customize.toml schema, SKILL.md principles, and a publishing checklist.
 ---
-
-# Authoring a New Skill
 
 This page describes how to author a **new BMAD skill module** — a peer of `bmad-dept-code-audit-agent`, `bmad-dept-code-sonar-scan-agent`, etc. — either inside the DCA fleet or as a fork under a different module code entirely.
 

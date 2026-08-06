@@ -5,8 +5,6 @@ sidebar_position: 4
 description: The three questions every DCA agent asks the first time — deps, role, intake mode — and how to change any of them later.
 ---
 
-# First Run
-
 The very first time you invoke any of the five agents in a project, the DCA suite performs a short handshake — three questions, in order — then remembers your answers for every subsequent run.
 
 ## The three questions

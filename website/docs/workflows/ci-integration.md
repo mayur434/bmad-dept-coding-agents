@@ -5,14 +5,13 @@ sidebar_position: 3
 description: Wire DCA into GitHub Actions or GitLab CI — Sonar Quality Gate as a required check, delta gate via --since, CI-safe flag pattern.
 ---
 
-# CI Integration
-
 DCA agents are CLI-first — every dispatcher is a plain `ts-node` script that returns a real exit code. That makes them wireable as required checks with no adapter code.
 
 ## SARIF export — status
 
-- **Planned.** A first-class SARIF exporter is on the [roadmap](../roadmap).
-- **Current CI path.** Use the Sonar Scan agent's `--focus` filter and Quality Gate exit code — that's the deterministic CI gate today. Any DevOps role's report can also be post-processed into SARIF by the agent runner if your CI insists on it.
+:::warning SARIF exporter is planned, not shipped
+A first-class SARIF exporter is on the [roadmap](../roadmap). Today, use the Sonar Scan agent's `--focus` filter and Quality Gate exit code — that's the deterministic CI gate. Any DevOps role's report can also be post-processed into SARIF by the agent runner if your CI insists on it.
+:::
 
 ## The CI-safe invocation pattern
 
@@ -27,12 +26,16 @@ Four flags every CI job should pass:
 
 Baseline command:
 
-```bash
+```bash title="CI: Sonar Quality Gate"
 npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts \
   --ingest ./sonar-reports/sonar-findings.json \
   --path . \
   --yes-install --technical --role devops
 ```
+
+:::tip Combine three flags for the CI-safe pattern
+`--yes-install --technical --role devops` is the deterministic non-interactive triple. Missing any one of them re-introduces the risk of a blocking prompt or a role-inappropriate default.
+:::
 
 Exit codes to expect:
 
@@ -48,17 +51,21 @@ Exit codes to expect:
 
 Combine the Audit agent's `--since` flag with a required check to fail the build when a branch adds CRITICAL/HIGH findings vs a previous-release tag:
 
-```bash
+```bash title="CI: Audit delta gate"
 npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
   --path . --role devops --yes-install --technical \
   --since release/2026.07
 ```
 
+:::warning Delta gate needs full git history
+`--since <ref>` requires the ref to be reachable — in GitHub Actions set `fetch-depth: 0` on the checkout step, or the compare will fall back to a full scan.
+:::
+
 The **Delta** sheet appended to the workbook buckets new / fixed / persisting findings. Fail the CI job when the `new` bucket contains any CRITICAL or HIGH severity.
 
 ## GitHub Actions
 
-```yaml
+```yaml title=".github/workflows/dca-quality-gate.yml"
 name: DCA Quality Gate
 
 on:
@@ -101,7 +108,7 @@ jobs:
 
 ## GitLab CI
 
-```yaml
+```yaml title=".gitlab-ci.yml"
 stages:
   - quality
 
