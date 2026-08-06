@@ -1,0 +1,10 @@
+{
+  "label": "Contributing",
+  "position": 6,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "Extend DCA \u2014 new skills, engines, and rule packs."
+  }
+}

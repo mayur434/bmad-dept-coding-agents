@@ -1,0 +1,10 @@
+{
+  "label": "Prompts",
+  "position": 2,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "Prompt sources shipped with each agent."
+  }
+}

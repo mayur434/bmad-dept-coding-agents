@@ -1,0 +1,10 @@
+{
+  "label": "Rule Packs",
+  "position": 1,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "Per-stack rule packs the audit and sonar engines apply."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "label": "Reference",
+  "position": 5,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "CLI flags, config vars, scoring, rule packs, and prompt sources."
+  }
+}

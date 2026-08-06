@@ -1,0 +1,10 @@
+{
+  "label": "Workflows",
+  "position": 4,
+  "collapsible": true,
+  "collapsed": false,
+  "link": {
+    "type": "generated-index",
+    "description": "End-to-end recipes: chain-all, per-role, CI integration."
+  }
+}

@@ -1,0 +1,28 @@
+/**
+ * Custom CSS for BMAD DEPT Code Agent docs.
+ * Primary color is Adobe Red (#FA0F00) with a lighter accent for dark mode.
+ * Infima variables reference: https://docusaurus.io/docs/styling-layout
+ */
+
+:root {
+  --ifm-color-primary: #fa0f00;
+  --ifm-color-primary-dark: #e10e00;
+  --ifm-color-primary-darker: #d40d00;
+  --ifm-color-primary-darkest: #ae0b00;
+  --ifm-color-primary-light: #ff2c1f;
+  --ifm-color-primary-lighter: #ff3d31;
+  --ifm-color-primary-lightest: #ff6a61;
+  --ifm-code-font-size: 92%;
+  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme='dark'] {
+  --ifm-color-primary: #ff5a4f;
+  --ifm-color-primary-dark: #ff3d31;
+  --ifm-color-primary-darker: #ff2f22;
+  --ifm-color-primary-darkest: #e01e12;
+  --ifm-color-primary-light: #ff776d;
+  --ifm-color-primary-lighter: #ff857c;
+  --ifm-color-primary-lightest: #ffb0aa;
+  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+}
