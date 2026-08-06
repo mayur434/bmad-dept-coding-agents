@@ -1,37 +1,64 @@
 /**
  * Custom CSS for BMAD DEPT Code Agent docs.
- * Primary color is Adobe Red (#FA0F00) with a lighter accent for dark mode.
+ * Palette: soft slate + indigo primary. Light hero, clean feature cards,
+ * professional and enterprise-friendly.
  * Infima variables reference: https://docusaurus.io/docs/styling-layout
  */
 
 :root {
-  --ifm-color-primary: #fa0f00;
-  --ifm-color-primary-dark: #e10e00;
-  --ifm-color-primary-darker: #d40d00;
-  --ifm-color-primary-darkest: #a00a00;
-  --ifm-color-primary-light: #ff2c1f;
-  --ifm-color-primary-lighter: #ff3d31;
-  --ifm-color-primary-lightest: #ff6a61;
-  --ifm-link-color: var(--ifm-color-primary-darker);
+  /* Indigo-600 primary — WCAG AA on white (7.4:1). */
+  --ifm-color-primary: #4f46e5;
+  --ifm-color-primary-dark: #4338ca;
+  --ifm-color-primary-darker: #3730a3;
+  --ifm-color-primary-darkest: #312e81;
+  --ifm-color-primary-light: #6366f1;
+  --ifm-color-primary-lighter: #818cf8;
+  --ifm-color-primary-lightest: #a5b4fc;
+  --ifm-link-color: var(--ifm-color-primary-dark);
+
+  --ifm-background-color: #ffffff;
+  --ifm-background-surface-color: #fafafa;
+  --ifm-heading-color: #0f172a;
+  --ifm-font-color-base: #1f2937;
+  --ifm-color-emphasis-200: #f1f5f9;
+  --ifm-color-emphasis-300: #e2e8f0;
+  --ifm-navbar-background-color: rgba(255, 255, 255, 0.85);
+  --ifm-navbar-shadow: 0 1px 0 rgba(15, 23, 42, 0.06);
+
   --ifm-code-font-size: 92%;
-  --docusaurus-highlighted-code-line-bg: rgba(0, 0, 0, 0.08);
+  --ifm-code-background: #f1f5f9;
+  --docusaurus-highlighted-code-line-bg: rgba(79, 70, 229, 0.08);
 }
 
 [data-theme='dark'] {
-  --ifm-color-primary: #ff5a4f;
-  --ifm-color-primary-dark: #ff3d31;
-  --ifm-color-primary-darker: #ff2f22;
-  --ifm-color-primary-darkest: #e01e12;
-  --ifm-color-primary-light: #ff776d;
-  --ifm-color-primary-lighter: #ff857c;
-  --ifm-color-primary-lightest: #ffb0aa;
+  --ifm-color-primary: #818cf8;
+  --ifm-color-primary-dark: #6366f1;
+  --ifm-color-primary-darker: #4f46e5;
+  --ifm-color-primary-darkest: #4338ca;
+  --ifm-color-primary-light: #a5b4fc;
+  --ifm-color-primary-lighter: #c7d2fe;
+  --ifm-color-primary-lightest: #e0e7ff;
   --ifm-link-color: var(--ifm-color-primary);
-  --docusaurus-highlighted-code-line-bg: rgba(255, 255, 255, 0.1);
+
+  --ifm-background-color: #0f172a;
+  --ifm-background-surface-color: #111c33;
+  --ifm-heading-color: #f8fafc;
+  --ifm-font-color-base: #cbd5e1;
+  --ifm-color-emphasis-200: #1e293b;
+  --ifm-color-emphasis-300: #334155;
+  --ifm-navbar-background-color: rgba(15, 23, 42, 0.85);
+  --ifm-navbar-shadow: 0 1px 0 rgba(255, 255, 255, 0.06);
+  --docusaurus-highlighted-code-line-bg: rgba(129, 140, 248, 0.15);
+}
+
+/* Frosted navbar */
+.navbar {
+  backdrop-filter: saturate(180%) blur(12px);
+  -webkit-backdrop-filter: saturate(180%) blur(12px);
 }
 
 /* ---------------------------------------------------------------------------
- * Navbar GitHub icon (mark-only). Batch C adds navbar item with
- * className: 'header-github-link'.
+ * Navbar GitHub icon (mark-only).
  * ------------------------------------------------------------------------- */
 .header-github-link:hover {
   opacity: 0.6;
@@ -39,8 +66,8 @@
 
 .header-github-link:before {
   content: '';
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   display: flex;
   background-color: var(--ifm-navbar-link-color);
   mask-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 24 24' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12'/%3E%3C/svg%3E");
@@ -49,61 +76,150 @@
   mask-size: contain;
 }
 
-[data-theme='dark'] .header-github-link:before {
-  background-color: var(--ifm-navbar-link-color);
-}
-
 /* ---------------------------------------------------------------------------
- * Landing page hero (src/pages/index.js — Batch C).
+ * Landing hero — light, quiet, decent. No full-bleed color.
  * ------------------------------------------------------------------------- */
-.hero--primary {
-  background: linear-gradient(135deg, var(--ifm-color-primary) 0%, var(--ifm-color-primary-darker) 100%);
-  padding: 4rem 0;
+.dca-hero {
+  background:
+    radial-gradient(1200px 400px at 15% 0%, rgba(99, 102, 241, 0.10), transparent 60%),
+    radial-gradient(900px 300px at 85% 20%, rgba(129, 140, 248, 0.08), transparent 60%),
+    linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+  padding: 5.5rem 0 4rem;
+  border-bottom: 1px solid var(--ifm-color-emphasis-200);
 }
 
-.hero__title {
-  font-size: 3rem;
+[data-theme='dark'] .dca-hero {
+  background:
+    radial-gradient(1200px 400px at 15% 0%, rgba(129, 140, 248, 0.16), transparent 60%),
+    radial-gradient(900px 300px at 85% 20%, rgba(99, 102, 241, 0.10), transparent 60%),
+    linear-gradient(180deg, #0f172a 0%, #111c33 100%);
+  border-bottom-color: var(--ifm-color-emphasis-300);
+}
+
+.dca-hero .hero__title {
+  font-size: 3.25rem;
   font-weight: 800;
-  color: white;
+  color: var(--ifm-heading-color);
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin-bottom: 1rem;
+  max-width: 24ch;
 }
 
-.hero__subtitle {
-  font-size: 1.5rem;
-  color: rgba(255, 255, 255, 0.9);
+.dca-hero .hero__subtitle {
+  font-size: 1.25rem;
+  color: var(--ifm-font-color-base);
+  line-height: 1.55;
+  max-width: 62ch;
   margin-bottom: 2rem;
+  font-weight: 400;
+}
+
+.dca-hero-cta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.dca-hero .button--lg {
+  padding: 0.85rem 1.4rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  border-radius: 8px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+
+/* Primary CTA — indigo, solid */
+.dca-hero .button--secondary {
+  background: var(--ifm-color-primary);
+  color: #ffffff;
+  border: 1px solid var(--ifm-color-primary);
+  box-shadow: 0 1px 2px rgba(79, 70, 229, 0.10), 0 4px 12px rgba(79, 70, 229, 0.14);
+}
+
+.dca-hero .button--secondary:hover {
+  background: var(--ifm-color-primary-dark);
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(79, 70, 229, 0.14), 0 8px 20px rgba(79, 70, 229, 0.18);
+}
+
+/* Secondary CTA — ghost outline */
+.dca-hero .button--outline {
+  background: transparent;
+  color: var(--ifm-heading-color);
+  border: 1px solid var(--ifm-color-emphasis-300);
+}
+
+.dca-hero .button--outline:hover {
+  background: var(--ifm-color-emphasis-200);
+  color: var(--ifm-heading-color);
+  border-color: var(--ifm-color-emphasis-300);
+  transform: translateY(-1px);
+}
+
+[data-theme='dark'] .dca-hero .button--outline {
+  color: var(--ifm-heading-color);
+  border-color: var(--ifm-color-emphasis-300);
 }
 
 /* ---------------------------------------------------------------------------
- * Feature grid on the landing page.
+ * Feature grid — clean cards, subtle borders, gentle hover lift.
  * ------------------------------------------------------------------------- */
 .dca-features {
-  padding: 4rem 0;
+  padding: 5rem 0;
+  background: var(--ifm-background-surface-color);
+}
+
+.dca-features .row {
+  gap: 1rem 0;
+}
+
+.dca-feature {
+  padding: 1.75rem 1.5rem;
+  border: 1px solid var(--ifm-color-emphasis-200);
+  border-radius: 12px;
   background: var(--ifm-background-color);
+  transition: border-color 140ms ease, transform 140ms ease, box-shadow 140ms ease;
+  margin: 0 0.5rem;
 }
 
-.dca-features .col {
-  padding: 1.5rem;
-  text-align: left;
+.dca-feature:hover {
+  border-color: var(--ifm-color-primary-lighter);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(79, 70, 229, 0.08);
 }
 
-.dca-features h3 {
-  font-size: 1.4rem;
-  margin-bottom: 0.5rem;
-  color: var(--ifm-color-primary-darker);
+[data-theme='dark'] .dca-feature:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(129, 140, 248, 0.12);
 }
 
-[data-theme='dark'] .dca-features h3 {
-  color: var(--ifm-color-primary-lighter);
+.dca-feature h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem;
+  color: var(--ifm-heading-color);
+  letter-spacing: -0.01em;
 }
 
-.dca-features p {
-  font-size: 1rem;
+.dca-feature-emoji {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.dca-feature p {
+  font-size: 0.95rem;
   color: var(--ifm-color-emphasis-700);
-  line-height: 1.5;
+  line-height: 1.55;
+  margin: 0;
 }
 
 /* ---------------------------------------------------------------------------
- * Body link polish for markdown content.
+ * Markdown body polish.
  * ------------------------------------------------------------------------- */
 .markdown a {
   text-decoration: none;
@@ -112,4 +228,35 @@
 
 .markdown a:hover {
   text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  letter-spacing: -0.015em;
+}
+
+/* Slightly softer code blocks */
+.markdown code:not(pre code) {
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  font-size: 0.85em;
+  border: 1px solid var(--ifm-color-emphasis-200);
+}
+
+/* Responsive nudge for small screens */
+@media (max-width: 768px) {
+  .dca-hero {
+    padding: 3.5rem 0 2.5rem;
+  }
+  .dca-hero .hero__title {
+    font-size: 2.25rem;
+  }
+  .dca-hero .hero__subtitle {
+    font-size: 1.05rem;
+  }
+  .dca-feature {
+    margin: 0.25rem 0;
+  }
 }
