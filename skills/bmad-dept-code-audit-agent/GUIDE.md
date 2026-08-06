@@ -26,7 +26,7 @@ npx bmad-method install \
 ```
 
 > Replace `~/bmad-modules/bmad-dept-code-agent` with the actual path to this repo.
-> Or use a Git URL: `--custom-source https://github.com/mayur434/bmad-dept-code-agent.git`
+> Or use a Git URL: `--custom-source https://github.com/mayur434/bmad-dept-coding-agents.git`
 
 After install, the skill lives at `.claude/skills/bmad-dept-code-audit-agent/`.
 

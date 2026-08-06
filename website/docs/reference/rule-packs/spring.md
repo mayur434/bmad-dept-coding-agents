@@ -13,7 +13,7 @@ Related pages: [Audit agent](../../agents/audit) · [Sonar Scan agent](../../age
 
 ## Audit rule pack (17 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/spring/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/spring/rules.md) (277 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/spring/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/spring/rules.md) (277 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -47,7 +47,7 @@ audit only the controllers under src/main/java/com/acme/api
 
 ## Sonar rule pack
 
-Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/spring/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/spring/rules.md).
+Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/spring/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/spring/rules.md).
 
 Language: **Java**.
 

@@ -15,7 +15,7 @@ Related pages: [Audit agent](../../agents/audit) · [Sonar Scan agent](../../age
 
 ## Audit rule pack (12 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/rules.md) (409 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/rules.md) (409 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -33,7 +33,7 @@ Severity distribution (approximate): CRITICAL 3, HIGH 5, MEDIUM 4.
 
 ### AEM UIX rules (14 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/aem-ui-extensibility-rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/aem-ui-extensibility-rules.md) (428 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/aem-ui-extensibility-rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/aem-ui-extensibility-rules.md) (428 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -45,7 +45,7 @@ Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/aem
 
 ### Commerce UIX rules (13 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/commerce-ui-extensibility-rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/commerce-ui-extensibility-rules.md) (394 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/commerce-ui-extensibility-rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/app-builder/commerce-ui-extensibility-rules.md) (394 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -72,7 +72,7 @@ npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
 
 ## Sonar rule pack
 
-Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/app-builder/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/app-builder/rules.md).
+Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/app-builder/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/app-builder/rules.md).
 
 Language: **JavaScript / TypeScript** (Node.js).
 

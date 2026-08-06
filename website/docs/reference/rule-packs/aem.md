@@ -15,7 +15,7 @@ Related pages: [Audit agent](../../agents/audit) · [Sonar Scan agent](../../age
 
 ### AEMaaCS sub-pack (96 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemcs/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemcs/rules.md) (4072 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemcs/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemcs/rules.md) (4072 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -38,7 +38,7 @@ Severity distribution (approximate): CRITICAL 12, HIGH 28, MEDIUM 34, LOW 18, IN
 
 ### AEM AMS sub-pack (48 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemams/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemams/rules.md) (2305 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemams/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemams/rules.md) (2305 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -67,7 +67,7 @@ npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
 
 ## Sonar rule pack
 
-Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/aem/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/aem/rules.md).
+Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/aem/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/aem/rules.md).
 
 Language: **Java**. Applies to both AEMaaCS and AEM AMS. Severity + rating model: see [Scoring Model](../scoring-model).
 

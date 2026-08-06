@@ -13,7 +13,7 @@ Related pages: [Audit agent](../../agents/audit) · [Sonar Scan agent](../../age
 
 ## Audit rule pack (58 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-paas/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-paas/rules.md) (3151 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-paas/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-paas/rules.md) (3151 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -72,7 +72,7 @@ The `--namespace` filter defaults to `Custom` (see `audit_namespace` in [Config 
 
 ## Sonar rule pack
 
-Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-paas/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-paas/rules.md).
+Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-paas/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-paas/rules.md).
 
 Language: **PHP**.
 

@@ -13,7 +13,7 @@ Different consumers of these agents need different output shapes and different d
 
 ## The 10 roles
 
-Canonical source: [`skills/shared/role/ROLES.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/shared/role/ROLES.md). Six are **promoted** (surfaced first in the interactive picker); four are **additional** (behind a "More roles" affordance). `generic` is the fallback.
+Canonical source: [`skills/shared/role/ROLES.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/shared/role/ROLES.md). Six are **promoted** (surfaced first in the interactive picker); four are **additional** (behind a "More roles" affordance). `generic` is the fallback.
 
 | Code | Name | Promoted? | Priority agents | Default output flavor | One-line description |
 |------|------|:---------:|-----------------|-----------------------|----------------------|

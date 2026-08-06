@@ -13,7 +13,7 @@ Related pages: [Audit agent](../../agents/audit) · [Sonar Scan agent](../../age
 
 ## Audit rule pack (27 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/sling/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/sling/rules.md) (501 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/sling/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/sling/rules.md) (501 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -49,7 +49,7 @@ focus on Oak query indexes and JCR traversals
 
 ## Sonar rule pack
 
-Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/sling/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/sling/rules.md).
+Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/sling/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/sling/rules.md).
 
 Language: **Java**.
 

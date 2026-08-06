@@ -25,9 +25,9 @@ skills/<agent>/resources/rule-packs/<stack>/
 └── _category_.json   ← Docusaurus sidebar entry (if published)
 ```
 
-Rule-pack directory names **match the engine ID** — see [`resources/rule-packs/README.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/README.md) for the authoritative mapping. AEM is the one exception: `aem/` contains two sub-packs (`aemcs/` + `aemams/`) selected by `--platform`.
+Rule-pack directory names **match the engine ID** — see [`resources/rule-packs/README.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/README.md) for the authoritative mapping. AEM is the one exception: `aem/` contains two sub-packs (`aemcs/` + `aemams/`) selected by `--platform`.
 
-For the **Impact Analysis** agent, per-stack rules live in [`scripts/engines/profiles.ts`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-impact-analysis-agent/scripts/engines/profiles.ts) as symbol grammar + reverse-dep patterns rather than a `.md` pack.
+For the **Impact Analysis** agent, per-stack rules live in [`scripts/engines/profiles.ts`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-impact-analysis-agent/scripts/engines/profiles.ts) as symbol grammar + reverse-dep patterns rather than a `.md` pack.
 
 For the **Test Coverage** agent, per-stack test-generation packs live at `resources/test-generation/<stack>.md`.
 
@@ -74,9 +74,9 @@ Keep CSRF for stateful flows; scope any disable to stateless API chains via `sec
 
 Reference implementations to skim before authoring:
 
-- [`resources/rule-packs/spring/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/spring/rules.md) — Spring Boot (medium pack, clean scanner cross-references).
-- [`resources/rule-packs/aem/aemcs/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemcs/rules.md) — AEM AaCS (largest pack, ~96 rules; good example of category splitting).
-- [`resources/rule-packs/commerce-paas/`](https://github.com/mayur434/bmad-dept-code-agent/tree/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-paas) — Commerce PaaS (multi-file pack).
+- [`resources/rule-packs/spring/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/spring/rules.md) — Spring Boot (medium pack, clean scanner cross-references).
+- [`resources/rule-packs/aem/aemcs/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/aem/aemcs/rules.md) — AEM AaCS (largest pack, ~96 rules; good example of category splitting).
+- [`resources/rule-packs/commerce-paas/`](https://github.com/mayur434/bmad-dept-coding-agents/tree/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-paas) — Commerce PaaS (multi-file pack).
 
 ---
 
@@ -243,14 +243,14 @@ For Sonar Scan specifically, remember it is two-step (LLM produces `sonar-findin
 
 ## 10. Filing rule contributions
 
-Rule additions ship as ordinary pull requests against [`github.com/mayur434/bmad-dept-code-agent`](https://github.com/mayur434/bmad-dept-code-agent). Include:
+Rule additions ship as ordinary pull requests against [`github.com/mayur434/bmad-dept-coding-agents`](https://github.com/mayur434/bmad-dept-coding-agents). Include:
 
 - The rule-pack `.md` change (new rule or edited rule).
 - The scanner code if the rule is Tier 1 (`scripts/engines/<stack>/scanner.ts` or `lib/scanner/scans-*.ts`).
 - Unit tests for Tier-1 rules.
 - Fixture updates if you touched a smoke-test fixture.
 - A `CHANGE-LOG.md` entry noting the added rule ID(s).
-- Any Docusaurus reference-page updates — usually [`website/docs/reference/rule-packs/<stack>.md`](https://github.com/mayur434/bmad-dept-code-agent/tree/main/website/docs/reference/rule-packs) to bump the rule-count line and category table.
+- Any Docusaurus reference-page updates — usually [`website/docs/reference/rule-packs/<stack>.md`](https://github.com/mayur434/bmad-dept-coding-agents/tree/main/website/docs/reference/rule-packs) to bump the rule-count line and category table.
 
 For larger rule-pack expansions (a new category, a whole new sub-pack), open a design issue first so we can align on ID naming and scanner strategy.
 

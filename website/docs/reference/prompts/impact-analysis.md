@@ -9,7 +9,7 @@ Copy-paste prompts for the **Impact Analysis agent** (`bmad-dept-code-impact-ana
 
 The agent emits **Input Traceability** — every input item appears in the output; items with no code match show an `INFO` "needs manual review" row.
 
-Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/PROMPTS.md) §4. Related: [Impact Analysis agent](../../agents/impact-analysis) · [CLI Flags](../cli-flags).
+Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md) §4. Related: [Impact Analysis agent](../../agents/impact-analysis) · [CLI Flags](../cli-flags).
 
 ---
 

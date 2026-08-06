@@ -7,7 +7,7 @@ description: Copy-paste prompts for the Code Generation agent — 24 determinist
 
 Copy-paste prompts for the **Code Generation agent** (`bmad-dept-code-generation-agent`). Two paths: **deterministic scaffolders** (correct-by-construction, zero tokens) and an **LLM / MCP** path for custom logic and IaC.
 
-Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/PROMPTS.md) §3. Related: [Generation agent](../../agents/code-generation) · [CLI Flags](../cli-flags).
+Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md) §3. Related: [Generation agent](../../agents/code-generation) · [CLI Flags](../cli-flags).
 
 ---
 

@@ -4,8 +4,8 @@
     "name": "mayur434"
   },
   "license": "MIT",
-  "homepage": "https://github.com/mayur434/bmad-dept-code-agent",
-  "repository": "https://github.com/mayur434/bmad-dept-code-agent",
+  "homepage": "https://github.com/mayur434/bmad-dept-coding-agents",
+  "repository": "https://github.com/mayur434/bmad-dept-coding-agents",
   "plugins": [
     {
       "name": "dca",

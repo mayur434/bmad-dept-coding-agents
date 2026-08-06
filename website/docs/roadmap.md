@@ -5,7 +5,7 @@ sidebar_position: 91
 description: Delivered features by phase, in-progress work, post-audit enhancements, explicitly-deferred items, and how to contribute.
 ---
 
-Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-code-agent/blob/main/IMPLEMENTATION-PLAN.md) §7 (phased roadmap) and the README's Roadmap Highlights section. All **45 delivered coverage cells** (5 agents × 9 in-scope stack variants) are ✅ complete — the items below are open enhancements, not blockers.
+Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/IMPLEMENTATION-PLAN.md) §7 (phased roadmap) and the README's Roadmap Highlights section. All **45 delivered coverage cells** (5 agents × 9 in-scope stack variants) are ✅ complete — the items below are open enhancements, not blockers.
 
 ## Delivered — by phase
 
@@ -79,10 +79,10 @@ Possible future enhancements beyond the delivered plan, prioritised by the audit
 
 ## Contributing
 
-PRs welcome. See the [Contributing section](https://github.com/mayur434/bmad-dept-code-agent/blob/main/README.md#getting-help--contributing) of the README for the entry points:
+PRs welcome. See the [Contributing section](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/README.md#getting-help--contributing) of the README for the entry points:
 
 - **New engine** (new stack under an existing agent) — create `scripts/engines/<stack>/`, add an `audit.ts` with `main()`, register in `engines/registry.ts` with `detect()`, and emit via `emitStandardOutputs()`.
 - **New rule pack** — drop a Markdown file under `resources/rule-packs/<stack>/`.
 - **New scaffolder type** — add an entry to the `GENERATORS` map in `scripts/scaffold/generators.ts` and a template under `templates/`.
 
-The pre-publish checklist and full authoring guide live in [MANUAL.md — Creating a New Module](https://github.com/mayur434/bmad-dept-code-agent/blob/main/MANUAL.md#creating-a-new-module).
+The pre-publish checklist and full authoring guide live in [MANUAL.md — Creating a New Module](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/MANUAL.md#creating-a-new-module).

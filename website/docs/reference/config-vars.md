@@ -108,7 +108,7 @@ notes: |
   Optional free-text notes about the role choice.
 ```
 
-Full role catalog: [`skills/shared/role/ROLES.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/shared/role/ROLES.md).
+Full role catalog: [`skills/shared/role/ROLES.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/shared/role/ROLES.md).
 
 ### `.bmad/intake.yaml`
 

@@ -10,7 +10,7 @@ Copy-paste prompts for the **Sonar Scan agent** (`bmad-dept-code-sonar-scan-agen
 1. **Step 1** — LLM-driven scan (chat) produces `sonar-findings.json` in the configured `sonar_output` directory.
 2. **Step 2** — deterministic ingest reads that JSON, computes Reliability / Security / Maintainability ratings (A–E), evaluates the Quality Gate (PASS = all three A; any non-A = FAIL), and emits the standardized `.xlsx` + Vulnerabilities sheet + Markdown twin + `CHANGE-LOG.md` append.
 
-Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/PROMPTS.md) §2. Related: [Sonar Scan agent](../../agents/sonar-scan) · [Scoring Model](../scoring-model#3-sonar-style-ratings-a-e) · [Rule Packs](../rule-packs/aem).
+Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md) §2. Related: [Sonar Scan agent](../../agents/sonar-scan) · [Scoring Model](../scoring-model#3-sonar-style-ratings-a-e) · [Rule Packs](../rule-packs/aem).
 
 ---
 

@@ -13,7 +13,7 @@ Related pages: [Audit agent](../../agents/audit) · [Sonar Scan agent](../../age
 
 ## Audit rule pack (17 rules)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/eds/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/eds/rules.md) (1247 lines).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/eds/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/eds/rules.md) (1247 lines).
 
 | Category | Rules | Focus |
 |----------|:-----:|-------|
@@ -41,7 +41,7 @@ npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
 
 ## Sonar rule pack
 
-Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/eds/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/eds/rules.md).
+Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/eds/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/eds/rules.md).
 
 Language: **JavaScript** (browser).
 

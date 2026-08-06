@@ -45,7 +45,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools claude-code \
   --yes
 ```
@@ -62,7 +62,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools cursor \
   --yes
 ```
@@ -79,7 +79,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools github-copilot \
   --yes
 ```
@@ -96,7 +96,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools codex \
   --yes
 ```
@@ -113,7 +113,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools cline \
   --yes
 ```
@@ -130,7 +130,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools windsurf \
   --yes
 ```
@@ -147,7 +147,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools roo \
   --yes
 ```
@@ -164,7 +164,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools gemini \
   --yes
 ```
@@ -181,7 +181,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools junie \
   --yes
 ```
@@ -198,7 +198,7 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --modules bmm \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --tools kiro \
   --yes
 ```
@@ -252,7 +252,7 @@ find . -type d -name "bmad-dept-code-audit-agent" 2>/dev/null | head -3
 Point `--custom-source` at the repo's **`skills/`** folder, not the repo root:
 
 ```bash title="Terminal"
-git clone https://github.com/mayur434/bmad-dept-code-agent.git ~/src/dca
+git clone https://github.com/mayur434/bmad-dept-coding-agents.git ~/src/dca
 cd /path/to/your-project
 
 npx bmad-method install \
@@ -286,14 +286,14 @@ cd /path/to/your-project
 npx bmad-method install \
   --directory . \
   --action quick-update \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --yes
 
 # Full update — re-resolves everything, allows config changes
 npx bmad-method install \
   --directory . \
   --action update \
-  --custom-source https://github.com/mayur434/bmad-dept-code-agent.git \
+  --custom-source https://github.com/mayur434/bmad-dept-coding-agents.git \
   --yes
 ```
 

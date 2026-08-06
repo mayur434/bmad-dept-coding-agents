@@ -5,7 +5,7 @@ sidebar_position: 92
 description: Auto-maintained per-run log — each DCA agent invocation appends a Keep-a-Changelog entry to CHANGE-LOG.md at the project root.
 ---
 
-`CHANGE-LOG.md` is **auto-maintained** by the DCA agents. Each run appends a dated entry (most recent first) spliced in right after the `<!-- dca:entries -->` marker. The writer is [`skills/shared/git/changelog.ts`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/shared/git/changelog.ts) and is called by every agent through the shared `emitStandardOutputs` pipeline.
+`CHANGE-LOG.md` is **auto-maintained** by the DCA agents. Each run appends a dated entry (most recent first) spliced in right after the `<!-- dca:entries -->` marker. The writer is [`skills/shared/git/changelog.ts`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/shared/git/changelog.ts) and is called by every agent through the shared `emitStandardOutputs` pipeline.
 
 - **Location** — `<projectRoot>/CHANGE-LOG.md` (each installed project has its own; this repo also carries its own).
 - **Format** — Keep-a-Changelog flavored, one entry per agent run.
@@ -14,12 +14,12 @@ description: Auto-maintained per-run log — each DCA agent invocation appends a
 
 ## Where to see the file
 
-- **This module's log** — [CHANGE-LOG.md on GitHub](https://github.com/mayur434/bmad-dept-code-agent/blob/main/CHANGE-LOG.md).
+- **This module's log** — [CHANGE-LOG.md on GitHub](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/CHANGE-LOG.md).
 - **In your installed project** — `cat <projectRoot>/CHANGE-LOG.md` after your first agent invocation.
 
 ## Entry format
 
-Every entry has the same shape (from [IMPLEMENTATION-PLAN.md §4.A](https://github.com/mayur434/bmad-dept-code-agent/blob/main/IMPLEMENTATION-PLAN.md)):
+Every entry has the same shape (from [IMPLEMENTATION-PLAN.md §4.A](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/IMPLEMENTATION-PLAN.md)):
 
 ```markdown
 ## 20260801_143512 — audit — commerce — Acme

@@ -15,7 +15,7 @@ Related pages: [Audit agent](../../agents/audit) · [Sonar Scan agent](../../age
 
 ## Audit rule pack (4 deterministic + Tier-2 semantic checks)
 
-Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-saas/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-saas/rules.md).
+Source: [`skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-saas/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/commerce-saas/rules.md).
 
 The pack is intentionally compact — SaaS surface area is small — and split into 4 deterministic rules (scanner-backed) plus a Tier-2 semantic checklist the LLM reads by inspection.
 
@@ -52,7 +52,7 @@ npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
 
 ## Sonar rule pack
 
-Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-saas/rules.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-saas/rules.md).
+Source: [`skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-saas/rules.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-sonar-scan-agent/resources/rule-packs/commerce-saas/rules.md).
 
 Language: **JavaScript / TypeScript**.
 

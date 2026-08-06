@@ -17,7 +17,7 @@ This is for adding a **new agent** (a new SKILL.md-driven capability with its ow
 
 Before you start:
 
-- Read at least one existing agent end-to-end — [`skills/bmad-dept-code-audit-agent/`](https://github.com/mayur434/bmad-dept-code-agent/tree/main/skills/bmad-dept-code-audit-agent) is the reference implementation (deepest surface area).
+- Read at least one existing agent end-to-end — [`skills/bmad-dept-code-audit-agent/`](https://github.com/mayur434/bmad-dept-coding-agents/tree/main/skills/bmad-dept-code-audit-agent) is the reference implementation (deepest surface area).
 - Confirm your capability doesn't already fit as a mode of an existing agent (a new **Scan Only**-style action inside Audit is often cheaper than a fifth top-level agent).
 - Pick a skill name — lowercase, hyphenated, `bmad-<purpose>-agent` (e.g. `bmad-dept-code-lint-agent`).
 - Pick a module code if forking to a new module — 2–4 lowercase characters (e.g. `dca` is the DCA family). Skills authored under the DCA umbrella reuse `dca`.
@@ -66,7 +66,7 @@ Then register the skill at the top-level `skills/module.yaml` (add an entry unde
 
 ### `SKILL.md`
 
-The AI-facing instruction sheet. See [`skills/bmad-dept-code-audit-agent/SKILL.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/SKILL.md) as the reference. Standard sections in order:
+The AI-facing instruction sheet. See [`skills/bmad-dept-code-audit-agent/SKILL.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/SKILL.md) as the reference. Standard sections in order:
 
 1. **Front-matter** — `name`, `description`, `version`, `tools`, `activation` keywords.
 2. **Preflight** — a snippet the AI reads first to run the model/context advisor and decide STATIC / HYBRID / LLM.
@@ -147,7 +147,7 @@ The dispatcher. Must:
 - Resolve the engine via `engines/registry.ts` (`detectPlatform` → `getEngine`).
 - Dispatch to the engine's `main()` — which builds `Finding[]` and calls `emitStandardOutputs()`.
 
-Copy the shape of [`skills/bmad-dept-code-audit-agent/scripts/run.ts`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/scripts/run.ts).
+Copy the shape of [`skills/bmad-dept-code-audit-agent/scripts/run.ts`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/scripts/run.ts).
 
 ### `scripts/package.json`
 
@@ -188,7 +188,7 @@ SKILL.md is a prompt for the AI. A few rules the DCA agents follow consistently:
 | Report filename | `<agent>-<branch>-<timestamp>-agent-report.<ext>` | `audit-main-20260801_143512-agent-report.xlsx` |
 | Working branch | `dca/<agent>-<stack>-<timestamp>` | `dca/audit-commerce-20260801_143512` |
 
-Rule-pack directory names match the engine ID — see [`resources/rule-packs/README.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/README.md).
+Rule-pack directory names match the engine ID — see [`resources/rule-packs/README.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/resources/rule-packs/README.md).
 
 ---
 

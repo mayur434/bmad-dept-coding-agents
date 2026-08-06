@@ -13,10 +13,10 @@ const config = {
   favicon: 'img/favicon.svg',
 
   url: 'https://mayur434.github.io',
-  baseUrl: '/bmad-dept-code-agent/',
+  baseUrl: '/bmad-dept-coding-agents/',
 
   organizationName: 'mayur434',
-  projectName: 'bmad-dept-code-agent',
+  projectName: 'bmad-dept-coding-agents',
   deploymentBranch: 'gh-pages',
   trailingSlash: false,
 
@@ -58,7 +58,7 @@ const config = {
           routeBasePath: '/',
           sidebarPath: './sidebars.js',
           editUrl:
-            'https://github.com/mayur434/bmad-dept-code-agent/edit/main/website/',
+            'https://github.com/mayur434/bmad-dept-coding-agents/edit/main/website/',
           breadcrumbs: true,
           showLastUpdateTime: true,
           showLastUpdateAuthor: false,
@@ -110,7 +110,7 @@ const config = {
             label: 'Docs',
           },
           {
-            href: 'https://github.com/mayur434/bmad-dept-code-agent',
+            href: 'https://github.com/mayur434/bmad-dept-coding-agents',
             position: 'right',
             className: 'header-github-link',
             'aria-label': 'GitHub repository',
@@ -132,7 +132,7 @@ const config = {
           {
             title: 'Community',
             items: [
-              { label: 'GitHub Issues', href: 'https://github.com/mayur434/bmad-dept-code-agent/issues' },
+              { label: 'GitHub Issues', href: 'https://github.com/mayur434/bmad-dept-coding-agents/issues' },
               { label: 'BMAD Method', href: 'https://github.com/bmadcode/bmad-method' },
               { label: 'Contributing', to: '/contributing/authoring-a-new-skill' },
             ],
@@ -142,7 +142,7 @@ const config = {
             items: [
               { label: 'Roadmap', to: '/roadmap' },
               { label: 'Changelog', to: '/changelog' },
-              { label: 'License (MIT)', href: 'https://github.com/mayur434/bmad-dept-code-agent/blob/main/LICENSE' },
+              { label: 'License (MIT)', href: 'https://github.com/mayur434/bmad-dept-coding-agents/blob/main/LICENSE' },
             ],
           },
         ],

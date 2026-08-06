@@ -7,7 +7,7 @@ description: Copy-paste prompts for the Test Coverage agent — per-framework ga
 
 Copy-paste prompts for the **Test Coverage agent** (`bmad-dept-code-test-coverage-agent`). Tier 1 is deterministic gap analysis + real line/branch coverage (JaCoCo / Istanbul / LCOV / Clover). Tier 2 is LLM test generation to 100% per framework.
 
-Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/PROMPTS.md) §5. Related: [Test Coverage agent](../../agents/test-coverage) · [CLI Flags](../cli-flags).
+Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md) §5. Related: [Test Coverage agent](../../agents/test-coverage) · [CLI Flags](../cli-flags).
 
 ---
 

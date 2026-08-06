@@ -134,7 +134,7 @@ register(
 );
 ```
 
-The registry is a `Record<string, EngineEntry>` — see [`scripts/engines/registry.ts`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/bmad-dept-code-audit-agent/scripts/engines/registry.ts).
+The registry is a `Record<string, EngineEntry>` — see [`scripts/engines/registry.ts`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/bmad-dept-code-audit-agent/scripts/engines/registry.ts).
 
 ### Optional: engine alias
 
@@ -153,7 +153,7 @@ const ENGINE_ALIASES: Record<string, string> = {
 
 ## 6. Emit via `emitStandardOutputs()`
 
-Do NOT hand-roll Excel or Markdown output. Call [`skills/shared/output/emit.ts::emitStandardOutputs`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/shared/output/emit.ts). It:
+Do NOT hand-roll Excel or Markdown output. Call [`skills/shared/output/emit.ts::emitStandardOutputs`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/shared/output/emit.ts). It:
 
 - Writes `<agent>-<branch>-<timestamp>-agent-report.xlsx` with the fixed 6-sheet order and the 15-column Summary contract.
 - Writes the Markdown twin (`.md`) with the reduced 9-column Summary.
@@ -199,7 +199,7 @@ Two levels:
   cd skills/bmad-dept-code-audit-agent/scripts
   npx ts-node run.ts --engine my-stack --path /path/to/fixture --no-preflight
   ```
-  Verify the report appears at the expected path, the CHANGE-LOG entry is spliced, and (if you passed `--create-branch`) the working branch is cut. Auditor smoke commands live in [`DCA-Test-Commands.xlsx`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/DCA-Test-Commands.xlsx).
+  Verify the report appears at the expected path, the CHANGE-LOG entry is spliced, and (if you passed `--create-branch`) the working branch is cut. Auditor smoke commands live in [`DCA-Test-Commands.xlsx`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/DCA-Test-Commands.xlsx).
 
 ---
 

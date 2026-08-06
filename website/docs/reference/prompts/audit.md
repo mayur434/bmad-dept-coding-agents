@@ -9,7 +9,7 @@ Copy-paste prompts for the **Code Audit agent** (`bmad-dept-code-audit-agent`). 
 
 **Modes:** `scan` = Tier 1 deterministic scanner only (zero LLM tokens). `deep audit` = Tier 2 LLM semantic analysis only. `full audit` = both.
 
-Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/PROMPTS.md) §1. Related: [Audit agent](../../agents/audit) · [CLI Flags](../cli-flags) · [Rule Packs](../rule-packs/aem).
+Source: extracted from [`PROMPTS.md`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md) §1. Related: [Audit agent](../../agents/audit) · [CLI Flags](../cli-flags) · [Rule Packs](../rule-packs/aem).
 
 ---
 

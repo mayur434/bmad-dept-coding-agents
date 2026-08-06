@@ -113,7 +113,7 @@ Alternately, chain in natural language:
 run audit, sonar scan, test coverage, and impact analysis in that order on a new branch cut from production, then summarize as one release-readiness report
 ```
 
-Full multi-agent workflow catalog: [Workflows → Chain All](../workflows/chain-all) and [PROMPTS.md §6](https://github.com/mayur434/bmad-dept-code-agent/blob/main/PROMPTS.md).
+Full multi-agent workflow catalog: [Workflows → Chain All](../workflows/chain-all) and [PROMPTS.md §6](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md).
 
 ## What you get
 
@@ -129,4 +129,4 @@ Full details: [Standardized Outputs](../concepts/standardized-outputs).
 
 - [First Run](first-run) — the three questions on first invocation.
 - [Concepts → The 5 Agents](../concepts/the-5-agents).
-- Copy-paste prompt catalog — 481 prompts across 5 agents × 8 stacks in [PROMPTS.md](https://github.com/mayur434/bmad-dept-code-agent/blob/main/PROMPTS.md).
+- Copy-paste prompt catalog — 481 prompts across 5 agents × 8 stacks in [PROMPTS.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md).

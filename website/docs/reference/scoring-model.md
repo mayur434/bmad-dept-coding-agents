@@ -5,7 +5,7 @@ sidebar_position: 3
 description: The unified severity / confidence / rating vocabulary shared by every DCA agent, plus the 6-factor priority model and Quality Gate logic.
 ---
 
-Every DCA agent (audit, sonar-scan, impact-analysis, test-coverage, generation) emits findings that use the same scoring vocabulary. This page is the canonical reference; the shared module lives at [`skills/shared/scoring/`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/shared/scoring/README.md) and the priority model at [`skills/shared/priority/`](https://github.com/mayur434/bmad-dept-code-agent/blob/main/skills/shared/priority/factors.ts).
+Every DCA agent (audit, sonar-scan, impact-analysis, test-coverage, generation) emits findings that use the same scoring vocabulary. This page is the canonical reference; the shared module lives at [`skills/shared/scoring/`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/shared/scoring/README.md) and the priority model at [`skills/shared/priority/`](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/skills/shared/priority/factors.ts).
 
 Related pages: [Rule Packs](rule-packs/aem) · [Audit](../agents/audit) · [Sonar Scan](../agents/sonar-scan).
 
