@@ -14,7 +14,7 @@ import { emitStandardOutputs } from '../../../../shared/output';
 import { fromLegacyFindingsMap } from '../../../../shared/core/types';
 import { scanCommerceAst } from './ast-scan';
 import { scanCommerceXml } from './xml-scan';
-import { enforceConfidenceOnAll, emitAuditFindingsCache } from '../../shared/emit-helpers';
+import { enforceConfidenceOnAll, emitAuditFindingsCache, applyDecisionsFilter, applySLA, maybeFailOnOverdue } from '../../shared/emit-helpers';
 import { runDeltaMode } from '../../shared/delta';
 import { appendLegacySheets } from '../../shared/legacy-merge';
 
@@ -379,15 +379,27 @@ async function main(): Promise<void> {
     ];
     stdFindings = enforceConfidenceOnAll(stdFindings, 'regex');
 
+    // Findings gate — filter against .bmad/decisions.yaml before emit.
+    const decisionsExtra: Record<string, string | number> = { 'Analysis Mode': auditMode };
+    const gate = applyDecisionsFilter(stdFindings, projectPath || outputDir, decisionsExtra);
+    stdFindings = gate.kept;
+    if (gate.suppressed > 0) {
+      console.log(`   🎯 Findings gate: suppressed ${gate.suppressed} finding(s) via .bmad/decisions.yaml`);
+    }
+
+    // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+    const sla = applySLA({ findings: stdFindings, projectRoot: projectPath || outputDir, agent: 'audit', extra: decisionsExtra });
+
     const std = await emitStandardOutputs({
       agent: 'audit',
       meta: {
         agent: 'audit', engine: 'commerce-paas', stack: 'Adobe Commerce PaaS',
         projectName, projectRoot: projectPath || outputDir,
-        extra: { 'Analysis Mode': auditMode },
+        extra: decisionsExtra,
       },
       findings: stdFindings,
       outputDir,
+      extraSheets: sla.extraSheet ? [sla.extraSheet] : undefined,
       changelogSummary: `Commerce audit (${auditMode}): ${totalFindings} finding(s).`,
     });
     console.log(`📊 Standardized report: ${std.xlsxPath}`);
@@ -423,6 +435,8 @@ async function main(): Promise<void> {
         auditMode,
       },
     });
+    // --fail-on-overdue: after emit, exit 6 if any finding is OVERDUE per SLA.
+    maybeFailOnOverdue(sla.summary);
   } else {
     console.log('\n⚠️  No findings generated. Check your configuration and inputs.');
   }

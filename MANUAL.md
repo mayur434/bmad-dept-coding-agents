@@ -19,6 +19,9 @@
 | The 5 agents (Audit / Sonar / Generation / Impact / Test Coverage) | [Concepts → The 5 Agents](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-5-agents) |
 | The 8 stacks (engine IDs, aliases, auto-detection order) | [Concepts → The 8 Stacks](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-8-stacks) |
 | Findings cache (cross-agent correlation) | [Concepts → Findings Cache](https://mayur434.github.io/bmad-dept-coding-agents/concepts/findings-cache) |
+| Findings gate (accepted/deferred/wontfix decisions) | [Concepts → Findings Gate](https://mayur434.github.io/bmad-dept-coding-agents/concepts/findings-gate) |
+| SLA tracking (role x severity, overdue detection) | [Concepts → SLA Tracking](https://mayur434.github.io/bmad-dept-coding-agents/concepts/sla-tracking) |
+| One-shot mode (enterprise granular-prompt UX) | [Concepts → One-Shot Mode](https://mayur434.github.io/bmad-dept-coding-agents/concepts/one-shot-mode) |
 | Per-agent usage guide (Audit) | [Agents → Audit](https://mayur434.github.io/bmad-dept-coding-agents/agents/audit) |
 | Per-agent usage guide (Sonar Scan) | [Agents → Sonar Scan](https://mayur434.github.io/bmad-dept-coding-agents/agents/sonar-scan) |
 | Per-agent usage guide (Code Generation) | [Agents → Code Generation](https://mayur434.github.io/bmad-dept-coding-agents/agents/code-generation) |

@@ -189,6 +189,31 @@ async function main(): Promise<void> {
     console.error("❌ --yes-install and --no-install are mutually exclusive.");
     process.exit(1);
   }
+  // Findings-gate flags (parsed for consistency across all 5 agents; generation
+  // produces no findings, so the gate is a no-op — we just log and set env for
+  // symmetry so `--list-decisions` still works.)
+  const includeDecided = args.includes("--include-decided");
+  const ignoreDecisionExpiry = args.includes("--ignore-decision-expiry");
+  const decisionsPath = flag(args, "--decisions-path");
+  const listDecisionsFlag = args.includes("--list-decisions");
+  if (includeDecided) process.env.DCA_INCLUDE_DECIDED = "1";
+  if (decisionsPath) process.env.DCA_DECISIONS_PATH = path.resolve(decisionsPath);
+  if (ignoreDecisionExpiry) process.env.DCA_IGNORE_DECISION_EXPIRY = "1";
+  if (listDecisionsFlag) {
+    const { listDecisions } = require("./decisions-gate") as typeof import("./decisions-gate");
+    listDecisions(projectRoot, decisionsPath);
+    return;
+  }
+  process.stderr.write("[dca-decisions] N/A for generation agent (no findings produced)\n");
+  // SLA gate flags (parsed for consistency across all 5 agents; generation
+  // produces no findings, so the gate is a no-op — logged for symmetry).
+  const slaPath = flag(args, "--sla-path");
+  const noSla = args.includes("--no-sla");
+  const failOnOverdue = args.includes("--fail-on-overdue");
+  if (slaPath) process.env.DCA_SLA_PATH = path.resolve(slaPath);
+  if (noSla) process.env.DCA_NO_SLA = "1";
+  if (failOnOverdue) process.env.DCA_FAIL_ON_OVERDUE = "1";
+  process.stderr.write("[dca-sla] N/A for generation agent (no findings produced)\n");
   const interactiveFlag = args.includes("--interactive");
   const technicalFlag = args.includes("--technical");
   if (interactiveFlag && technicalFlag) {
@@ -401,6 +426,15 @@ function printGenerationHelp(projectRoot?: string): void {
   console.log("  --technical                   Force technical mode; missing required inputs error out (current default).");
   console.log("                                Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),");
   console.log("                                falling back to technical when the file is absent.");
+  console.log("\nFindings gate (Phase 1 enterprise features):");
+  console.log("  --include-decided             Show findings even when a decision exists in .bmad/decisions.yaml (no-op for generation).");
+  console.log("  --decisions-path <path>       Override decisions file location. Default: <projectRoot>/.bmad/decisions.yaml");
+  console.log("  --ignore-decision-expiry      Keep suppressing findings even when the decision has expired.");
+  console.log("  --list-decisions              Print every decision in .bmad/decisions.yaml and exit.");
+  console.log("\nSLA tracking (Phase 1 enterprise features):");
+  console.log("  --sla-path <path>             Override SLA file location. Default: <projectRoot>/.bmad/sla.yaml");
+  console.log("  --no-sla                      Skip SLA computation + sheet.");
+  console.log("  --fail-on-overdue             Exit code 6 if any finding is OVERDUE per role SLA. For CI gates.");
   console.log("\nFor complex/custom generation, use the LLM path (SKILL.md + resource packs).");
 }
 

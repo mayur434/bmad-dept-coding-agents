@@ -133,6 +133,33 @@ The Audit dispatcher (`run.ts`) parses a top-level flag set, then forwards the r
 | `--json` | bool | false | Also emit findings as JSON (aem/commerce engines). |
 | `--output <dir>` | dir | `{audit_output}` | Override report directory. |
 
+### Enterprise Phase 1 flags
+
+Shared with every DCA agent. See [Findings Gate](../concepts/findings-gate) and [SLA Tracking](../concepts/sla-tracking) for the full mechanics.
+
+| Flag | Type | Default | Purpose |
+|---|---|---|---|
+| `--include-decided` | bool | false | Bypass the findings gate — show items already decided in `.bmad/decisions.yaml`. |
+| `--decisions-path <path>` | string | `<projectRoot>/.bmad/decisions.yaml` | Override the decisions file. |
+| `--ignore-decision-expiry` | bool | false | Treat expired decisions as still active for this run. |
+| `--list-decisions` | bool | false | Print all decisions and exit. |
+| `--sla-path <path>` | string | `<projectRoot>/.bmad/sla.yaml` | Override the SLA file. |
+| `--no-sla` | bool | false | Skip the SLA sheet and computation. |
+| `--fail-on-overdue` | bool | false | Exit code 6 if any surviving item is overdue per role SLA. Ideal for CI gates. |
+
+## One-shot examples
+
+The Audit agent runs end-to-end without clarifying questions when the prompt is self-contained. See the [One-Shot Mode](../concepts/one-shot-mode) concept page for the 7-item precedence and complete resolution rules.
+
+- **"audit my project"** — engine + role auto-resolved; role default mode; SLA + decisions applied silently.
+- **"audit my project as security, fail on overdue"** — per-run role override to `security`; `--fail-on-overdue` on for the SLA gate.
+- **"scan-only my project, no LLM (fast Tier 1)"** — forces `--mode scan-only`; zero LLM tokens.
+- **"deep audit /path/to/aem-project on the release branch"** — path + `--engine aem` + `--mode deep-audit` + `--create-branch --source-branch release`.
+- **"audit my commerce project with DB dump at ./prod.sql and bugs at ./bugs.csv"** — engine + Commerce inputs auto-linked.
+- **"audit since main — show me only the new items"** — `--since main` for delta scope.
+
+Full example bodies with the exact resolved commands live in the agent SKILL.md's `One-shot mode` section.
+
 ## What's new in the maturity batch
 
 - **XML AST scanning across 4 stacks** — `di.xml` / `.content.xml` / Spring XML previously ran through regex only; they now flow through the shared tree-sitter harness for precise rule matches.

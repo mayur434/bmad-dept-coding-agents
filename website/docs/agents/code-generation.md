@@ -146,6 +146,33 @@ npx ts-node .claude/skills/bmad-dept-code-generation-agent/scripts/run.ts --setu
 | `--technical` | bool | false | Force technical intake mode. |
 | `--help` | bool | false | Show help. |
 
+### Enterprise Phase 1 flags
+
+Shared with every DCA agent. See [Findings Gate](../concepts/findings-gate) and [SLA Tracking](../concepts/sla-tracking) for the full mechanics.
+
+| Flag | Type | Default | Purpose |
+|---|---|---|---|
+| `--include-decided` | bool | false | Bypass the findings gate — show Preflight items already decided in `.bmad/decisions.yaml`. |
+| `--decisions-path <path>` | string | `<projectRoot>/.bmad/decisions.yaml` | Override the decisions file. |
+| `--ignore-decision-expiry` | bool | false | Treat expired decisions as still active for this run. |
+| `--list-decisions` | bool | false | Print all decisions and exit. |
+| `--sla-path <path>` | string | `<projectRoot>/.bmad/sla.yaml` | Override the SLA file. |
+| `--no-sla` | bool | false | Skip the SLA sheet and computation. |
+| `--fail-on-overdue` | bool | false | Exit code 6 if any surviving Preflight item is overdue — prevents scaffolds shipping over unpatched CRITICALs. |
+
+## One-shot examples
+
+The Code Generation agent runs end-to-end without clarifying questions when the prompt is self-contained. See the [One-Shot Mode](../concepts/one-shot-mode) concept page for the full precedence rules.
+
+- **"generate an AEM component called HeroBanner"** — engine=`aem`, type=`component`, name captured; package from `.bmad/conventions.yaml`.
+- **"scaffold a Sling Model for the Article component with hardening"** — engine=`sling`, `--secure` on for input-validation + null-check hardening.
+- **"generate a Cloud Manager pipeline config"** — engine=`aem`, type=`cloud-manager-pipeline`.
+- **"create a Commerce plugin on Magento\\Catalog\\Model\\Product::getName"** — engine=`commerce-paas`, type=`plugin`, target class + method captured.
+- **"generate a Spring REST controller called OrderController, secure=true"** — engine=`spring`, `--secure` on for authorization + validation.
+- **"dry-run: what would you generate for --type sling-servlet --name Ping?"** — `--dry-run` preview only, zero disk changes.
+
+Full example bodies with the exact resolved commands live in the agent SKILL.md's `One-shot mode` section.
+
 ## What's new in the maturity batch
 
 - **Matching test-stub emission for all 24 scaffolders** — every scaffold now writes a companion test file at the canonical test location for its stack (JUnit + AEM/Sling Mocks, Spring Test, PHPUnit, Jest). Opt out with `--no-test-stub`.

@@ -52,6 +52,14 @@ interface Args {
   findingsPath: string | null;
   /** --watch-timeout <seconds>: how long to poll before giving up (default 300 = 5min). */
   watchTimeoutSec: number;
+  /** Findings gate — bypass filter, use custom path, or keep suppressing after expiry. */
+  includeDecided: boolean;
+  decisionsPath: string | null;
+  ignoreDecisionExpiry: boolean;
+  listDecisions: boolean;
+  slaPath: string | null;
+  noSla: boolean;
+  failOnOverdue: boolean;
 }
 
 function parseArgs(): Args {
@@ -76,6 +84,13 @@ function parseArgs(): Args {
     watch: false,
     findingsPath: null,
     watchTimeoutSec: 300,
+    includeDecided: false,
+    decisionsPath: null,
+    ignoreDecisionExpiry: false,
+    listDecisions: false,
+    slaPath: null,
+    noSla: false,
+    failOnOverdue: false,
   };
   const argv = process.argv.slice(2);
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -120,6 +135,13 @@ function parseArgs(): Args {
         a.watchTimeoutSec = n;
         break;
       }
+      case "--include-decided": a.includeDecided = true; break;
+      case "--decisions-path": a.decisionsPath = argv[++i]; break;
+      case "--ignore-decision-expiry": a.ignoreDecisionExpiry = true; break;
+      case "--list-decisions": a.listDecisions = true; break;
+      case "--sla-path": a.slaPath = argv[++i]; break;
+      case "--no-sla": a.noSla = true; break;
+      case "--fail-on-overdue": a.failOnOverdue = true; break;
       case "--help":
         console.log(`BMAD Sonar Scan Agent
 
@@ -184,7 +206,24 @@ Intake mode:
   --interactive         Prompt step-by-step for missing inputs; persist choice to .bmad/intake.yaml.
   --technical           Force technical mode; missing required inputs error out (current default).
                         Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),
-                        falling back to technical when the file is absent.`);
+                        falling back to technical when the file is absent.
+
+Findings gate (Phase 1 enterprise features):
+  --include-decided                   Show findings even when a decision exists
+                                      in .bmad/decisions.yaml (accepted /
+                                      deferred / wontfix). Default: filter them out.
+  --decisions-path <path>             Override decisions file location.
+                                      Default: <projectRoot>/.bmad/decisions.yaml
+  --ignore-decision-expiry            Keep suppressing findings even when the
+                                      decision has expired. Rarely used.
+  --list-decisions                    Print every decision in .bmad/decisions.yaml and exit.
+
+SLA tracking (Phase 1 enterprise features):
+  --sla-path <path>           Override SLA file location.
+                              Default: <projectRoot>/.bmad/sla.yaml
+  --no-sla                    Skip SLA computation + sheet.
+  --fail-on-overdue           Exit code 6 if any finding is OVERDUE per role SLA.
+                              For CI gates.`);
         process.exit(0);
     }
   }
@@ -211,6 +250,23 @@ async function main(): Promise<void> {
     console.log("  (aliases: aemcs, aemams → aem; commerce → commerce-paas)");
     return;
   }
+
+  // --list-decisions short-circuits before anything else runs.
+  if (args.listDecisions) {
+    const root = args.path && args.path !== "." ? resolve(args.path) : process.cwd();
+    const { listDecisions } = require("./decisions-gate") as typeof import("./decisions-gate");
+    listDecisions(root, args.decisionsPath ?? undefined);
+    return;
+  }
+
+  // Propagate the findings-gate flags to downstream ingest via env vars.
+  if (args.includeDecided) process.env.DCA_INCLUDE_DECIDED = "1";
+  if (args.decisionsPath) process.env.DCA_DECISIONS_PATH = resolve(args.decisionsPath);
+  if (args.ignoreDecisionExpiry) process.env.DCA_IGNORE_DECISION_EXPIRY = "1";
+  // Propagate SLA gate flags via env for downstream ingest.
+  if (args.slaPath) process.env.DCA_SLA_PATH = resolve(args.slaPath);
+  if (args.noSla) process.env.DCA_NO_SLA = "1";
+  if (args.failOnOverdue) process.env.DCA_FAIL_ON_OVERDUE = "1";
 
   // First-run dependency check. Runs BEFORE the heavy modules are
   // require()'d below — sonar/ingest and shared/preflight transitively

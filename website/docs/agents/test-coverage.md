@@ -126,6 +126,33 @@ npx ts-node .claude/skills/bmad-dept-code-test-coverage-agent/scripts/run.ts \
 | `--list-engines` | bool | false | List available engines. |
 | `--help` | bool | false | Show help. |
 
+### Enterprise Phase 1 flags
+
+Shared with every DCA agent. See [Findings Gate](../concepts/findings-gate) and [SLA Tracking](../concepts/sla-tracking) for the full mechanics.
+
+| Flag | Type | Default | Purpose |
+|---|---|---|---|
+| `--include-decided` | bool | false | Bypass the findings gate — show coverage gaps already decided in `.bmad/decisions.yaml`. |
+| `--decisions-path <path>` | string | `<projectRoot>/.bmad/decisions.yaml` | Override the decisions file. |
+| `--ignore-decision-expiry` | bool | false | Treat expired decisions as still active for this run. |
+| `--list-decisions` | bool | false | Print all decisions and exit. |
+| `--sla-path <path>` | string | `<projectRoot>/.bmad/sla.yaml` | Override the SLA file. |
+| `--no-sla` | bool | false | Skip the SLA sheet and computation. |
+| `--fail-on-overdue` | bool | false | Exit code 6 if any coverage-linked gap is overdue per role SLA. |
+
+## One-shot examples
+
+The Test Coverage agent runs end-to-end without clarifying questions when the prompt is self-contained. Coverage report is auto-detected from standard paths (`target/site/jacoco/jacoco.xml`, `coverage/lcov.info`, `build/reports/jacoco/...`). See the [One-Shot Mode](../concepts/one-shot-mode) concept page for the full precedence rules.
+
+- **"analyze test coverage"** — mode=`analyze`; coverage report auto-detected; scope from role default.
+- **"full test coverage with real jacoco at ./target/site/jacoco/jacoco.xml"** — mode=`full`; explicit `--coverage-report`; gaps + LLM-generated tests.
+- **"generate tests for the OrderService"** — mode=`generate`; `--name OrderService` targets the scope.
+- **"coverage for the impacted files (chain with prior audit)"** — audit chain on; coverage scoped to impacted-file set.
+- **"--run-coverage — auto-run the coverage tool then analyze"** — `--run-coverage` executes `mvn`/`npm test --coverage`/etc. before analysis.
+- **"mutation hints for the top-10 uncovered files"** — `--emit-mutation-hints`; PIT/Stryker mutation seeds per gap.
+
+Full example bodies with the exact resolved commands live in the agent SKILL.md's `One-shot mode` section.
+
 ## What's new in the maturity batch
 
 - **6-factor priority for all 8 engines** — the priority scorer (previously Commerce-only) now runs across every stack. Factors: complexity × revenue-path × plugin/interceptor × observer/event-handler × public-API (`@api`) × git-churn × dependency fan-in. Every uncovered file gets a numeric priority you can sort by.

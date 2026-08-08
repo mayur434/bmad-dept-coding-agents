@@ -61,10 +61,47 @@ export const SUMMARY_COLUMNS = [
 
 const SUMMARY_WIDTHS = [14, 40, 60, 16, 26, 42, 12, 12, 18, 60, 55, 10, 30, 16, 14];
 
+/**
+ * Column spec for an ExtraSheet — one entry per column.
+ */
+export interface ExtraSheetColumn {
+  header: string;
+  /** Matches keys in `ExtraSheetRow.values`. */
+  key: string;
+  width?: number;
+}
+
+export interface ExtraSheetRow {
+  values: Record<string, string | number>;
+  /** Optional ARGB (AARRGGBB) fill color for the entire row — e.g. 'FFFFEBEE' for red-tinted. */
+  fillARGB?: string;
+  /** Optional ARGB font color. */
+  fontColorARGB?: string;
+}
+
+/**
+ * Generic "attach a custom sheet" seam for callers that need to append data
+ * beyond the standardized sheets (e.g. SLA Status, Vulnerabilities). Extra
+ * sheets are appended AFTER the standard sheets, in the order given.
+ */
+export interface ExtraSheet {
+  sheetName: string;
+  columns: ExtraSheetColumn[];
+  rows: ExtraSheetRow[];
+  /** Optional short description merged across the top row of the sheet. */
+  description?: string;
+}
+
 export interface StandardReportOptions {
   recommendations?: RecommendationRow[];
   /** Workbook title shown on the Run Info sheet (default derived from agent). */
   title?: string;
+  /**
+   * Optional extra sheets appended after the standardized ones (Run Info,
+   * Summary, Severity Breakdown, By Category, Recommendations, Traceability).
+   * Empty/absent → identical behavior to prior versions.
+   */
+  extraSheets?: ExtraSheet[];
 }
 
 export class StandardExcelReport {
@@ -94,8 +131,82 @@ export class StandardExcelReport {
     if (this.findings.some((f) => f.inputRef)) {
       this.sheetTraceability();
     }
+    if (this.opts.extraSheets && this.opts.extraSheets.length > 0) {
+      for (const sheet of this.opts.extraSheets) {
+        this.sheetExtra(sheet);
+      }
+    }
     await this.wb.xlsx.writeFile(outputPath);
     return outputPath;
+  }
+
+  // ── 7. Extra sheets (optional, appended in order) ──────────────────────────
+  private sheetExtra(sheet: ExtraSheet): void {
+    const ws = this.wb.addWorksheet(sheet.sheetName, {
+      properties: { tabColor: { argb: "FF6C757D" } },
+    });
+    const cols = sheet.columns;
+    if (cols.length === 0) return;
+
+    let headerRow = 1;
+    if (sheet.description) {
+      ws.getCell(1, 1).value = sheet.description;
+      ws.getCell(1, 1).font = SUBTITLE_FONT;
+      try {
+        ws.mergeCells(1, 1, 1, cols.length);
+      } catch {
+        // merge may fail if only one column — safe to ignore
+      }
+      ws.getRow(1).height = 22;
+      headerRow = 2;
+    }
+
+    for (let c = 0; c < cols.length; c++) {
+      const cell = ws.getCell(headerRow, c + 1);
+      cell.value = cols[c].header;
+      cell.font = HEADER_FONT;
+      cell.fill = HEADER_FILL;
+      cell.alignment = CENTER_ALIGN;
+      cell.border = HEADER_BORDER;
+    }
+    ws.getRow(headerRow).height = 24;
+    ws.views = [{ state: "frozen", ySplit: headerRow, xSplit: 0 }];
+
+    for (let r = 0; r < sheet.rows.length; r++) {
+      const row = sheet.rows[r];
+      const rowIdx = headerRow + 1 + r;
+      for (let c = 0; c < cols.length; c++) {
+        const key = cols[c].key;
+        const v = row.values[key];
+        ws.getCell(rowIdx, c + 1).value = v === undefined ? "" : v;
+      }
+      if (row.fillARGB) {
+        const fill: ExcelJS.Fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: row.fillARGB },
+        };
+        for (let c = 0; c < cols.length; c++) {
+          ws.getCell(rowIdx, c + 1).fill = fill;
+        }
+      }
+      if (row.fontColorARGB) {
+        for (let c = 0; c < cols.length; c++) {
+          const cell = ws.getCell(rowIdx, c + 1);
+          const prev = (cell.font as Partial<ExcelJS.Font>) ?? {};
+          cell.font = { ...prev, color: { argb: row.fontColorARGB } };
+        }
+      }
+    }
+
+    for (let c = 0; c < cols.length; c++) {
+      const width = cols[c].width ?? 18;
+      ws.getColumn(c + 1).width = width;
+    }
+    ws.autoFilter = {
+      from: { row: headerRow, column: 1 },
+      to: { row: headerRow, column: cols.length },
+    };
   }
 
   // ── 1. Run Info ─────────────────────────────────────────────────────────────

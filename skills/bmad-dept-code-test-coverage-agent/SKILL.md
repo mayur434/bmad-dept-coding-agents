@@ -59,6 +59,8 @@ This skill activates when the user asks to:
 
 ## Intake mode (interactive vs technical)
 
+> **For fast, enterprise-grade execution, prefer One-shot mode (see below).** Intake mode is for exploratory / first-time users.
+
 > **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
 
 When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command as the first response. Ask which drive style they prefer:
@@ -111,6 +113,104 @@ Then ask: **"Want me to run this now, or will you copy-paste it?"**
 
 - If **run for me** → execute silently and stream results (same as interactive mode).
 - If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/test-coverage-reports/`. Come back with 'summarize the coverage gaps' when you're done."
+
+## One-shot mode
+
+The **preferred enterprise path.** When the user's initial prompt fully specifies what to run, do NOT ask any clarifying questions — execute end-to-end, stream results, done. Use defaults from `.bmad/role.yaml`, `.bmad/intake.yaml`, `.bmad/conventions.yaml`, and reasonable stack auto-detection to fill missing inputs.
+
+### When to enter one-shot mode
+
+Trigger phrases (any of):
+- "run test coverage end-to-end", "no questions, just do it", "one-shot", "just analyze coverage", "auto"
+- OR any prompt that specifies: (a) the operation, (b) the project path (default: cwd), (c) the primary input (BRD/CSV/type/name/etc)
+
+You DO NOT need every field explicitly — role + intake + conventions cover the rest silently.
+
+### Precedence for missing inputs
+
+1. **Explicit in the user's prompt** (highest — always wins)
+2. **`--flag` on run.ts** (headless / CI)
+3. **`.bmad/role.yaml`** (role-driven default: mode + output flavor + follow-up)
+4. **`.bmad/intake.yaml`** (interactive vs technical preference — one-shot forces technical + skip)
+5. **`.bmad/conventions.yaml`** (project conventions: naming, packages, house rules)
+6. **Auto-detected** (stack from repo signatures, coverage report from standard paths)
+7. **Sensible defaults** (see per-agent list below)
+
+### What one-shot DOES silence
+
+- The intake picker ("Interactive or Technical?") — one-shot forces technical.
+- The mode picker ("Full / Scan Only / Deep?") — resolved from role default.
+- The consent picker ("What's connected vs What could break?" for Impact; "gaps only / write tests / full" for Test Coverage) — resolved from role default.
+- The role picker (if `.bmad/role.yaml` absent) — one-shot uses `generic` role silently (log to stderr: "one-shot: no role file, defaulting to generic").
+- The confirmation prompts around `--create-branch`, `--yes-install`, etc. — one-shot assumes yes for install (auto-install), no for branch cut unless the user's prompt or CLI says otherwise.
+
+### What one-shot DOES ask about (only when truly critical)
+
+- **Test Coverage** — all required inputs can be resolved silently: coverage report is auto-detected from standard paths (`target/site/jacoco/jacoco.xml`, `coverage/lcov.info`, etc.), mode from role default, files from `--module`/auto. One-shot proceeds without asking.
+
+### One-shot prompt examples for the Test Coverage agent
+
+Each example shows what the user pastes and what the AI silently resolves.
+
+> **User:** "analyze test coverage"
+> **AI silently resolves:** path=cwd, engine=auto-detect, mode=`analyze` (gap analysis only), role=(from `.bmad/role.yaml` or `generic`), `--coverage-report` auto-detected from standard paths (`target/site/jacoco/jacoco.xml`, `coverage/lcov.info`, `build/reports/jacoco/…`), output-dir=`test-coverage-reports/`.
+> **AI runs:** `npx ts-node .claude/skills/bmad-dept-code-test-coverage-agent/scripts/run.ts --path <cwd> --mode analyze --technical --no-preflight --yes-install`
+> **AI reports:** "78% real line coverage, 41 gaps sorted by priority. Report: `test-coverage-main-…-agent-report.xlsx`."
+
+> **User:** "full test coverage with real jacoco at ./target/site/jacoco/jacoco.xml"
+> **AI silently resolves:** mode=`full` (gap analysis + LLM generation), `--coverage-report ./target/site/jacoco/jacoco.xml`.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --mode full --coverage-report ./target/site/jacoco/jacoco.xml --technical --no-preflight --yes-install`
+> **AI reports:** gaps + generated tests for top-N + updated coverage estimate.
+
+> **User:** "generate tests for the OrderService"
+> **AI silently resolves:** mode=`generate`, `--name OrderService` (scope target), coverage-report auto-detected.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --mode generate --name OrderService --technical --no-preflight --yes-install`
+> **AI reports:** test files written + covered methods list.
+
+> **User:** "coverage for the impacted files (chain with prior audit)"
+> **AI silently resolves:** default chain (`--no-audit-chain` NOT set) so recent audit output feeds the scope; `--audit-max-age-hours` default.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --mode analyze --technical --no-preflight --yes-install`
+> **AI reports:** coverage focused on impacted-file set from the linked audit.
+
+> **User:** "--run-coverage — auto-run the coverage tool then analyze"
+> **AI silently resolves:** `--run-coverage` on (executes the project's coverage tool — `mvn test jacoco:report`, `npm test -- --coverage`, etc.), then analyze the fresh report.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --mode analyze --run-coverage --technical --no-preflight --yes-install`
+> **AI reports:** coverage tool output + gap analysis.
+
+> **User:** "mutation hints for the top-10 uncovered files"
+> **AI silently resolves:** `--emit-mutation-hints` on, mode=`analyze`, scope=top-10 gaps.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --mode analyze --emit-mutation-hints --technical --no-preflight --yes-install`
+> **AI reports:** gap list + suggested PIT/Stryker mutation seeds per file.
+
+### After one-shot execution
+
+Always:
+- Print a one-line summary (coverage %, gap count, report path).
+- Print the recommended follow-up from the role matrix (e.g. DE role after coverage → "generate tests for the top gaps").
+- Do NOT ask "want me to run the follow-up?" — user will ask if they do.
+
+Never:
+- Ask what mode they wanted after the fact.
+- Ask if they want to save preferences.
+- Explain what you did (unless they ask).
+
+### CLI equivalent for one-shot (technical mode)
+
+Every one-shot prompt has a direct CLI equivalent using all Phase 1 flags:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-test-coverage-agent/scripts/run.ts \
+  --path . \
+  --role <code> \
+  --mode <analyze|generate|full> \
+  --technical \
+  --yes-install \
+  --no-preflight \
+  --sla-path .bmad/sla.yaml \
+  --decisions-path .bmad/decisions.yaml
+```
+
+Add `--fail-on-overdue` for CI gates, `--include-decided` to bypass decisions, `--create-branch` for a working branch, `--coverage-report <path>` when a real report exists, `--run-coverage` to invoke the project's coverage tool live, `--emit-mutation-hints` for PIT/Stryker seeds.
 
 ## Role-aware behavior
 

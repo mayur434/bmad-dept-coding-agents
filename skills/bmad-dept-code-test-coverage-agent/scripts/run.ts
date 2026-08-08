@@ -58,6 +58,13 @@ interface Args {
   noAuditChain: boolean;
   auditMaxAgeHours: number;
   emitMutationHints: boolean;
+  includeDecided: boolean;
+  decisionsPath: string | null;
+  ignoreDecisionExpiry: boolean;
+  listDecisions: boolean;
+  slaPath: string | null;
+  noSla: boolean;
+  failOnOverdue: boolean;
 }
 
 function parseArgs(): Args {
@@ -86,6 +93,13 @@ function parseArgs(): Args {
     noAuditChain: false,
     auditMaxAgeHours: 168,
     emitMutationHints: false,
+    includeDecided: false,
+    decisionsPath: null,
+    ignoreDecisionExpiry: false,
+    listDecisions: false,
+    slaPath: null,
+    noSla: false,
+    failOnOverdue: false,
   };
 
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -171,6 +185,27 @@ function parseArgs(): Args {
       case "--emit-mutation-hints":
         parsed.emitMutationHints = true;
         break;
+      case "--include-decided":
+        parsed.includeDecided = true;
+        break;
+      case "--decisions-path":
+        parsed.decisionsPath = args[++i];
+        break;
+      case "--ignore-decision-expiry":
+        parsed.ignoreDecisionExpiry = true;
+        break;
+      case "--list-decisions":
+        parsed.listDecisions = true;
+        break;
+      case "--sla-path":
+        parsed.slaPath = args[++i];
+        break;
+      case "--no-sla":
+        parsed.noSla = true;
+        break;
+      case "--fail-on-overdue":
+        parsed.failOnOverdue = true;
+        break;
       case "--help":
         printHelp();
         process.exit(0);
@@ -228,6 +263,23 @@ Install control (first-run):
   --yes-install                    Install missing dependencies without confirmation.
   --no-install                     Error out if dependencies missing (do not install).
                                    Default: prompt for confirmation on first run.
+
+Findings gate (Phase 1 enterprise features):
+  --include-decided                   Show findings even when a decision exists
+                                      in .bmad/decisions.yaml (accepted /
+                                      deferred / wontfix). Default: filter them out.
+  --decisions-path <path>             Override decisions file location.
+                                      Default: <projectRoot>/.bmad/decisions.yaml
+  --ignore-decision-expiry            Keep suppressing findings even when the
+                                      decision has expired. Rarely used.
+  --list-decisions                    Print every decision in .bmad/decisions.yaml and exit.
+
+SLA tracking (Phase 1 enterprise features):
+  --sla-path <path>                   Override SLA file location.
+                                      Default: <projectRoot>/.bmad/sla.yaml
+  --no-sla                            Skip SLA computation + sheet.
+  --fail-on-overdue                   Exit code 6 if any finding is OVERDUE per role SLA.
+                                      For CI gates.
 
 Engines:
   aem           AEM as a Cloud Service / AMS
@@ -358,7 +410,8 @@ async function emitCoverageOutputs(
   // Lazy require: shared/output pulls in exceljs; safe because this helper
   // is only called from main() AFTER ensureDepsInstalled() has succeeded.
   const { emitStandardOutputs } = require("../../shared/output") as typeof import("../../shared/output");
-  const findings = coverageToFindings(report);
+  const { applyDecisionsFilter } = require("./decisions-gate") as typeof import("./decisions-gate");
+  const { applySLA, maybeFailOnOverdue } = require("./sla-gate") as typeof import("./sla-gate");
   const outputDir = args.output ?? join(projectPath, "test-coverage-reports");
   const extra: Record<string, string | number> = {
     "Coverage %": report.coveragePercent,
@@ -366,6 +419,13 @@ async function emitCoverageOutputs(
     "Tested Files": report.testedFiles,
     "Total Source Files": report.totalSourceFiles,
   };
+  // Findings gate — filter against .bmad/decisions.yaml before emit.
+  const rawFindings = coverageToFindings(report);
+  const gate = applyDecisionsFilter(rawFindings, projectPath, extra);
+  const findings = gate.kept;
+  if (gate.suppressed > 0) {
+    console.log(`   🎯 Findings gate: suppressed ${gate.suppressed} coverage gap(s) via .bmad/decisions.yaml`);
+  }
   if (ctx.detectedFrameworks.length > 0) {
     extra["Detected Frameworks"] = renderRunInfoLine(ctx.detectedFrameworks);
   }
@@ -375,6 +435,9 @@ async function emitCoverageOutputs(
     if (process.env.DCA_ROLE_FLAVOR) extra["Role output flavor"] = process.env.DCA_ROLE_FLAVOR;
     if (process.env.DCA_ROLE_SOURCE) extra["Role source"] = process.env.DCA_ROLE_SOURCE;
   }
+  // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+  const sla = applySLA({ findings, projectRoot: projectPath, agent: "test-coverage", extra });
+
   const res = await emitStandardOutputs({
     agent: "test-coverage",
     meta: {
@@ -387,6 +450,7 @@ async function emitCoverageOutputs(
     },
     findings,
     outputDir,
+    extraSheets: sla.extraSheet ? [sla.extraSheet] : undefined,
     changelogSummary: `Coverage analysis: ${report.coveragePercent}% (${report.testedFiles}/${report.totalSourceFiles} files); ${findings.length} gap(s).`,
   });
   console.log(`\n📊 Report:     ${res.xlsxPath}`);
@@ -435,6 +499,9 @@ async function emitCoverageOutputs(
   } catch (err) {
     process.stderr.write(`[coverage-cache] WARN: cache emit failed: ${(err as Error).message}\n`);
   }
+
+  // --fail-on-overdue: after emit, exit 6 if any finding is OVERDUE per SLA.
+  maybeFailOnOverdue(sla.summary);
 }
 
 /** Collect mutation-testing commands for uncovered files with priority >= 50. */
@@ -546,6 +613,23 @@ async function main(): Promise<void> {
     listEngines();
     return;
   }
+
+  // --list-decisions short-circuits.
+  if (args.listDecisions) {
+    const root = args.path && args.path !== "." ? resolve(args.path) : process.cwd();
+    const { listDecisions } = require("./decisions-gate") as typeof import("./decisions-gate");
+    listDecisions(root, args.decisionsPath ?? undefined);
+    return;
+  }
+
+  // Propagate findings-gate flags via env for downstream emit.
+  if (args.includeDecided) process.env.DCA_INCLUDE_DECIDED = "1";
+  if (args.decisionsPath) process.env.DCA_DECISIONS_PATH = resolve(args.decisionsPath);
+  if (args.ignoreDecisionExpiry) process.env.DCA_IGNORE_DECISION_EXPIRY = "1";
+  // Propagate SLA gate flags via env for downstream emit.
+  if (args.slaPath) process.env.DCA_SLA_PATH = resolve(args.slaPath);
+  if (args.noSla) process.env.DCA_NO_SLA = "1";
+  if (args.failOnOverdue) process.env.DCA_FAIL_ON_OVERDUE = "1";
 
   // ── Intake mode: --interactive prompts for missing inputs; --technical is
   // the current (silent-error) default. Persisted at <project>/.bmad/intake.yaml.

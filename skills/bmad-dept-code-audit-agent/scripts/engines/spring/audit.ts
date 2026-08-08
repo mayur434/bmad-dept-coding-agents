@@ -12,7 +12,7 @@ import { emitStandardOutputs, ensureStandardBranch } from "../../../../shared/ou
 import { computeCounts, Finding, RecommendationRow, SEVERITIES } from "../../../../shared/core/types";
 import { SpringScanner } from "./scanner";
 import { scanSpringXml } from "./xml-scan";
-import { enforceConfidenceOnAll, emitAuditFindingsCache } from "../../shared/emit-helpers";
+import { enforceConfidenceOnAll, emitAuditFindingsCache, applyDecisionsFilter, applySLA, maybeFailOnOverdue } from "../../shared/emit-helpers";
 import { runDeltaMode } from "../../shared/delta";
 
 interface Args {
@@ -129,17 +129,29 @@ Usage:
     console.log(br.ok ? `🌿 Standard branch: ${br.branch} (from ${br.sourceBranch})` : `⚠️  Branch: ${br.error}`);
   }
 
+  // Findings gate — filter against .bmad/decisions.yaml before emit.
+  const decisionsExtra: Record<string, string | number> = { "Java Files": javaFiles, "Config Files": configFiles };
+  const gate = applyDecisionsFilter(findings, projectRoot, decisionsExtra);
+  findings = gate.kept;
+  if (gate.suppressed > 0) {
+    console.log(`   🎯 Findings gate: suppressed ${gate.suppressed} finding(s) via .bmad/decisions.yaml`);
+  }
+
+  // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+  const sla = applySLA({ findings, projectRoot, agent: "audit", extra: decisionsExtra });
+
   const res = await emitStandardOutputs({
     agent: "audit",
     meta: {
       agent: "audit", engine: "spring-boot", stack: "Spring Boot",
       projectName, projectRoot, sourceBranch,
       toolVersions: { "tree-sitter": "web-tree-sitter", engine: "spring-1.0.0" },
-      extra: { "Java Files": javaFiles, "Config Files": configFiles },
+      extra: decisionsExtra,
     },
     findings,
     outputDir,
     recommendations: buildRecommendations(findings),
+    extraSheets: sla.extraSheet ? [sla.extraSheet] : undefined,
     changelogSummary: `Spring Boot audit: ${counts.total} finding(s) across ${javaFiles} Java + ${configFiles} config file(s).`,
   });
 
@@ -176,6 +188,9 @@ Usage:
   console.log("\n" + "═".repeat(60));
   console.log(" ✅ Spring Boot audit complete");
   console.log("═".repeat(60));
+
+  // --fail-on-overdue: after emit, exit 6 if any finding is OVERDUE per SLA.
+  maybeFailOnOverdue(sla.summary);
 }
 
 if (require.main === module) {

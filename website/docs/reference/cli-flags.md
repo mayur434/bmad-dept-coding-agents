@@ -42,6 +42,26 @@ Flags accepted by every agent's `run.ts` dispatcher.
 
 ---
 
+## Enterprise Phase 1 — findings gate + SLA
+
+Enterprise-grade flags that every agent's `run.ts` accepts. They power the [Findings Gate](../concepts/findings-gate) (silent suppression of accepted/deferred/wontfix findings via `.bmad/decisions.yaml`) and [SLA Tracking](../concepts/sla-tracking) (role x severity aging + `--fail-on-overdue` CI gate).
+
+| Flag | Applicable agents | Type | Default | Purpose |
+|---|---|---|---|---|
+| `--include-decided` | all 5 | bool | false | Skip the findings gate — show items that have decisions in `.bmad/decisions.yaml`, so a reviewer can audit what would otherwise be suppressed. |
+| `--decisions-path <path>` | all 5 | string | `<projectRoot>/.bmad/decisions.yaml` | Override the decisions file (e.g. team-shared file under source control). |
+| `--ignore-decision-expiry` | all 5 | bool | false | Treat decisions with a past `expires_at` as still active for this run. |
+| `--list-decisions` | all 5 | bool | false | Print all parsed decisions (with signer + expiry + tags) and exit. Does not scan. |
+| `--sla-path <path>` | all 5 | string | `<projectRoot>/.bmad/sla.yaml` | Override the SLA file (e.g. team-shared config under source control). |
+| `--no-sla` | all 5 | bool | false | Skip the SLA sheet + computation entirely. |
+| `--fail-on-overdue` | all 5 | bool | false | Exit with code **6** if any surviving finding is overdue per the resolved role x severity SLA. |
+
+Exit code cheat sheet: `0` success, `1` normal error, `2` dependency issue (`--no-install`), `6` SLA breach with `--fail-on-overdue`.
+
+See also: [Findings Gate concept](../concepts/findings-gate) · [SLA Tracking concept](../concepts/sla-tracking) · [One-Shot Mode](../concepts/one-shot-mode).
+
+---
+
 ## Audit-specific flags
 
 Flags accepted by `bmad-dept-code-audit-agent/scripts/run.ts`.

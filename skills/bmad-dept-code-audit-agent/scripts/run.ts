@@ -37,11 +37,18 @@ interface AuditArgs {
   chainAll: boolean;
   chainStages?: string;
   chainStopOnFail: boolean;
+  includeDecided: boolean;
+  decisionsPath?: string;
+  ignoreDecisionExpiry: boolean;
+  listDecisions: boolean;
+  slaPath?: string;
+  noSla: boolean;
+  failOnOverdue: boolean;
   remaining: string[];
 }
 
 function parseArgs(argv: string[]): AuditArgs {
-  const result: AuditArgs = { engine: undefined, path: undefined, format: undefined, role: undefined, listEngines: false, help: false, yesInstall: false, noInstall: false, interactive: false, technical: false, chainAll: false, chainStages: undefined, chainStopOnFail: false, remaining: [] };
+  const result: AuditArgs = { engine: undefined, path: undefined, format: undefined, role: undefined, listEngines: false, help: false, yesInstall: false, noInstall: false, interactive: false, technical: false, chainAll: false, chainStages: undefined, chainStopOnFail: false, includeDecided: false, decisionsPath: undefined, ignoreDecisionExpiry: false, listDecisions: false, slaPath: undefined, noSla: false, failOnOverdue: false, remaining: [] };
   // --role=<code> and --role <code> are both handled by the shared helper.
   result.role = parseRoleFlag(argv);
   let i = 0;
@@ -73,6 +80,20 @@ function parseArgs(argv: string[]): AuditArgs {
       result.chainStages = argv[++i];
     } else if (argv[i] === "--chain-stop-on-fail") {
       result.chainStopOnFail = true;
+    } else if (argv[i] === "--include-decided") {
+      result.includeDecided = true;
+    } else if (argv[i] === "--decisions-path" && i + 1 < argv.length) {
+      result.decisionsPath = argv[++i];
+    } else if (argv[i] === "--ignore-decision-expiry") {
+      result.ignoreDecisionExpiry = true;
+    } else if (argv[i] === "--list-decisions") {
+      result.listDecisions = true;
+    } else if (argv[i] === "--sla-path" && i + 1 < argv.length) {
+      result.slaPath = argv[++i];
+    } else if (argv[i] === "--no-sla") {
+      result.noSla = true;
+    } else if (argv[i] === "--fail-on-overdue") {
+      result.failOnOverdue = true;
     } else if (argv[i] === "-h" || argv[i] === "--help") {
       result.help = true;
     } else {
@@ -121,9 +142,42 @@ async function main(): Promise<void> {
     console.log("                                roll-up at <project>/dca-chain-reports/.");
     console.log("  --chain-stages <csv>          Comma-separated subset of stages to run (default: all four).");
     console.log("  --chain-stop-on-fail          Abort the chain on the first stage failure (default: continue).");
+    console.log("\nFindings gate (Phase 1 enterprise features):");
+    console.log("  --include-decided                   Show findings even when a decision exists");
+    console.log("                                      in .bmad/decisions.yaml (accepted /");
+    console.log("                                      deferred / wontfix). Default: filter them out.");
+    console.log("  --decisions-path <path>             Override decisions file location.");
+    console.log("                                      Default: <projectRoot>/.bmad/decisions.yaml");
+    console.log("  --ignore-decision-expiry            Keep suppressing findings even when the");
+    console.log("                                      decision has expired. Rarely used.");
+    console.log("  --list-decisions                    Print every decision in .bmad/decisions.yaml and exit.");
+    console.log("\nSLA tracking (Phase 1 enterprise features):");
+    console.log("  --sla-path <path>           Override SLA file location.");
+    console.log("                              Default: <projectRoot>/.bmad/sla.yaml");
+    console.log("  --no-sla                    Skip SLA computation + sheet.");
+    console.log("  --fail-on-overdue           Exit code 6 if any finding is OVERDUE per role SLA.");
+    console.log("                              For CI gates.");
     console.log("\nEngine-specific help: npx ts-node run.ts --engine <name> --help");
     return;
   }
+
+  // --list-decisions is a short-circuit — no engine dispatch, no LLM.
+  if (args.listDecisions) {
+    const root = args.path ? path.resolve(args.path) : process.cwd();
+    const { listDecisions } = require("./shared/emit-helpers") as typeof import("./shared/emit-helpers");
+    listDecisions(root, args.decisionsPath);
+    return;
+  }
+
+  // Propagate the gate to engines via env — every engine reads it through
+  // `applyDecisionsFilter` in `scripts/shared/emit-helpers.ts`.
+  if (args.includeDecided) process.env.DCA_INCLUDE_DECIDED = "1";
+  if (args.decisionsPath) process.env.DCA_DECISIONS_PATH = path.resolve(args.decisionsPath);
+  if (args.ignoreDecisionExpiry) process.env.DCA_IGNORE_DECISION_EXPIRY = "1";
+  // SLA gate propagation — each engine's applySLA reads these env vars.
+  if (args.slaPath) process.env.DCA_SLA_PATH = path.resolve(args.slaPath);
+  if (args.noSla) process.env.DCA_NO_SLA = "1";
+  if (args.failOnOverdue) process.env.DCA_FAIL_ON_OVERDUE = "1";
 
   // First-run dependency check. Runs BEFORE the heavy shared/* modules are
   // require()'d below — they transitively need exceljs / fast-glob / etc.

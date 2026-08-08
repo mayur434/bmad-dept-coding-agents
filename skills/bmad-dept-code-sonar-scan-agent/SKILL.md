@@ -45,6 +45,8 @@ This skill activates when the user asks to:
 
 ## Intake mode (interactive vs technical)
 
+> **For fast, enterprise-grade execution, prefer One-shot mode (see below).** Intake mode is for exploratory / first-time users.
+
 > **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
 
 When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command as the first response. Ask which drive style they prefer:
@@ -100,6 +102,101 @@ Then ask: **"Want me to run this now, or will you copy-paste it?"**
 
 - If **run for me** → execute silently and stream results (same as interactive mode).
 - If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/sonar-reports/`. Come back with 'summarize the Quality Gate' when you're done."
+
+---
+
+## One-shot mode
+
+The **preferred enterprise path.** When the user's initial prompt fully specifies what to run, do NOT ask any clarifying questions — execute end-to-end (both Step 1 scan and Step 2 ingest), stream results, done. Use defaults from `.bmad/role.yaml`, `.bmad/intake.yaml`, `.bmad/conventions.yaml`, and reasonable stack auto-detection to fill missing inputs.
+
+### When to enter one-shot mode
+
+Trigger phrases (any of):
+- "run the sonar scan end-to-end", "no questions, just do it", "one-shot", "just run", "auto"
+- OR any prompt that specifies: (a) the operation, (b) the project path (default: cwd), (c) the primary input (BRD/CSV/type/name/etc)
+
+You DO NOT need every field explicitly — role + intake + conventions cover the rest silently.
+
+### Precedence for missing inputs
+
+1. **Explicit in the user's prompt** (highest — always wins)
+2. **`--flag` on run.ts** (headless / CI)
+3. **`.bmad/role.yaml`** (role-driven default: mode + output flavor + follow-up)
+4. **`.bmad/intake.yaml`** (interactive vs technical preference — one-shot forces technical + skip)
+5. **`.bmad/conventions.yaml`** (project conventions: naming, packages, house rules)
+6. **Auto-detected** (stack from repo signatures, coverage report from standard paths)
+7. **Sensible defaults** (see per-agent list below)
+
+### What one-shot DOES silence
+
+- The intake picker ("Interactive or Technical?") — one-shot forces technical.
+- The mode picker ("Full / Scan Only / Deep?") — resolved from role default.
+- The consent picker ("What's connected vs What could break?" for Impact; "gaps only / write tests / full" for Test Coverage) — resolved from role default.
+- The role picker (if `.bmad/role.yaml` absent) — one-shot uses `generic` role silently (log to stderr: "one-shot: no role file, defaulting to generic").
+- The confirmation prompts around `--create-branch`, `--yes-install`, etc. — one-shot assumes yes for install (auto-install), no for branch cut unless the user's prompt or CLI says otherwise.
+
+### What one-shot DOES ask about (only when truly critical)
+
+- **Sonar-scan Step 2 (ingest)**: if no `sonar-findings.json` exists at the expected path AND no `--auto-ingest` flag was passed — ask ONCE whether to wait for the LLM output (`--watch`) or fail. This is the only forced question in one-shot mode.
+
+### One-shot prompt examples for the Sonar Scan agent
+
+Each example shows what the user pastes and what the AI silently resolves.
+
+> **User:** "sonar scan my project"
+> **AI silently resolves:** path=cwd, engine=auto-detect, role=(from `.bmad/role.yaml` or `generic`), focus=all six Sonar categories, `--auto-ingest` on so both steps chain, sla-path/decisions-path=defaults, output-dir=`sonar-reports/`.
+> **AI runs:** Step 1 LLM scan → writes `sonar-findings.json` → Step 2: `npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts --path <cwd> --auto-ingest --technical --no-preflight --yes-install`
+> **AI reports:** "Quality Gate: FAIL (Security=C). 17 findings. Report: `sonar-scan-main-…-agent-report.xlsx`."
+
+> **User:** "sonar scan focus vulnerabilities as security"
+> **AI silently resolves:** role=`security` (per-run override), `--focus vulnerabilities`, engine=auto-detect.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --role security --focus vulnerabilities --auto-ingest --technical --no-preflight --yes-install`
+> **AI reports:** vulnerability-only breakdown + CWE/OWASP tags + follow-up hint.
+
+> **User:** "sonar scan then ingest — one shot with --auto-ingest"
+> **AI silently resolves:** explicit `--auto-ingest`; scan then ingest silently in one pipeline.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --auto-ingest --technical --no-preflight --yes-install`
+> **AI reports:** streamed Step 1 → Step 2 progress + final Quality Gate.
+
+> **User:** "sonar scan and fail if quality gate red"
+> **AI silently resolves:** `--fail-on-overdue` for SLA gate + implicit non-zero exit if Quality Gate = FAIL (default behavior; do NOT pass `--no-fail`).
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --auto-ingest --fail-on-overdue --technical --no-preflight --yes-install`
+> **AI reports:** gate status + exit code suitable for CI wiring.
+
+> **User:** "ingest ./sonar-findings.json into a report"
+> **AI silently resolves:** Step 2 only; `--ingest ./sonar-findings.json`, path=cwd.
+> **AI runs:** `npx ts-node .../run.ts --ingest ./sonar-findings.json --path <cwd> --technical --no-preflight --yes-install`
+> **AI reports:** ingest summary + Quality Gate + report path.
+
+### After one-shot execution
+
+Always:
+- Print a one-line summary (findings count, severity breakdown, report path).
+- Print the recommended follow-up from the role matrix (e.g. Security role after sonar scan → "generate hardened scaffolds for the top vulnerabilities").
+- Do NOT ask "want me to run the follow-up?" — user will ask if they do.
+
+Never:
+- Ask what mode they wanted after the fact.
+- Ask if they want to save preferences.
+- Explain what you did (unless they ask).
+
+### CLI equivalent for one-shot (technical mode)
+
+Every one-shot prompt has a direct CLI equivalent using all Phase 1 flags:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts \
+  --path . \
+  --role <code> \
+  --auto-ingest \
+  --technical \
+  --yes-install \
+  --no-preflight \
+  --sla-path .bmad/sla.yaml \
+  --decisions-path .bmad/decisions.yaml
+```
+
+Add `--fail-on-overdue` for CI gates, `--include-decided` to bypass decisions, `--create-branch` for a working branch, `--watch` if Step 1's `sonar-findings.json` may still be in-flight.
 
 ---
 

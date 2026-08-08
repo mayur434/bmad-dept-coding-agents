@@ -21,7 +21,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { AgentName, Finding, RecommendationRow, RunMeta, computeCounts } from "../core/types";
-import { StandardExcelReport } from "../report/standard-report";
+import { StandardExcelReport, ExtraSheet } from "../report/standard-report";
 import { renderMarkdownReport } from "../report/markdown-report";
 import {
   reportXlsxName, reportMarkdownName, timestamp as makeTimestamp,
@@ -51,6 +51,12 @@ export interface EmitOptions {
   recommendations?: RecommendationRow[];
   /** Workbook title override. */
   reportTitle?: string;
+  /**
+   * Optional extra sheets appended after the standardized ones. Callers use
+   * this to attach agent-specific views (e.g. the SLA Status sheet from the
+   * shared SLA tracker) without post-processing the workbook.
+   */
+  extraSheets?: ExtraSheet[];
 }
 
 export interface EmitResult {
@@ -77,6 +83,7 @@ export async function emitStandardOutputs(opts: EmitOptions): Promise<EmitResult
   const report = new StandardExcelReport(opts.findings, meta, {
     recommendations: opts.recommendations,
     title: opts.reportTitle,
+    extraSheets: opts.extraSheets,
   });
   await report.generate(xlsxPath);
 

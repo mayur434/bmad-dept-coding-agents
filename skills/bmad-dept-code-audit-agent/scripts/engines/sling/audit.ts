@@ -15,7 +15,7 @@ import { computeCounts, Finding, RecommendationRow, SEVERITIES } from "../../../
 import { SlingShaftScanner } from "./scanner";
 import { isShaft } from "./detect";
 import { scanSlingXml } from "./xml-scan";
-import { enforceConfidenceOnAll, emitAuditFindingsCache } from "../../shared/emit-helpers";
+import { enforceConfidenceOnAll, emitAuditFindingsCache, applyDecisionsFilter, applySLA, maybeFailOnOverdue } from "../../shared/emit-helpers";
 import { runDeltaMode } from "../../shared/delta";
 
 interface Args {
@@ -148,6 +148,17 @@ export async function main(): Promise<void> {
     console.log(br.ok ? `🌿 Standard branch: ${br.branch} (from ${br.sourceBranch})` : `⚠️  Branch: ${br.error}`);
   }
 
+  // Findings gate — filter against .bmad/decisions.yaml before emit.
+  const decisionsExtra: Record<string, string | number> = { "Java Files": javaFiles, "Files Scanned": filesScanned };
+  const gate = applyDecisionsFilter(findings, projectRoot, decisionsExtra);
+  findings = gate.kept;
+  if (gate.suppressed > 0) {
+    console.log(`   🎯 Findings gate: suppressed ${gate.suppressed} finding(s) via .bmad/decisions.yaml`);
+  }
+
+  // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+  const sla = applySLA({ findings, projectRoot, agent: "audit", extra: decisionsExtra });
+
   const res = await emitStandardOutputs({
     agent: "audit",
     meta: {
@@ -158,11 +169,12 @@ export async function main(): Promise<void> {
       projectRoot,
       sourceBranch,
       toolVersions: { "tree-sitter": "web-tree-sitter", engine: "sling-1.0.0" },
-      extra: { "Java Files": javaFiles, "Files Scanned": filesScanned },
+      extra: decisionsExtra,
     },
     findings,
     outputDir,
     recommendations: buildRecommendations(findings),
+    extraSheets: sla.extraSheet ? [sla.extraSheet] : undefined,
     changelogSummary: `Sling/Shaft audit: ${counts.total} finding(s) across ${filesScanned} Java file(s).`,
   });
 
@@ -197,6 +209,9 @@ export async function main(): Promise<void> {
   console.log("\n" + "═".repeat(60));
   console.log(" ✅ Sling/Shaft audit complete");
   console.log("═".repeat(60));
+
+  // --fail-on-overdue: after emit, exit 6 if any finding is OVERDUE per SLA.
+  maybeFailOnOverdue(sla.summary);
 }
 
 // Allow running the engine directly (dispatcher calls main()).

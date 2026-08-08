@@ -126,6 +126,33 @@ npx ts-node .claude/skills/bmad-dept-code-impact-analysis-agent/scripts/run.ts \
 The Impact Analysis `--bugs` (Proofhub CSV) is **distinct** from the Audit Commerce engine's `--bugs` (bug report `.xlsx`). Different agents, different formats.
 :::
 
+### Enterprise Phase 1 flags
+
+Shared with every DCA agent. See [Findings Gate](../concepts/findings-gate) and [SLA Tracking](../concepts/sla-tracking) for the full mechanics.
+
+| Flag | Type | Default | Purpose |
+|---|---|---|---|
+| `--include-decided` | bool | false | Bypass the findings gate — show items already decided in `.bmad/decisions.yaml`. |
+| `--decisions-path <path>` | string | `<projectRoot>/.bmad/decisions.yaml` | Override the decisions file. |
+| `--ignore-decision-expiry` | bool | false | Treat expired decisions as still active for this run. |
+| `--list-decisions` | bool | false | Print all decisions and exit. |
+| `--sla-path <path>` | string | `<projectRoot>/.bmad/sla.yaml` | Override the SLA file. |
+| `--no-sla` | bool | false | Skip the SLA sheet and computation. |
+| `--fail-on-overdue` | bool | false | Exit code 6 if any linked audit item is overdue per role SLA. |
+
+## One-shot examples
+
+The Impact Analysis agent runs end-to-end without clarifying questions when the prompt is self-contained. See the [One-Shot Mode](../concepts/one-shot-mode) concept page for the full precedence rules. Impact requires at least one input source (`--bugs` / `--brd` / `--pr` / `--diff`); if none is given the agent asks once.
+
+- **"impact analyze the bugs at ./proofhub.csv"** — `--bugs ./proofhub.csv`; analysis mode from role default.
+- **"impact analyze the BRD at ./req.docx as pm"** — per-run role override to `pm`; `--brd`; `--analysis what-connected`.
+- **"impact analyze the PR — a=main..b=feature/checkout-v2"** — `--pr <range>` for git-range analysis.
+- **"diff impact analyze — what's the blast radius of my uncommitted changes?"** — `--diff` on the working tree.
+- **"impact analyze both ./bugs.csv and ./req.docx together"** — dual inputs, cross-source correlation on.
+- **"impact analyze --focus-module payments"** — narrows blast radius to a single module.
+
+Full example bodies with the exact resolved commands live in the agent SKILL.md's `One-shot mode` section.
+
 ## What's new in the maturity batch
 
 - **Audit-findings cross-reference** — when a recent audit run's findings cache is present (default within `--audit-max-age-hours 168`, i.e. 7 days), the tracer enriches each impacted file with its CRITICAL / HIGH audit surface so the Risk Score reflects known defects. Opt out with `--no-audit-crossref`.

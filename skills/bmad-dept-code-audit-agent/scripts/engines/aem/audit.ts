@@ -30,7 +30,7 @@ import { emitStandardOutputs } from '../../../../shared/output';
 import { fromLegacyFindingsMap } from '../../../../shared/core/types';
 import { scanAemAst } from './ast-scan';
 import { scanAemXml } from './xml-scan';
-import { enforceConfidenceOnAll, emitAuditFindingsCache } from '../../shared/emit-helpers';
+import { enforceConfidenceOnAll, emitAuditFindingsCache, applyDecisionsFilter, applySLA, maybeFailOnOverdue } from '../../shared/emit-helpers';
 import { runDeltaMode } from '../../shared/delta';
 import { appendLegacySheets } from '../../shared/legacy-merge';
 
@@ -306,15 +306,28 @@ async function main(): Promise<void> {
   ];
   stdFindings = enforceConfidenceOnAll(stdFindings, 'regex');
 
+  // Findings gate — filter against .bmad/decisions.yaml before emit.
+  const decisionsExtra: Record<string, string | number> = { 'Total Files': stats.totalFiles };
+  const gate = applyDecisionsFilter(stdFindings, projectPath, decisionsExtra);
+  stdFindings = gate.kept;
+  if (gate.suppressed > 0) {
+    console.log(`   🎯 Findings gate: suppressed ${gate.suppressed} finding(s) via .bmad/decisions.yaml`);
+  }
+
+  // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+  const sla = applySLA({ findings: stdFindings, projectRoot: projectPath, agent: 'audit', extra: decisionsExtra });
+  const extraSheets = sla.extraSheet ? [sla.extraSheet] : undefined;
+
   const std = await emitStandardOutputs({
     agent: 'audit',
     meta: {
       agent: 'audit', engine: engineId, stack: stackLabel + migrationNote,
       projectName, projectRoot: projectPath,
-      extra: { 'Total Files': stats.totalFiles },
+      extra: decisionsExtra,
     },
     findings: stdFindings,
     outputDir,
+    extraSheets,
     changelogSummary: `AEM audit (${platform}): ${stats.totalFindings} finding(s).`,
   });
   console.log(`📊 Standardized report: ${std.xlsxPath}`);
@@ -360,6 +373,9 @@ async function main(): Promise<void> {
   console.log('\n' + '═'.repeat(60));
   console.log(' ✅ AEM Code Audit Complete (v2.0)');
   console.log('═'.repeat(60));
+
+  // --fail-on-overdue: after emit, exit 6 if any finding is OVERDUE per SLA.
+  maybeFailOnOverdue(sla.summary);
 }
 
 main().catch((err) => {

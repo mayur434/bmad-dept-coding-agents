@@ -152,6 +152,54 @@ scaffolder_defaults:
     scope: singleton
 ```
 
+### `.bmad/decisions.yaml`
+
+Written by hand (or by an external signed-approval workflow); read by every agent to suppress accepted / deferred / wontfix findings before the standardized report emits. Zero external deps; parser lives in `skills/shared/decisions/persistence.ts`. Full docs: [Findings Gate concept](../concepts/findings-gate).
+
+```yaml title=".bmad/decisions.yaml"
+# BMAD DCA — findings decisions
+version: 1
+last_modified: 2026-08-06T12:00:00Z
+decisions:
+  - id: dec-abc123
+    rule_id: COMMERCE-SEC-001
+    file: app/code/Vendor/Module/Model/Foo.php
+    line: 42
+    status: accepted            # accepted | deferred | wontfix
+    rationale: |
+      Legacy code from acquired product.
+      Refactor scheduled for Q1 2027.
+    signed_by: architect@company.com
+    signed_at: 2026-08-06T12:00:00Z
+    expires_at: 2027-01-31T23:59:59Z
+    tags: [q4-release, tech-debt]
+```
+
+Matching specificity: `rule_id + file + line` > `rule_id + file` > `rule_id` only. CLI: `--include-decided`, `--decisions-path`, `--ignore-decision-expiry`, `--list-decisions`. See [CLI Flags → Enterprise Phase 1](./cli-flags#enterprise-phase-1--findings-gate--sla).
+
+### `.bmad/sla.yaml`
+
+Written by hand; read by every agent to override the built-in role x severity SLA matrix. Defaults live in `skills/shared/sla/defaults.ts`; parser in `skills/shared/sla/persistence.ts`. Zero external deps. Full docs: [SLA Tracking concept](../concepts/sla-tracking).
+
+```yaml title=".bmad/sla.yaml"
+# BMAD DCA — Service Level Agreements per role and severity
+version: 1
+overrides:
+  - role: security
+    slas:
+      CRITICAL: 12h      # tighter than the 24h default
+      HIGH: 48h
+per_agent_overrides:
+  sonar-scan:
+    CRITICAL: 24h
+    HIGH: 48h
+    MEDIUM: 1w
+    LOW: 30d
+    INFO: 90d
+```
+
+Duration syntax: `12h`, `2d`, `1w`, `30d`, `1mo`, `1y`. Precedence: `per_agent_overrides.<agent>` > `overrides[role]` > built-in default > `generic` fallback. CLI: `--sla-path`, `--no-sla`, `--fail-on-overdue` (exit code 6). See [CLI Flags → Enterprise Phase 1](./cli-flags#enterprise-phase-1--findings-gate--sla).
+
 ### `.bmad/orchestrator/<runId>/`
 
 Written by `dca chain-all` — one directory per cross-agent run. Contains:

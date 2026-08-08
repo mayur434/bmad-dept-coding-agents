@@ -187,6 +187,8 @@ path with the resource packs. Note the `--engine` key is not always the resource
 
 ## Intake mode (interactive vs technical)
 
+> **For fast, enterprise-grade execution, prefer One-shot mode (see below).** Intake mode is for exploratory / first-time users.
+
 > **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
 
 When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command (scaffolder or LLM/MCP dispatch) as the first response. Ask which drive style they prefer:
@@ -238,6 +240,103 @@ Then ask: **"Want me to run this now, or will you copy-paste it?"**
 
 - If **run for me** → execute silently and stream results (same as interactive mode).
 - If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/generation-reports/`. Come back with 'summarize what was generated' when you're done."
+
+## One-shot mode
+
+The **preferred enterprise path.** When the user's initial prompt fully specifies what to run, do NOT ask any clarifying questions — execute end-to-end, stream results, done. Use defaults from `.bmad/role.yaml`, `.bmad/intake.yaml`, `.bmad/conventions.yaml`, and reasonable stack auto-detection to fill missing inputs.
+
+### When to enter one-shot mode
+
+Trigger phrases (any of):
+- "generate X end-to-end", "no questions, just do it", "one-shot", "just scaffold", "auto"
+- OR any prompt that specifies: (a) the operation, (b) the project path (default: cwd), (c) the primary input (BRD/CSV/type/name/etc)
+
+You DO NOT need every field explicitly — role + intake + conventions cover the rest silently.
+
+### Precedence for missing inputs
+
+1. **Explicit in the user's prompt** (highest — always wins)
+2. **`--flag` on run.ts** (headless / CI)
+3. **`.bmad/role.yaml`** (role-driven default: mode + output flavor + follow-up)
+4. **`.bmad/intake.yaml`** (interactive vs technical preference — one-shot forces technical + skip)
+5. **`.bmad/conventions.yaml`** (project conventions: naming, packages, house rules)
+6. **Auto-detected** (stack from repo signatures, coverage report from standard paths)
+7. **Sensible defaults** (see per-agent list below)
+
+### What one-shot DOES silence
+
+- The intake picker ("Interactive or Technical?") — one-shot forces technical.
+- The mode picker ("Full / Scan Only / Deep?") — resolved from role default.
+- The consent picker ("What's connected vs What could break?" for Impact; "gaps only / write tests / full" for Test Coverage) — resolved from role default.
+- The role picker (if `.bmad/role.yaml` absent) — one-shot uses `generic` role silently (log to stderr: "one-shot: no role file, defaulting to generic").
+- The confirmation prompts around `--create-branch`, `--yes-install`, etc. — one-shot assumes yes for install (auto-install), no for branch cut unless the user's prompt or CLI says otherwise.
+
+### What one-shot DOES ask about (only when truly critical)
+
+- **Generation specifically**: if the prompt says "generate X" but provides no `--type` AND no `--name` (or unambiguous equivalents in natural language) — ask ONCE for both. The scaffolder cannot proceed without them.
+
+### One-shot prompt examples for the Code Generation agent
+
+Each example shows what the user pastes and what the AI silently resolves.
+
+> **User:** "generate an AEM component called HeroBanner"
+> **AI silently resolves:** path=cwd, engine=`aem`, type=`component`, name=`HeroBanner`, package=(from `.bmad/conventions.yaml` or detected), role=(from `.bmad/role.yaml` or `generic`), test stub=on (unless `--no-test-stub`), output-dir=`generation-reports/`.
+> **AI runs:** `npx ts-node .claude/skills/bmad-dept-code-generation-agent/scripts/run.ts --path <cwd> --scaffold --engine aem --type component --name HeroBanner --technical --no-preflight --yes-install`
+> **AI reports:** "Scaffolded 4 files under `ui.apps/…/components/heroBanner/`. Report: `generation-main-…-agent-report.xlsx`."
+
+> **User:** "scaffold a Sling Model for the Article component with hardening"
+> **AI silently resolves:** engine=`sling`, type=`sling-model`, name=`Article`, `--secure` for hardening (input validation, null checks, LOG.debug guards), package from conventions.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --scaffold --engine sling --type sling-model --name Article --secure --technical --no-preflight --yes-install`
+> **AI reports:** files written + security hardening notes.
+
+> **User:** "generate a Cloud Manager pipeline config"
+> **AI silently resolves:** engine=`aem`, type=`cloud-manager-pipeline` (or nearest template match from `--list-types`), name defaults from project name.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --scaffold --engine aem --type cloud-manager-pipeline --technical --no-preflight --yes-install`
+> **AI reports:** pipeline YAML + attached quality gates.
+
+> **User:** "create a Commerce plugin on Magento\\Catalog\\Model\\Product::getName"
+> **AI silently resolves:** engine=`commerce-paas`, type=`plugin`, name derived (`ProductGetNamePlugin`), target class + method captured as scaffold inputs.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --scaffold --engine commerce-paas --type plugin --name ProductGetNamePlugin --technical --no-preflight --yes-install`
+> **AI reports:** plugin class + `di.xml` wiring + test stub.
+
+> **User:** "generate a Spring REST controller called OrderController, secure=true"
+> **AI silently resolves:** engine=`spring`, type=`rest-controller`, name=`OrderController`, `--secure` on (authorization, input validation).
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --scaffold --engine spring --type rest-controller --name OrderController --secure --technical --no-preflight --yes-install`
+> **AI reports:** controller + service stub + secured endpoint notes.
+
+> **User:** "dry-run: what would you generate for --type sling-servlet --name Ping?"
+> **AI silently resolves:** `--dry-run` (preview only, no disk writes), engine=`sling`, type=`sling-servlet`, name=`Ping`.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --scaffold --engine sling --type sling-servlet --name Ping --dry-run --technical --no-preflight --yes-install`
+> **AI reports:** file plan (paths + sizes) with zero disk changes.
+
+### After one-shot execution
+
+Always:
+- Print a one-line summary (files written, target directory, report path).
+- Print the recommended follow-up from the role matrix (e.g. QA role after generation → "test-coverage the new files").
+- Do NOT ask "want me to run the follow-up?" — user will ask if they do.
+
+Never:
+- Ask what mode they wanted after the fact.
+- Ask if they want to save preferences.
+- Explain what you did (unless they ask).
+
+### CLI equivalent for one-shot (technical mode)
+
+Every one-shot prompt has a direct CLI equivalent using all Phase 1 flags:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-generation-agent/scripts/run.ts \
+  --path . \
+  --scaffold --engine <stack> --type <type> --name <Name> \
+  --technical \
+  --yes-install \
+  --no-preflight \
+  --sla-path .bmad/sla.yaml \
+  --decisions-path .bmad/decisions.yaml
+```
+
+Add `--fail-on-overdue` for CI gates, `--include-decided` to bypass decisions, `--dry-run` to preview, `--force` or `--force-name` to overwrite existing scaffolds.
 
 ## Role-aware behavior
 

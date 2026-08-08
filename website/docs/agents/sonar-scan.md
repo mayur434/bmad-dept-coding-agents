@@ -101,6 +101,33 @@ npx ts-node .claude/skills/bmad-dept-code-sonar-scan-agent/scripts/run.ts \
 | `--list-engines` | bool | false | List available rule packs (one per stack). |
 | `--help` | bool | false | Show help. |
 
+### Enterprise Phase 1 flags
+
+Shared with every DCA agent. See [Findings Gate](../concepts/findings-gate) and [SLA Tracking](../concepts/sla-tracking) for the full mechanics.
+
+| Flag | Type | Default | Purpose |
+|---|---|---|---|
+| `--include-decided` | bool | false | Bypass the findings gate — show items already decided in `.bmad/decisions.yaml`. |
+| `--decisions-path <path>` | string | `<projectRoot>/.bmad/decisions.yaml` | Override the decisions file. |
+| `--ignore-decision-expiry` | bool | false | Treat expired decisions as still active for this run. |
+| `--list-decisions` | bool | false | Print all decisions and exit. |
+| `--sla-path <path>` | string | `<projectRoot>/.bmad/sla.yaml` | Override the SLA file. |
+| `--no-sla` | bool | false | Skip the SLA sheet and computation. |
+| `--fail-on-overdue` | bool | false | Exit code 6 if any surviving item is overdue per role SLA. Independent of the Quality Gate. |
+
+## One-shot examples
+
+The Sonar Scan agent runs end-to-end without clarifying questions when the prompt is self-contained. See the [One-Shot Mode](../concepts/one-shot-mode) concept page for the full precedence rules.
+
+- **"sonar scan my project"** — path + engine + role auto-resolved; `--auto-ingest` on so Step 1 -> Step 2 chain silently.
+- **"sonar scan focus vulnerabilities as security"** — per-run role override + `--focus vulnerabilities`.
+- **"sonar scan then ingest — one shot with --auto-ingest"** — explicit auto-ingest for a single pipeline call.
+- **"sonar scan and fail if quality gate red"** — Quality Gate FAIL already exits non-zero; add `--fail-on-overdue` for the SLA gate too.
+- **"ingest ./sonar-findings.json into a report"** — Step 2 only; `--ingest ./sonar-findings.json`.
+- **"sonar scan with fresh findings — --watch until they land"** — `--watch` polls for Step 1 output before ingesting.
+
+Full example bodies with the exact resolved commands live in the agent SKILL.md's `One-shot mode` section.
+
 ## What's new in the maturity batch
 
 - **`--focus <csv>` filter** — restrict Step 1's LLM rule pack *and* Step 2's ingest to a subset of the 6 Sonar categories. Common pairings: `--focus vulnerabilities,hotspots` for a security-only pass; `--focus complexity` for a refactoring backlog. Ratings for excluded categories fall back to `A`.

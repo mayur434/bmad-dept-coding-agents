@@ -11,6 +11,7 @@ import * as path from "path";
 import { emitStandardOutputs, ensureStandardBranch } from "../../../../shared/output";
 import { computeCounts, Finding, RecommendationRow, SEVERITIES } from "../../../../shared/core/types";
 import { AppBuilderScanner } from "./scanner";
+import { applyDecisionsFilter, applySLA, maybeFailOnOverdue } from "../../shared/emit-helpers";
 
 interface Args {
   path: string;
@@ -116,17 +117,29 @@ Usage:
     console.log(br.ok ? `🌿 Standard branch: ${br.branch} (from ${br.sourceBranch})` : `⚠️  Branch: ${br.error}`);
   }
 
+  // Findings gate — filter against .bmad/decisions.yaml before emit.
+  const decisionsExtra: Record<string, string | number> = { "JS Files": jsFiles, "Config Files": configFiles };
+  const gate = applyDecisionsFilter(findings, projectRoot, decisionsExtra);
+  const gatedFindings = gate.kept;
+  if (gate.suppressed > 0) {
+    console.log(`   🎯 Findings gate: suppressed ${gate.suppressed} finding(s) via .bmad/decisions.yaml`);
+  }
+
+  // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+  const sla = applySLA({ findings: gatedFindings, projectRoot, agent: "audit", extra: decisionsExtra });
+
   const res = await emitStandardOutputs({
     agent: "audit",
     meta: {
       agent: "audit", engine: "app-builder", stack: "Adobe App Builder",
       projectName, projectRoot, sourceBranch,
       toolVersions: { "tree-sitter": "web-tree-sitter", engine: "app-builder-1.0.0" },
-      extra: { "JS Files": jsFiles, "Config Files": configFiles },
+      extra: decisionsExtra,
     },
-    findings,
+    findings: gatedFindings,
     outputDir,
-    recommendations: buildRecommendations(findings),
+    recommendations: buildRecommendations(gatedFindings),
+    extraSheets: sla.extraSheet ? [sla.extraSheet] : undefined,
     changelogSummary: `App Builder audit: ${counts.total} finding(s) across ${jsFiles} JS + ${configFiles} config file(s).`,
   });
 
@@ -136,6 +149,7 @@ Usage:
   console.log("\n" + "═".repeat(60));
   console.log(" ✅ App Builder audit complete");
   console.log("═".repeat(60));
+  maybeFailOnOverdue(sla.summary);
 }
 
 if (require.main === module) {

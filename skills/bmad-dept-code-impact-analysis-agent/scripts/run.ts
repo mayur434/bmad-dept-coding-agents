@@ -29,6 +29,8 @@ import { ensureDepsInstalled } from "../../shared/install";
 import { resolveIntake, askAll, confirmRun, Question } from "../../shared/interactive";
 import { emitFindingsCache } from "../../shared/findings";
 import { crossReferenceAudit } from "./analysis/audit-crossref";
+import { applyDecisionsFilter } from "./decisions-gate";
+import { applySLA, maybeFailOnOverdue } from "./sla-gate";
 
 interface Args {
   path: string;
@@ -51,6 +53,13 @@ interface Args {
   analysis: string | null;
   auditMaxAgeHours: number;
   noAuditCrossref: boolean;
+  includeDecided: boolean;
+  decisionsPath: string | null;
+  ignoreDecisionExpiry: boolean;
+  listDecisions: boolean;
+  slaPath: string | null;
+  noSla: boolean;
+  failOnOverdue: boolean;
 }
 
 function parseArgs(): Args {
@@ -62,6 +71,8 @@ function parseArgs(): Args {
     yesInstall: false, noInstall: false,
     interactive: false, technical: false, analysis: null,
     auditMaxAgeHours: 168, noAuditCrossref: false,
+    includeDecided: false, decisionsPath: null, ignoreDecisionExpiry: false, listDecisions: false,
+    slaPath: null, noSla: false, failOnOverdue: false,
   };
   const argv = process.argv.slice(2);
   // --role=<code> and --role <code> are both handled by the shared helper.
@@ -99,6 +110,13 @@ function parseArgs(): Args {
       case "--interactive": a.interactive = true; break;
       case "--technical": a.technical = true; break;
       case "--analysis": a.analysis = argv[++i]; break;
+      case "--include-decided": a.includeDecided = true; break;
+      case "--decisions-path": a.decisionsPath = argv[++i]; break;
+      case "--ignore-decision-expiry": a.ignoreDecisionExpiry = true; break;
+      case "--list-decisions": a.listDecisions = true; break;
+      case "--sla-path": a.slaPath = argv[++i]; break;
+      case "--no-sla": a.noSla = true; break;
+      case "--fail-on-overdue": a.failOnOverdue = true; break;
       case "--help":
         console.log(`BMAD Impact Analysis Agent
 
@@ -136,7 +154,24 @@ Intake mode:
   --interactive           Prompt step-by-step for missing inputs; persist choice to .bmad/intake.yaml.
   --technical             Force technical mode; missing required inputs error out (current default).
                           Without either flag the CLI reads <project>/.bmad/intake.yaml (mode: interactive|technical),
-                          falling back to technical when the file is absent.`);
+                          falling back to technical when the file is absent.
+
+Findings gate (Phase 1 enterprise features):
+  --include-decided                   Show findings even when a decision exists
+                                      in .bmad/decisions.yaml (accepted /
+                                      deferred / wontfix). Default: filter them out.
+  --decisions-path <path>             Override decisions file location.
+                                      Default: <projectRoot>/.bmad/decisions.yaml
+  --ignore-decision-expiry            Keep suppressing findings even when the
+                                      decision has expired. Rarely used.
+  --list-decisions                    Print every decision in .bmad/decisions.yaml and exit.
+
+SLA tracking (Phase 1 enterprise features):
+  --sla-path <path>           Override SLA file location.
+                              Default: <projectRoot>/.bmad/sla.yaml
+  --no-sla                    Skip SLA computation + sheet.
+  --fail-on-overdue           Exit code 6 if any finding is OVERDUE per role SLA.
+                              For CI gates.`);
         process.exit(0);
       default:
         // swallow --role=<value> here so it isn't logged as unknown
@@ -164,6 +199,23 @@ async function main(): Promise<void> {
     console.log("  (aliases: aemcs, aemams → aem; commerce → commerce-paas)");
     return;
   }
+
+  // --list-decisions short-circuits before any input ingest.
+  if (args.listDecisions) {
+    const root = args.path && args.path !== "." ? resolve(args.path) : process.cwd();
+    const { listDecisions } = require("./decisions-gate") as typeof import("./decisions-gate");
+    listDecisions(root, args.decisionsPath ?? undefined);
+    return;
+  }
+
+  // Propagate findings-gate flags via env.
+  if (args.includeDecided) process.env.DCA_INCLUDE_DECIDED = "1";
+  if (args.decisionsPath) process.env.DCA_DECISIONS_PATH = resolve(args.decisionsPath);
+  if (args.ignoreDecisionExpiry) process.env.DCA_IGNORE_DECISION_EXPIRY = "1";
+  // Propagate SLA gate flags via env.
+  if (args.slaPath) process.env.DCA_SLA_PATH = resolve(args.slaPath);
+  if (args.noSla) process.env.DCA_NO_SLA = "1";
+  if (args.failOnOverdue) process.env.DCA_FAIL_ON_OVERDUE = "1";
 
   // First-run dependency check. Runs BEFORE the heavy modules are
   // require()'d below — analysis/tracer, inputs/brd, shared/output,
@@ -352,7 +404,8 @@ async function main(): Promise<void> {
   console.log("\n🔎 Tracing impacted code...");
 
   const traceResult = traceImpact(projectPath, items, profile);
-  const { findings, sourceCount, matchedItems } = traceResult;
+  let { findings } = traceResult;
+  const { sourceCount, matchedItems } = traceResult;
 
   // ── audit cross-reference (enrich in place) ──
   let crossref: ReturnType<typeof crossReferenceAudit> | null = null;
@@ -372,6 +425,14 @@ async function main(): Promise<void> {
     }
   }
 
+  // Findings gate — filter against .bmad/decisions.yaml before rating math + emit.
+  const decisionsExtra: Record<string, string | number> = {};
+  const gate = applyDecisionsFilter(findings, projectPath, decisionsExtra);
+  findings = gate.kept;
+  if (gate.suppressed > 0) {
+    console.log(`   🎯 Findings gate: suppressed ${gate.suppressed} finding(s) via .bmad/decisions.yaml`);
+  }
+
   const counts = computeCounts(findings);
   console.log(`   Source files scanned: ${sourceCount}`);
   console.log(`   Inputs matched to code: ${matchedItems}/${items.length}`);
@@ -380,6 +441,10 @@ async function main(): Promise<void> {
 
   const recommendations = buildRecommendations(items.length, matchedItems, counts.bySeverity);
   const outputDir = args.output ?? join(projectPath, "impact-reports");
+
+  // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+  const slaExtra: Record<string, string | number> = {};
+  const sla = applySLA({ findings, projectRoot: projectPath, agent: "impact-analysis", extra: slaExtra });
 
   const res = await emitStandardOutputs({
     agent: "impact",
@@ -393,11 +458,14 @@ async function main(): Promise<void> {
         Role: `${resolvedRoleName} (${resolvedRoleCode})`,
         "Role Source": resolvedRoleSource,
         "Role Flavor": resolvedRoleFlavor,
+        ...decisionsExtra,
+        ...slaExtra,
       },
     },
     findings,
     outputDir,
     recommendations,
+    extraSheets: sla.extraSheet ? [sla.extraSheet] : undefined,
     changelogSummary: `Impact analysis: ${items.length} input(s) → ${counts.total} impacted finding(s) across ${profile.name}.`,
   });
 
@@ -426,6 +494,9 @@ async function main(): Promise<void> {
   console.log("\n" + "═".repeat(60));
   console.log(" ✅ Impact analysis complete");
   console.log("═".repeat(60));
+
+  // --fail-on-overdue: after emit, exit 6 if any finding is OVERDUE per SLA.
+  maybeFailOnOverdue(sla.summary);
 }
 
 function buildRecommendations(total: number, matched: number, bySev: Record<string, number>): RecommendationRow[] {

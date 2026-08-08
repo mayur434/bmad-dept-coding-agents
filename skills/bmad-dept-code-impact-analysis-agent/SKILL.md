@@ -137,6 +137,8 @@ npx ts-node {skill_path}/scripts/run.ts --list-engines
 
 ## Intake mode (interactive vs technical)
 
+> **For fast, enterprise-grade execution, prefer One-shot mode (see below).** Intake mode is for exploratory / first-time users.
+
 > **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
 
 When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command as the first response. Ask which drive style they prefer:
@@ -188,6 +190,101 @@ Then ask: **"Want me to run this now, or will you copy-paste it?"**
 
 - If **run for me** → execute silently and stream results (same as interactive mode).
 - If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/impact-reports/`. Come back with 'summarize the blast radius' when you're done."
+
+---
+
+## One-shot mode
+
+The **preferred enterprise path.** When the user's initial prompt fully specifies what to run, do NOT ask any clarifying questions — execute end-to-end, stream results, done. Use defaults from `.bmad/role.yaml`, `.bmad/intake.yaml`, `.bmad/conventions.yaml`, and reasonable stack auto-detection to fill missing inputs.
+
+### When to enter one-shot mode
+
+Trigger phrases (any of):
+- "run impact analysis end-to-end", "no questions, just do it", "one-shot", "just trace it", "auto"
+- OR any prompt that specifies: (a) the operation, (b) the project path (default: cwd), (c) the primary input (BRD/CSV/type/name/etc)
+
+You DO NOT need every field explicitly — role + intake + conventions cover the rest silently.
+
+### Precedence for missing inputs
+
+1. **Explicit in the user's prompt** (highest — always wins)
+2. **`--flag` on run.ts** (headless / CI)
+3. **`.bmad/role.yaml`** (role-driven default: mode + output flavor + follow-up)
+4. **`.bmad/intake.yaml`** (interactive vs technical preference — one-shot forces technical + skip)
+5. **`.bmad/conventions.yaml`** (project conventions: naming, packages, house rules)
+6. **Auto-detected** (stack from repo signatures, coverage report from standard paths)
+7. **Sensible defaults** (see per-agent list below)
+
+### What one-shot DOES silence
+
+- The intake picker ("Interactive or Technical?") — one-shot forces technical.
+- The mode picker ("Full / Scan Only / Deep?") — resolved from role default.
+- The consent picker ("What's connected vs What could break?" for Impact; "gaps only / write tests / full" for Test Coverage) — resolved from role default.
+- The role picker (if `.bmad/role.yaml` absent) — one-shot uses `generic` role silently (log to stderr: "one-shot: no role file, defaulting to generic").
+- The confirmation prompts around `--create-branch`, `--yes-install`, etc. — one-shot assumes yes for install (auto-install), no for branch cut unless the user's prompt or CLI says otherwise.
+
+### What one-shot DOES ask about (only when truly critical)
+
+- **Impact-Analysis specifically**: if the prompt says "impact analysis" but provides NO `--bugs` / `--brd` / `--pr` / `--diff` input source — ask ONCE for the input source. The tracer cannot proceed without at least one.
+
+### One-shot prompt examples for the Impact Analysis agent
+
+Each example shows what the user pastes and what the AI silently resolves.
+
+> **User:** "impact analyze the bugs at ./proofhub.csv"
+> **AI silently resolves:** path=cwd, engine=auto-detect, `--bugs ./proofhub.csv`, analysis=(from role default — `what-connected` for `ba`/`pm`, `what-could-break` for `qa`/`tl`), sla-path/decisions-path=defaults, output-dir=`impact-reports/`.
+> **AI runs:** `npx ts-node .claude/skills/bmad-dept-code-impact-analysis-agent/scripts/run.ts --path <cwd> --bugs ./proofhub.csv --technical --no-preflight --yes-install`
+> **AI reports:** "Traced 84 bugs → 43 impacted files, 3 CRITICAL blast-radius. Report: `impact-main-…-agent-report.xlsx`."
+
+> **User:** "impact analyze the BRD at ./req.docx as pm"
+> **AI silently resolves:** role=`pm` (per-run override), `--brd ./req.docx`, analysis=`what-connected` (PM default), output flavor=executive Markdown.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --role pm --brd ./req.docx --analysis what-connected --technical --no-preflight --yes-install`
+> **AI reports:** requirement → file map + executive summary.
+
+> **User:** "impact analyze the PR — a=main..b=feature/checkout-v2"
+> **AI silently resolves:** `--pr main..feature/checkout-v2` (git range), analysis=`what-could-break`.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --pr main..feature/checkout-v2 --analysis what-could-break --technical --no-preflight --yes-install`
+> **AI reports:** files changed in PR + reverse-dependency blast radius.
+
+> **User:** "diff impact analyze — what's the blast radius of my uncommitted changes?"
+> **AI silently resolves:** `--diff` (uncommitted working tree), analysis=`what-could-break`.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --diff --analysis what-could-break --technical --no-preflight --yes-install`
+> **AI reports:** changed files + their callers + risk summary.
+
+> **User:** "impact analyze both ./bugs.csv and ./req.docx together"
+> **AI silently resolves:** `--bugs ./bugs.csv --brd ./req.docx`, cross-source correlation on.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --bugs ./bugs.csv --brd ./req.docx --technical --no-preflight --yes-install`
+> **AI reports:** unified impact table (bugs ∪ requirements → files).
+
+### After one-shot execution
+
+Always:
+- Print a one-line summary (impacted-file count, CRITICAL blast-radius count, report path).
+- Print the recommended follow-up from the role matrix (e.g. QA role after impact → "test-coverage the impacted files").
+- Do NOT ask "want me to run the follow-up?" — user will ask if they do.
+
+Never:
+- Ask what mode they wanted after the fact.
+- Ask if they want to save preferences.
+- Explain what you did (unless they ask).
+
+### CLI equivalent for one-shot (technical mode)
+
+Every one-shot prompt has a direct CLI equivalent using all Phase 1 flags:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-impact-analysis-agent/scripts/run.ts \
+  --path . \
+  --role <code> \
+  --bugs <csv> --brd <docx> \
+  --technical \
+  --yes-install \
+  --no-preflight \
+  --sla-path .bmad/sla.yaml \
+  --decisions-path .bmad/decisions.yaml
+```
+
+Add `--fail-on-overdue` for CI gates, `--include-decided` to bypass decisions, `--create-branch` for a working branch, `--pr <range>` or `--diff` in place of `--bugs`/`--brd` for change-based analysis.
 
 ---
 

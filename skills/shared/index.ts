@@ -22,3 +22,5 @@ export * from "./scoring";
 export * from "./xml";
 export * from "./findings";
 export * from "./orchestrator";
+export * from "./decisions";
+export * from "./sla";

@@ -65,6 +65,8 @@ This skill activates when the user asks to:
 
 ## Intake mode (interactive vs technical)
 
+> **For fast, enterprise-grade execution, prefer One-shot mode (see below).** Intake mode is for exploratory / first-time users.
+
 > **CRITICAL:** The very first response to any activation must be the intake-mode question — unless `.bmad/intake.yaml` exists with a saved preference. Do NOT skip this. Do NOT show a CLI command as the first response.
 
 When a user triggers this agent — via a natural-language prompt or a menu entry — do NOT show or run a raw CLI command as the first response. Ask which drive style they prefer:
@@ -118,6 +120,103 @@ Then ask: **"Want me to run this now, or will you copy-paste it?"**
 
 - If **run for me** → execute silently and stream results (same as interactive mode).
 - If **I'll run it** → acknowledge, and remind them: "Report will land in `<project>/audit-reports/`. Come back with 'summarize the findings' when you're done."
+
+## One-shot mode
+
+The **preferred enterprise path.** When the user's initial prompt fully specifies what to run, do NOT ask any clarifying questions — execute end-to-end, stream results, done. Use defaults from `.bmad/role.yaml`, `.bmad/intake.yaml`, `.bmad/conventions.yaml`, and reasonable stack auto-detection to fill missing inputs.
+
+### When to enter one-shot mode
+
+Trigger phrases (any of):
+- "run the audit end-to-end", "no questions, just do it", "one-shot", "just run", "auto"
+- OR any prompt that specifies: (a) the operation, (b) the project path (default: cwd), (c) the primary input (BRD/CSV/type/name/etc)
+
+You DO NOT need every field explicitly — role + intake + conventions cover the rest silently.
+
+### Precedence for missing inputs
+
+1. **Explicit in the user's prompt** (highest — always wins)
+2. **`--flag` on run.ts** (headless / CI)
+3. **`.bmad/role.yaml`** (role-driven default: mode + output flavor + follow-up)
+4. **`.bmad/intake.yaml`** (interactive vs technical preference — one-shot forces technical + skip)
+5. **`.bmad/conventions.yaml`** (project conventions: naming, packages, house rules)
+6. **Auto-detected** (stack from repo signatures, coverage report from standard paths)
+7. **Sensible defaults** (see per-agent list below)
+
+### What one-shot DOES silence
+
+- The intake picker ("Interactive or Technical?") — one-shot forces technical.
+- The mode picker ("Full / Scan Only / Deep?") — resolved from role default.
+- The consent picker ("What's connected vs What could break?" for Impact; "gaps only / write tests / full" for Test Coverage) — resolved from role default.
+- The role picker (if `.bmad/role.yaml` absent) — one-shot uses `generic` role silently (log to stderr: "one-shot: no role file, defaulting to generic").
+- The confirmation prompts around `--create-branch`, `--yes-install`, etc. — one-shot assumes yes for install (auto-install), no for branch cut unless the user's prompt or CLI says otherwise.
+
+### What one-shot DOES ask about (only when truly critical)
+
+- **Audit** — all required inputs can be resolved silently from role + auto-detection + defaults. One-shot proceeds without asking.
+
+### One-shot prompt examples for the Audit agent
+
+Each example shows what the user pastes and what the AI silently resolves.
+
+> **User:** "audit my project"
+> **AI silently resolves:** path=cwd, engine=auto-detect, role=(from `.bmad/role.yaml` or `generic`), mode=(from role default — e.g. Full for `qa`, Scan Only for `de`), sla-path=`.bmad/sla.yaml`, decisions-path=`.bmad/decisions.yaml`, output-dir=`audit-reports/`.
+> **AI runs:** `npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts --path <cwd> --technical --no-preflight --yes-install`
+> **AI reports:** "Scanning… found 42 findings (5 CRITICAL, 12 HIGH). Report: `audit-main-…-agent-report.xlsx`. Want me to summarize?"
+
+> **User:** "audit my project as security, fail on overdue"
+> **AI silently resolves:** role=`security` (per-run override, no write to `.bmad/role.yaml`), mode=Full, output flavor=technical XLSX with security emphasis, `--fail-on-overdue` on for the SLA gate.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --role security --technical --fail-on-overdue --no-preflight --yes-install`
+> **AI reports:** severity breakdown + SLA breach count + non-zero exit code if any overdue.
+
+> **User:** "scan-only my project, no LLM (fast Tier 1)"
+> **AI silently resolves:** mode=`scan-only` (overrides role default), engine=auto-detect.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --mode scan-only --technical --no-preflight --yes-install`
+> **AI reports:** "Tier-1 findings only: 28 items. Report: … Want to escalate to Full Audit?"
+
+> **User:** "deep audit /path/to/aem-project on the release branch"
+> **AI silently resolves:** path=`/path/to/aem-project`, engine=`aem` (from path signature), mode=`deep-audit`, `--source-branch release --create-branch`.
+> **AI runs:** `npx ts-node .../run.ts --path /path/to/aem-project --engine aem --mode deep-audit --create-branch --source-branch release --technical --no-preflight --yes-install`
+> **AI reports:** working branch cut, deep-audit summary streamed live.
+
+> **User:** "audit my commerce project with DB dump at ./prod.sql and bugs at ./bugs.csv"
+> **AI silently resolves:** engine=`commerce`, `--db ./prod.sql`, `--bugs ./bugs.csv`, mode from role default.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --engine commerce --db ./prod.sql --bugs ./bugs.csv --technical --no-preflight --yes-install`
+> **AI reports:** findings + DB-schema-linked issues + bug cascade summary.
+
+> **User:** "audit since main — show me only the new findings"
+> **AI silently resolves:** `--since main` for regression/delta scope, mode=Full.
+> **AI runs:** `npx ts-node .../run.ts --path <cwd> --since main --technical --no-preflight --yes-install`
+> **AI reports:** delta findings vs. `main` only.
+
+### After one-shot execution
+
+Always:
+- Print a one-line summary (findings count, severity breakdown, report path).
+- Print the recommended follow-up from the role matrix (e.g. Security role after audit → "sonar scan for deeper vulnerability analysis").
+- Do NOT ask "want me to run the follow-up?" — user will ask if they do.
+
+Never:
+- Ask what mode they wanted after the fact.
+- Ask if they want to save preferences.
+- Explain what you did (unless they ask).
+
+### CLI equivalent for one-shot (technical mode)
+
+Every one-shot prompt has a direct CLI equivalent using all Phase 1 flags:
+
+```bash
+npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
+  --path . \
+  --role <code> \
+  --technical \
+  --yes-install \
+  --no-preflight \
+  --sla-path .bmad/sla.yaml \
+  --decisions-path .bmad/decisions.yaml
+```
+
+Add `--fail-on-overdue` for CI gates, `--include-decided` to bypass decisions, `--create-branch` for a working branch.
 
 ## Role-aware behavior
 

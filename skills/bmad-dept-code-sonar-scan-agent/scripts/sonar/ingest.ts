@@ -23,6 +23,8 @@ import { StackProfile } from "../engines/profiles";
 import { buildRatingRecommendations } from "./ratings";
 import { parseFocus, applyFocus, ParsedFocus } from "./focus";
 import { computeComplexity, topByComplexity } from "./complexity";
+import { applyDecisionsFilter } from "../decisions-gate";
+import { applySLA, maybeFailOnOverdue } from "../sla-gate";
 
 // ── JSON → Finding mapping ───────────────────────────────────────────────────
 
@@ -300,7 +302,15 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         `${focus.tokens.join(", ")} — ${dropped} findings dropped, ${kept.length} kept\n`,
     );
   }
-  const findings: Finding[] = kept;
+  let findings: Finding[] = kept;
+
+  // Findings gate — filter against .bmad/decisions.yaml before rating math + emit.
+  const decisionsExtra: Record<string, string | number> = {};
+  const gate = applyDecisionsFilter(findings, projectRoot, decisionsExtra);
+  findings = gate.kept;
+  if (gate.suppressed > 0) {
+    console.log(`🎯 Findings gate: suppressed ${gate.suppressed} finding(s) via .bmad/decisions.yaml`);
+  }
 
   const ratings = computeRatingBundle(findings);
   const recommendations = buildRatingRecommendations(findings, ratings);
@@ -316,6 +326,10 @@ export async function ingest(opts: IngestOptions): Promise<void> {
 
   // Cut working branch if requested (before writing outputs)
   maybeCutStandardBranch(argv, { agent: "sonar-scan", stack: profile.id, projectRoot });
+
+  // SLA gate — compute per-finding SLA + build the SLA Status sheet (non-fatal).
+  const slaExtra: Record<string, string | number> = {};
+  const sla = applySLA({ findings, projectRoot, agent: "sonar-scan", extra: slaExtra });
 
   const res = await emitStandardOutputs({
     agent: "sonar-scan",
@@ -333,11 +347,14 @@ export async function ingest(opts: IngestOptions): Promise<void> {
         "Findings Total": findings.length,
         "Vulnerabilities": findings.filter((f) => f.category === "Vulnerability" || f.category === "Security Hotspot").length,
         "Role": effectiveRole,
+        ...decisionsExtra,
+        ...slaExtra,
       },
     },
     findings,
     outputDir,
     recommendations,
+    extraSheets: sla.extraSheet ? [sla.extraSheet] : undefined,
     changelogSummary: `Sonar scan: ${findings.length} finding(s) — Quality Gate ${ratings.qualityGate} (R:${ratings.reliability} S:${ratings.security} M:${ratings.maintainability}) — ${profile.name}.`,
   });
 
@@ -395,4 +412,10 @@ export async function ingest(opts: IngestOptions): Promise<void> {
       `[sonar-gate] Quality Gate: PASS (Reliability=${ratings.reliability}, Security=${ratings.security}, Maintainability=${ratings.maintainability}).\n`,
     );
   }
+
+  // --fail-on-overdue: after emit + quality gate, exit 6 if any finding is
+  // OVERDUE per SLA. Runs AFTER the Quality Gate branch so exit code 6
+  // takes precedence over the Quality Gate FAIL exit (they compose cleanly
+  // since Quality Gate FAIL already exited above when applicable).
+  maybeFailOnOverdue(sla.summary);
 }
