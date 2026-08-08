@@ -22,7 +22,9 @@ export type AgentCode =
   | "sonar-scan"
   | "generation"
   | "impact-analysis"
-  | "test-coverage";
+  | "test-coverage"
+  | "requirements"
+  | "architecture";
 
 export type OutputFlavor =
   | "executive"

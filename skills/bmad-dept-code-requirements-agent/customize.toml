@@ -1,0 +1,37 @@
+[skill]
+name = "bmad-dept-code-requirements-agent"
+description = "Requirements authoring specialist. Produces BRDs, user stories, and acceptance criteria for Adobe Commerce (PaaS & SaaS), AEM (AEMaaCS & AMS), Apache Sling/Shaft, Spring Boot, App Builder, EDS, and EDS+Commerce hybrid projects. Parses existing BRDs (docx/md/txt) and enriches them, or authors from a short natural-language product description. Emits Epic → Story → AC traceability."
+version = "1.0.0"
+
+[skill.tools]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.).
+required = ["*"]
+
+[skill.activation]
+keywords = ["requirements", "brd", "user stories", "acceptance criteria", "epic", "product requirements", "authoring", "prd", "discovery"]
+
+[skill.scripts]
+dispatcher = "scripts/run.ts"
+package = "scripts/package.json"
+
+[skill.commands]
+# Author BRD + user stories + AC (auto-detects stack)
+author = "npx ts-node scripts/run.ts"
+# Parse & enrich an existing BRD document (docx/md/txt)
+parse-brd = "npx ts-node scripts/run.ts --brd-in"
+# Per-stack authoring commands (mirror audit's scan-<stack> pattern)
+author-aem = "npx ts-node scripts/run.ts --engine aem"
+author-commerce-paas = "npx ts-node scripts/run.ts --engine commerce-paas"
+author-commerce-saas = "npx ts-node scripts/run.ts --engine commerce-saas"
+author-sling = "npx ts-node scripts/run.ts --engine sling"
+author-spring = "npx ts-node scripts/run.ts --engine spring"
+author-app-builder = "npx ts-node scripts/run.ts --engine app-builder"
+author-eds = "npx ts-node scripts/run.ts --engine eds"
+author-eds-commerce = "npx ts-node scripts/run.ts --engine eds-commerce"
+# Utility
+list-engines = "npx ts-node scripts/run.ts --list-engines"

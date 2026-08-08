@@ -5,7 +5,7 @@ sidebar_position: 4
 description: The three questions every DCA agent asks the first time — deps, role, intake mode — and how to change any of them later.
 ---
 
-The very first time you invoke any of the five agents in a project, the DCA suite performs a short handshake — three questions, in order — then remembers your answers for every subsequent run.
+The very first time you invoke any of the DCA agents in a project, the suite performs a short handshake — three questions, in order — then remembers your answers for every subsequent run.
 
 ## The three questions
 
@@ -98,7 +98,7 @@ Assuming you answered **Y** to the install, picked a role, and picked an intake 
 
 ## Next
 
-- [Concepts → The 5 Agents](../concepts/the-5-agents)
+- [Concepts → The Agents](../concepts/the-agents)
 - [Concepts → Role Adaptation](../concepts/role-adaptation)
 - [Concepts → Interactive vs Technical](../concepts/interactive-vs-technical)
 - [Concepts → Auto-install](../concepts/auto-install)

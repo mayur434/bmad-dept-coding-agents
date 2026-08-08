@@ -4,7 +4,7 @@
 
 **Source of truth:** **[Roadmap →](https://mayur434.github.io/bmad-dept-coding-agents/roadmap)** on [mayur434.github.io/bmad-dept-coding-agents](https://mayur434.github.io/bmad-dept-coding-agents).
 
-Delivery status snapshot: all 45 coverage cells (5 agents × 9 in-scope tech-stack variants, served by 8 engine stacks) are ✅ complete. Open enhancements — Shaft KB finalize, XML-config AST scanning, Proofhub ColumnMap CLI flag, BRD source expansion — are tracked on the roadmap page.
+Delivery status snapshot: all 63 coverage cells (7 agents × 9 in-scope tech-stack variants, served by 8 engine stacks) are ✅ complete. Phase 2 (📋 Requirements + 🏛️ Architecture) shipped in this release; Phase 3 (Release + Operations) and Phase 4 (Code Review + Compliance) are planned. Open enhancements — Shaft KB finalize, XML-config AST scanning, Proofhub ColumnMap CLI flag, BRD source expansion — are tracked on the roadmap page.
 
 For the standardized outputs contract, see [Concepts → Standardized Outputs](https://mayur434.github.io/bmad-dept-coding-agents/concepts/standardized-outputs). For per-stack knowledge coverage, see [Concepts → The 8 Stacks](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-8-stacks) and [Reference → Rule Packs](https://mayur434.github.io/bmad-dept-coding-agents/reference/rule-packs/aem).
 

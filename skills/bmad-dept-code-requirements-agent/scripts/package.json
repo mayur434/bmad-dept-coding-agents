@@ -1,0 +1,23 @@
+{
+  "name": "bmad-dept-code-requirements-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "engines": {
+    "node": ">=20.12.0"
+  },
+  "scripts": {
+    "author": "npx ts-node run.ts",
+    "list-engines": "npx ts-node run.ts --list-engines"
+  },
+  "dependencies": {
+    "@bmad/dca-shared": "file:../../shared",
+    "exceljs": "^4.4.0",
+    "fast-glob": "^3.3.0",
+    "mammoth": "^1.8.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0"
+  }
+}

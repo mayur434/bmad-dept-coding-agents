@@ -16,12 +16,16 @@
 | Interactive vs technical CLI paths | [Concepts → Interactive vs Technical](https://mayur434.github.io/bmad-dept-coding-agents/concepts/interactive-vs-technical) |
 | Standardized outputs contract (XLSX + MD twin + CHANGE-LOG + branch cut) | [Concepts → Standardized Outputs](https://mayur434.github.io/bmad-dept-coding-agents/concepts/standardized-outputs) |
 | Role adaptation (10 roles, 5 output flavors, per-agent behavior) | [Concepts → Role Adaptation](https://mayur434.github.io/bmad-dept-coding-agents/concepts/role-adaptation) |
-| The 5 agents (Audit / Sonar / Generation / Impact / Test Coverage) | [Concepts → The 5 Agents](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-5-agents) |
+| The agents (Requirements / Architecture / Audit / Sonar / Generation / Impact / Test Coverage) | [Concepts → The Agents](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-agents) |
 | The 8 stacks (engine IDs, aliases, auto-detection order) | [Concepts → The 8 Stacks](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-8-stacks) |
+| Requirements authoring (BRD, epics, user stories, AC) | [Concepts → Requirements Authoring](https://mayur434.github.io/bmad-dept-coding-agents/concepts/requirements-authoring) |
+| Architecture authoring (ADR, HLD, LLD, OpenAPI, STRIDE) | [Concepts → Architecture Authoring](https://mayur434.github.io/bmad-dept-coding-agents/concepts/architecture-authoring) |
 | Findings cache (cross-agent correlation) | [Concepts → Findings Cache](https://mayur434.github.io/bmad-dept-coding-agents/concepts/findings-cache) |
 | Findings gate (accepted/deferred/wontfix decisions) | [Concepts → Findings Gate](https://mayur434.github.io/bmad-dept-coding-agents/concepts/findings-gate) |
 | SLA tracking (role x severity, overdue detection) | [Concepts → SLA Tracking](https://mayur434.github.io/bmad-dept-coding-agents/concepts/sla-tracking) |
 | One-shot mode (enterprise granular-prompt UX) | [Concepts → One-Shot Mode](https://mayur434.github.io/bmad-dept-coding-agents/concepts/one-shot-mode) |
+| Per-agent usage guide (Requirements) | [Agents → Requirements](https://mayur434.github.io/bmad-dept-coding-agents/agents/requirements) |
+| Per-agent usage guide (Architecture) | [Agents → Architecture](https://mayur434.github.io/bmad-dept-coding-agents/agents/architecture) |
 | Per-agent usage guide (Audit) | [Agents → Audit](https://mayur434.github.io/bmad-dept-coding-agents/agents/audit) |
 | Per-agent usage guide (Sonar Scan) | [Agents → Sonar Scan](https://mayur434.github.io/bmad-dept-coding-agents/agents/sonar-scan) |
 | Per-agent usage guide (Code Generation) | [Agents → Code Generation](https://mayur434.github.io/bmad-dept-coding-agents/agents/code-generation) |
@@ -58,6 +62,8 @@ cd .claude/skills/bmad-dept-code-sonar-scan-agent/scripts      && npm install
 cd .claude/skills/bmad-dept-code-generation-agent/scripts      && npm install
 cd .claude/skills/bmad-dept-code-impact-analysis-agent/scripts && npm install
 cd .claude/skills/bmad-dept-code-test-coverage-agent/scripts   && npm install
+cd .claude/skills/bmad-dept-code-requirements-agent/scripts    && npm install
+cd .claude/skills/bmad-dept-code-architecture-agent/scripts    && npm install
 ```
 
 For non-Claude hosts, substitute `.claude/skills/` with your tool's install path (`.agents/skills/` for Cursor / Copilot / Codex / most tools; `.cline/skills/`, `.kiro/skills/`, `.junie/skills/`, `.zencoder/skills/`, etc. for tools that isolate). Full per-tool table: [Getting Started → Install](https://mayur434.github.io/bmad-dept-coding-agents/getting-started/install).

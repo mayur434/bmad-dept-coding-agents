@@ -1,0 +1,53 @@
+[skill]
+name = "bmad-dept-code-architecture-agent"
+description = "Architecture design specialist. Authors ADRs, HLD/LLD, API contracts (OpenAPI / GraphQL SDL), C4 + sequence diagrams (Mermaid), STRIDE threat models, and data models from a natural-language design question — or parses and enriches an existing design doc. Grounded in per-stack Adobe/JVM idioms across AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Apache Sling/Shaft, Spring Boot, App Builder, EDS, and EDS+Commerce."
+version = "1.0.0"
+
+[skill.tools]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.).
+required = ["*"]
+
+[skill.activation]
+keywords = [
+  "architecture",
+  "adr",
+  "design",
+  "hld",
+  "lld",
+  "openapi",
+  "graphql schema",
+  "api contract",
+  "threat model",
+  "stride",
+  "c4",
+  "sequence diagram",
+  "data model",
+  "system design",
+]
+
+[skill.scripts]
+dispatcher = "scripts/run.ts"
+package = "scripts/package.json"
+
+[skill.commands]
+# Author design artifacts (auto-detects stack)
+design = "npx ts-node scripts/run.ts"
+# Parse & enrich an existing HLD/LLD/OpenAPI/etc doc
+parse-design = "npx ts-node scripts/run.ts --design-in"
+# Per-stack design commands (mirror requirements' author-<stack> pattern)
+design-aem = "npx ts-node scripts/run.ts --engine aem"
+design-commerce-paas = "npx ts-node scripts/run.ts --engine commerce-paas"
+design-commerce = "npx ts-node scripts/run.ts --engine commerce-paas"
+design-commerce-saas = "npx ts-node scripts/run.ts --engine commerce-saas"
+design-sling = "npx ts-node scripts/run.ts --engine sling"
+design-spring = "npx ts-node scripts/run.ts --engine spring"
+design-app-builder = "npx ts-node scripts/run.ts --engine app-builder"
+design-eds = "npx ts-node scripts/run.ts --engine eds"
+design-eds-commerce = "npx ts-node scripts/run.ts --engine eds-commerce"
+# Utility
+list-engines = "npx ts-node scripts/run.ts --list-engines"

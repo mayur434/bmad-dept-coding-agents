@@ -35,7 +35,9 @@ export type InstallAgentName =
   | "sonar-scan"
   | "generation"
   | "impact-analysis"
-  | "test-coverage";
+  | "test-coverage"
+  | "requirements"
+  | "architecture";
 
 /** Canonical skill directory names, keyed by agent short-name. */
 const AGENT_DIRS: Record<InstallAgentName, string> = {
@@ -44,6 +46,8 @@ const AGENT_DIRS: Record<InstallAgentName, string> = {
   "generation": "bmad-dept-code-generation-agent",
   "impact-analysis": "bmad-dept-code-impact-analysis-agent",
   "test-coverage": "bmad-dept-code-test-coverage-agent",
+  "requirements": "bmad-dept-code-requirements-agent",
+  "architecture": "bmad-dept-code-architecture-agent",
 };
 
 export interface EnsureDepsOpts {

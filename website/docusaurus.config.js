@@ -124,7 +124,7 @@ const config = {
             title: 'Docs',
             items: [
               { label: 'Getting Started', to: '/getting-started/install' },
-              { label: 'Concepts', to: '/concepts/the-5-agents' },
+              { label: 'Concepts', to: '/concepts/the-agents' },
               { label: 'Agents', to: '/agents/audit' },
               { label: 'Reference', to: '/reference/cli-flags' },
             ],

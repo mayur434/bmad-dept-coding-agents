@@ -2,7 +2,7 @@
 id: intro
 title: Overview
 sidebar_position: 1
-description: A five-agent AI suite (module code dca) for Adobe platform + JVM SDLC — one standardized report shape across 8 stacks.
+description: A seven-agent AI suite (module code dca) for Adobe platform + JVM SDLC — one standardized report shape across 8 stacks.
 keywords:
   - bmad
   - dca
@@ -10,15 +10,17 @@ keywords:
   - aem
   - sonar
   - code audit
+  - requirements
+  - architecture
   - ai coding agents
   - docusaurus
 ---
 
-**BMAD DEPT Code Agent** (module code `dca`) is a five-agent AI suite for Adobe platform and JVM middleware SDLC. Every agent works standalone; every run emits the same three artifacts.
+**BMAD DEPT Code Agent** (module code `dca`) is a seven-agent AI suite for Adobe platform and JVM middleware SDLC. Every agent works standalone; every run emits the same three artifacts.
 
 ## TL;DR
 
-- **Five specialist agents** — Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage — installed into your project via `npx bmad-method install`.
+- **Seven specialist agents** — Requirements, Architecture, Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage — installed into your project via `npx bmad-method install`.
 - **Eight tech stacks covered** — AEMaaCS + AMS, Commerce PaaS + SaaS, App Builder, Sling/Shaft, Spring Boot, EDS, EDS + Commerce.
 - **One standardized report** — every run of every agent writes the same XLSX + Markdown twin + `CHANGE-LOG.md` entry.
 - **Tool-agnostic** — works with Claude Code (reference host), Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini CLI, Kiro, Junie, and 30+ more BMAD-supported AI coding tools.
@@ -29,24 +31,28 @@ keywords:
 
 ## What is DCA?
 
-DCA (**D**ept **C**ode **A**gents) is a custom BMAD module that ships five independent AI coding agents for Adobe platform + JVM middleware projects. Each agent runs on its own — no orchestration required — but they share one runtime foundation (`@bmad/dca-shared`) so every report, changelog entry, and branch cut looks identical across the fleet. All five agents share the same 8 engine stacks.
+DCA (**D**ept **C**ode **A**gents) is a custom BMAD module that ships seven independent AI coding agents for Adobe platform + JVM middleware projects. Each agent runs on its own — no orchestration required — but they share one runtime foundation (`@bmad/dca-shared`) so every report, changelog entry, and branch cut looks identical across the fleet. All seven agents share the same 8 engine stacks.
 
 ## Coverage matrix
 
-Every agent supports every stack. All 40 cells (5 × 8) are delivered.
+Every agent supports every stack. All 56 cells (7 × 8) are delivered.
 
 | Agent | Commerce PaaS | Commerce SaaS | AEM (aaCS + AMS) | Sling / Shaft | Spring Boot | App Builder | EDS | EDS + Commerce |
 |-------|:-:|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| **Requirements** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Architecture** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Audit** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Sonar Scan** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Code Generation** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Impact Analysis** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Test Coverage** | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-## The 5 agents at a glance
+## The 7 agents at a glance
 
 | Icon | Agent | Tier 1 (deterministic TS) | Tier 2 (LLM) |
 |:-:|-------|--------------------------|--------------|
+| 📋 | [Requirements](agents/requirements) | Standardized BRD/story/AC template rendering + Epic → Story → AC traceability workbook | Authors BRD, epics, INVEST-shaped user stories, Gherkin AC from `--product-description`; parses + enriches existing BRDs |
+| 🏛️ | [Architecture](agents/architecture) | MADR/HLD/LLD/OpenAPI template rendering + Mermaid C4/sequence emission | Authors ADRs, HLD/LLD, API contracts, STRIDE threat models, data models from `--design-question`; parses + enriches existing designs |
 | 🔍 | [Audit](agents/audit) | tree-sitter AST + regex scan (8 engines); Scan-Only mode | Architecture / data-flow / business-logic deep analysis via per-stack rule packs |
 | 🛡️ | [Sonar Scan](agents/sonar-scan) | Ingests LLM findings via `--ingest sonar-findings.json` | Sonar-style: Bugs, Vulnerabilities, Hotspots, Smells, Duplications, Complexity → A–E ratings + Quality Gate |
 | ⚡ | [Code Generation](agents/code-generation) | 24 correct-by-construction scaffolders across 8 stacks + zero-config MCP for AEM | LLM/MCP path for anything the scaffolders don't cover |
@@ -73,8 +79,8 @@ Every agent tunes its default mode, output flavor, and recommended follow-up to 
 
 - **[Getting Started → Prerequisites](getting-started/prerequisites)** — Node 20.12+, Git, and one of 44+ supported AI coding tools.
 - **[Getting Started → Install](getting-started/install)** — `npx bmad-method install` with the tool-specific flag.
-- **[Getting Started → Quick Start](getting-started/quick-start)** — a 5-minute smoke test that touches all five agents.
-- **[Concepts → The 5 Agents](concepts/the-5-agents)** — deeper detail on each agent.
+- **[Getting Started → Quick Start](getting-started/quick-start)** — a 5-minute smoke test that touches the core agents.
+- **[Concepts → The Agents](concepts/the-agents)** — deeper detail on each agent.
 - **[Concepts → The 8 Stacks](concepts/the-8-stacks)** — engine IDs, aliases, auto-detection.
 - **[Concepts → Standardized Outputs](concepts/standardized-outputs)** — the 15-column contract.
-- **Individual agent pages** — [Audit](agents/audit) · [Sonar Scan](agents/sonar-scan) · [Code Generation](agents/code-generation) · [Impact Analysis](agents/impact-analysis) · [Test Coverage](agents/test-coverage).
+- **Individual agent pages** — [Requirements](agents/requirements) · [Architecture](agents/architecture) · [Audit](agents/audit) · [Sonar Scan](agents/sonar-scan) · [Code Generation](agents/code-generation) · [Impact Analysis](agents/impact-analysis) · [Test Coverage](agents/test-coverage).

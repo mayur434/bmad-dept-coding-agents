@@ -1,0 +1,96 @@
+openapi: 3.1.0
+info:
+  title: "{{TITLE}}"
+  version: "{{VERSION}}"
+  description: |
+    {{DESCRIPTION}}
+  contact:
+    name: "{{OWNER_TEAM}}"
+    email: "{{OWNER_EMAIL}}"
+  license:
+    name: "{{LICENSE_NAME}}"
+servers:
+  - url: "https://api.{{DOMAIN}}"
+    description: Production
+  - url: "https://stage-api.{{DOMAIN}}"
+    description: Stage
+  - url: "http://localhost:{{LOCAL_PORT}}"
+    description: Local
+tags:
+  - name: health
+    description: Liveness / readiness probes.
+  - name: "{{PRIMARY_TAG}}"
+    description: "{{PRIMARY_TAG_DESCRIPTION}}"
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      tags: [health]
+      summary: Liveness + readiness probe
+      security: []   # public
+      responses:
+        "200":
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+        "503":
+          description: Service is unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, timestamp]
+      properties:
+        status:
+          type: string
+          enum: [UP, DEGRADED, DOWN]
+        timestamp:
+          type: string
+          format: date-time
+        components:
+          type: object
+          additionalProperties:
+            type: string
+            enum: [UP, DEGRADED, DOWN]
+    ErrorResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Stable error code (e.g. INVALID_INPUT, NOT_FOUND).
+        message:
+          type: string
+          description: Human-readable message; do not log-parse.
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              issue:
+                type: string
+        traceId:
+          type: string
+          description: Correlates to server-side trace.
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    oauth2ClientCredentials:
+      type: oauth2
+      flows:
+        clientCredentials:
+          tokenUrl: "https://ims-na1.adobelogin.com/ims/token/v3"
+          scopes:
+            "{{SCOPE_READ}}": Read access
+            "{{SCOPE_WRITE}}": Write access

@@ -128,5 +128,5 @@ Full details: [Standardized Outputs](../concepts/standardized-outputs).
 ## Next
 
 - [First Run](first-run) — the three questions on first invocation.
-- [Concepts → The 5 Agents](../concepts/the-5-agents).
-- Copy-paste prompt catalog — 481 prompts across 5 agents × 8 stacks in [PROMPTS.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md).
+- [Concepts → The Agents](../concepts/the-agents).
+- Copy-paste prompt catalog across the current agents × 8 stacks in [PROMPTS.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/PROMPTS.md).

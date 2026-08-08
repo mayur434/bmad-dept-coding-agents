@@ -5,7 +5,24 @@ sidebar_position: 91
 description: Delivered features by phase, in-progress work, post-audit enhancements, explicitly-deferred items, and how to contribute.
 ---
 
-Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/IMPLEMENTATION-PLAN.md) §7 (phased roadmap) and the README's Roadmap Highlights section. All **45 delivered coverage cells** (5 agents × 9 in-scope stack variants) are ✅ complete — the items below are open enhancements, not blockers.
+Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/IMPLEMENTATION-PLAN.md) §7 (phased roadmap) and the README's Roadmap Highlights section. All **63 delivered coverage cells** (7 agents × 9 in-scope stack variants) are ✅ complete — the items below are open enhancements, not blockers.
+
+## SDLC-alignment phase status
+
+| Phase | Scope | Status |
+|-------|-------|--------|
+| Phase 1 — Enterprise foundations | Findings-gate (accepted/deferred/wontfix), SLA tracking (role × severity), one-shot granular-prompt UX | ✅ Delivered — commit `1772a46` |
+| Phase 2 — Requirements + Architecture agents | 📋 Requirements authoring specialist (BRD / stories / AC) + 🏛️ Architecture design specialist (ADR / HLD / LLD / OpenAPI / STRIDE / C4). Coverage matrix grows 5 → 7 agents. | ✅ Delivered — this release |
+| Phase 3 — Release + Operations agents | 🚀 Release orchestrator (changelog roll-up, release-notes drafting, tag/branch cut) + 🛰️ Operations agent (runbook authoring, incident-response templates, on-call rotation docs) | 🟡 Planned (~4 weeks) |
+| Phase 4 — Code Review + Compliance agents | 👁️ Code Review agent (PR-scoped structural + role-aware review) + ⚖️ Compliance agent (accessibility, licensing, data-classification checks) | 🟡 Planned (~3 weeks) |
+
+### What Phase 2 shipped
+
+- **📋 Requirements agent** — new `bmad-dept-code-requirements-agent/` skill; authors BRD, epics, INVEST user stories, Gherkin AC from `--product-description`; parses/enriches existing `.docx` / `.md` / `.txt` BRDs via `--brd-in`; Epic → Story → AC traceability workbook; 24 per-stack authoring guides.
+- **🏛️ Architecture agent** — new `bmad-dept-code-architecture-agent/` skill; authors ADRs (MADR 3.0), HLD/LLD, OpenAPI 3.1 / GraphQL SDL, C4 + sequence diagrams (Mermaid), STRIDE threat models, data models from `--design-question`; parses/enriches existing designs via `--design-in` / `--openapi-in`; 32 per-stack authoring guides.
+- **Shared foundation** — closed unions extended to accept `"requirements"` and `"architecture"` in `AgentName`, `InstallAgentName`, `AGENT_DIRS`, `CachedRunAgent`, `VALID_AGENTS`, `AgentCode`. Zero new npm dependencies.
+- **Module registration** — `skills/module.yaml`, `skills/module-help.csv` (+22 menu rows), `skills/.env.example` (+2 token-budget rows), and 6 new Docusaurus pages (2 agent pages + 2 concept pages + 2 prompt-catalog pages).
+- **Docs** — the previous "The 5 Agents" concept page renamed to [The Agents](concepts/the-agents); coverage matrix in intro + README + MANUAL updated to 7 × 8; roadmap marks the phase delivered.
 
 ## Delivered — by phase
 
@@ -56,7 +73,7 @@ Detects LLM + context window, sizes the project, recommends STATIC / LLM / HYBRI
 ## In progress 🟡
 
 - **Shaft KB finalize (Phase 7).** Extend Shaft rule / gen / test packs from the PPT KB across all agents; confirm exact Sling / Felix / Oak versions + build system + whether SAM and MDM ship as separate bundles. End-to-end verify identical A/B/C outputs on real Shaft projects.
-- **Registry-refresh spot-check.** The `module.yaml` agent-level description and remaining `SKILL.md` front-matter carry-over should be spot-checked so their prose matches the delivered 5-agent, 8-stack reality.
+- **Registry-refresh spot-check.** The `module.yaml` agent-level description and remaining `SKILL.md` front-matter carry-over should be spot-checked so their prose matches the delivered 7-agent, 8-stack reality.
 - **Depth enhancement — XML-config AST scanning.** `di.xml` / `.content.xml` / Spring XML now run through a shared AST rule pipeline for the 4 most common patterns; the remaining long-tail XML rules still fall back to regex.
 - **Proofhub ColumnMap CLI flag.** The parser auto-detects Proofhub CSV headers by keyword; a `ColumnMap` override exists in code but is not yet wired to a CLI flag — a real exported sample would let us tune the mapping.
 - **BRD source expansion.** Google Docs must currently be exported to `.docx` / `.txt` first (Docs API OAuth is out of scope). Confirmation from consumers that export is acceptable — or a lightweight OAuth path — would close this.

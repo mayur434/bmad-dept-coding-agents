@@ -1,16 +1,32 @@
 ---
-id: the-5-agents
-title: The 5 Agents
+id: the-agents
+title: The Agents
 sidebar_position: 1
-description: Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage — one shared foundation, five independent specialists.
+description: Requirements, Architecture, Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage — one shared foundation, seven independent specialists across the SDLC.
+keywords:
+  - agents
+  - dca
+  - requirements
+  - architecture
+  - audit
+  - sonar
+  - code generation
+  - impact analysis
+  - test coverage
 ---
 
-Five independent AI coding agents, each with a deterministic Tier 1 (TypeScript) and an LLM-driven Tier 2, all funneled through one shared `@bmad/dca-shared` foundation so reports, changelog entries, git ops, and preflight look identical across the fleet.
+Seven independent AI coding agents, each with a deterministic Tier 1 (TypeScript) and an LLM-driven Tier 2, all funneled through one shared `@bmad/dca-shared` foundation so reports, changelog entries, git ops, and preflight look identical across the fleet.
+
+:::note Agent count is live
+The DCA suite currently ships **7 agents** covering SDLC phases 1–8. Phase 3 (Release + Operations) and Phase 4 (Code Review + Compliance) are on the [roadmap](../roadmap). The count in this doc will grow as those agents land.
+:::
 
 ## At a glance
 
 | Agent | Icon | Purpose | When to use | Primary CLI flags | Findings-cache output |
 |-------|:-:|---------|-------------|-------------------|----------------------|
+| **Requirements** | 📋 | Authors BRDs, epics, user stories, and acceptance criteria from a `--product-description`; parses and enriches existing BRDs. Emits Epic → Story → AC traceability. | New-feature discovery, brownfield BRD refresh, story-splitting workshops. | `--product-description <text>` · `--brd-in <file>` · `--brd-out <file>` · `--stories-count <n>` | `requirements-<hash>.json` |
+| **Architecture** | 🏛️ | Authors ADRs (MADR), HLD/LLD, API contracts (OpenAPI 3.1 / GraphQL SDL), C4 + sequence diagrams (Mermaid), STRIDE threat models, and data models. | Design-phase decisions, HLD/LLD authoring, API contract-first, threat modeling. | `--design-question <text>` · `--design-in <file>` · `--adr <topic>` · `--openapi-in <file>` · `--artifacts <list>` | `architecture-<hash>.json` |
 | **Audit** | 🔍 | Two-tier code auditor — tree-sitter AST + regex (Tier 1) then LLM deep semantic analysis (Tier 2). | PR gates, upgrade prep, legacy onboarding, quarterly health checks. | `--engine <stack>` · `--path <dir>` · `--platform <p>` (AEM) · `--format <t>` | `audit-<hash>.json` |
 | **Sonar Scan** | 🛡️ | LLM SonarQube-style pass — Bugs / Vulnerabilities / Hotspots / Smells / Duplications / Complexity → A–E ratings + Quality Gate + Vulnerabilities sheet. | Pre-merge gates, security review, post-refactor validation. | `--ingest <sonar-findings.json>` · `--engine <stack>` | `sonar-scan-<hash>.json` |
 | **Code Generation** | ⚡ | 24 deterministic scaffolders across 8 stacks + LLM/MCP path for anything the scaffolders don't cover. Zero-config MCP auto-provisioning for AEM. | Bootstrapping new modules, standardizing team output, prototype scaffolding. | `--scaffold` · `--engine <stack>` · `--type <t>` · `--name <str>` · `--setup` | `generation-<hash>.json` |
@@ -23,8 +39,10 @@ Each agent's full command surface lives in its `SKILL.md`; the flags above are t
 
 ```mermaid
 flowchart TD
-    subgraph Agents ["Five DCA agents (independent)"]
+    subgraph Agents ["Seven DCA agents (independent)"]
         direction LR
+        Req["📋 Requirements"]
+        Arch["🏛️ Architecture"]
         Audit["🔍 Audit"]
         Sonar["🛡️ Sonar Scan"]
         Gen["⚡ Code Generation"]
@@ -43,6 +61,8 @@ flowchart TD
         Role["role/"]
     end
 
+    Req --> Shared
+    Arch --> Shared
     Audit --> Shared
     Sonar --> Shared
     Gen --> Shared
@@ -52,9 +72,25 @@ flowchart TD
     Shared --> Outputs["📊 XLSX + MD twin + CHANGE-LOG entry"]
 ```
 
-Agents are **independent** — invoke any one on its own; there are no ordering dependencies. The canonical SDLC order (Generate → Audit → Sonar Scan → Test Coverage → Impact Analysis) is a convenience for chained workflows, not a requirement. See [Workflows → Chain All](../workflows/chain-all).
+Agents are **independent** — invoke any one on its own; there are no ordering dependencies. The canonical SDLC order (Requirements → Architecture → Generate → Audit → Sonar Scan → Test Coverage → Impact Analysis) is a convenience for chained workflows, not a requirement. See [Workflows → Chain All](../workflows/chain-all).
 
 ## Per-agent detail
+
+### 📋 Requirements
+
+**Authoring specialist** for the Discovery / Requirements SDLC phase. Turns a natural-language `--product-description` into a stack-native BRD, epics, INVEST-shaped user stories, and Gherkin acceptance criteria. Also parses and enriches existing BRDs (`.docx` / `.md` / `.txt`) via `--brd-in`. Emits an **Epic → Story → AC traceability matrix** as the standard workbook plus a rendered `BRD.md`.
+
+Two modes: **Author** (from `--product-description`) and **Parse-and-enrich** (from `--brd-in`).
+
+Full detail: **[Requirements agent](../agents/requirements)**.
+
+### 🏛️ Architecture
+
+**Design-authoring specialist** for the Design SDLC phase. Turns a `--design-question` (or `--adr` topic) into ADRs (MADR 3.0), HLD / LLD, API contracts (OpenAPI 3.1 / GraphQL SDL), C4 + sequence diagrams (Mermaid), STRIDE threat models, and data models. Also parses and enriches existing designs (`--design-in` for `.md`, `--openapi-in` for `.yaml` / `.json`). Grounded in per-stack Adobe / JVM idioms across all 8 supported stacks.
+
+Two modes: **Author** (from `--design-question`) and **Parse-and-enrich** (from `--design-in` / `--openapi-in`).
+
+Full detail: **[Architecture agent](../agents/architecture)**.
 
 ### 🔍 Audit
 
@@ -132,4 +168,4 @@ The `@bmad/dca-shared` subdirectories every agent depends on:
 
 - [The 8 Stacks](the-8-stacks)
 - [Standardized Outputs](standardized-outputs)
-- Individual agent deep-dives: [Audit](../agents/audit) · [Sonar Scan](../agents/sonar-scan) · [Code Generation](../agents/code-generation) · [Impact Analysis](../agents/impact-analysis) · [Test Coverage](../agents/test-coverage).
+- Individual agent deep-dives: [Requirements](../agents/requirements) · [Architecture](../agents/architecture) · [Audit](../agents/audit) · [Sonar Scan](../agents/sonar-scan) · [Code Generation](../agents/code-generation) · [Impact Analysis](../agents/impact-analysis) · [Test Coverage](../agents/test-coverage).

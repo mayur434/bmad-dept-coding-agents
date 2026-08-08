@@ -47,5 +47,5 @@ Every entry has the same shape (from [IMPLEMENTATION-PLAN.md §4.A](https://gith
 ## See also
 
 - [Standardized outputs contract](./concepts/standardized-outputs) — the full three-artifact set (xlsx + md + CHANGE-LOG entry).
-- [The 5 agents](./concepts/the-5-agents) — which agents write to CHANGE-LOG (all of them).
+- [The Agents](./concepts/the-agents) — which agents write to CHANGE-LOG (all of them).
 - [chain-all workflow](./workflows/chain-all) — note that chained runs currently produce five CHANGE-LOG entries per invocation (four stage entries + one roll-up entry).

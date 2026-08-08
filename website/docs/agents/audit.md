@@ -84,7 +84,7 @@ npx ts-node .claude/skills/bmad-dept-code-audit-agent/scripts/run.ts \
   --preflight
 ```
 
-The Preflight advisor prints on every run — see [The 5 Agents](../concepts/the-5-agents) for how STATIC / LLM / HYBRID is decided, and [Auto-install](../concepts/auto-install) for the first-run dependency bootstrap.
+The Preflight advisor prints on every run — see [The Agents](../concepts/the-agents) for how STATIC / LLM / HYBRID is decided, and [Auto-install](../concepts/auto-install) for the first-run dependency bootstrap.
 
 ## Flags reference
 

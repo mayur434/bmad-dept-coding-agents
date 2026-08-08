@@ -220,5 +220,5 @@ Before you open a PR:
 - [Writing Rule Packs](./writing-rule-packs) — Tier 2 LLM knowledge + Tier 1 deterministic rules.
 - [Standardized Outputs Contract](../concepts/standardized-outputs) — the shared XLSX + Markdown + CHANGE-LOG contract every agent must satisfy.
 - [Role Adaptation](../concepts/role-adaptation) — the 10-role model your agent should honour.
-- [The 5 Agents](../concepts/the-5-agents) — the current agent fleet for reference.
+- [The Agents](../concepts/the-agents) — the current agent fleet for reference.
 - [The 8 Stacks](../concepts/the-8-stacks) — the engine IDs new agents should reuse when possible.

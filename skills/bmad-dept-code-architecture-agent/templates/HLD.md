@@ -1,0 +1,261 @@
+# {{TITLE}} — High-Level Design
+
+**HLD**
+
+| Field | Value |
+|---|---|
+| Version | {{VERSION}} |
+| Status | {{STATUS}} <!-- Draft \| Reviewed \| Approved --> |
+| Author | {{AUTHOR}} |
+| Last updated | {{LAST_UPDATED}} |
+| Product owner | {{PRODUCT_OWNER}} |
+| Tech lead | {{TECH_LEAD}} |
+| Enterprise architect | {{EA}} |
+| Target release | {{TARGET_RELEASE}} |
+| Stack | {{STACK}} |
+| Role driving | {{ROLE}} |
+| Related BRD | {{RELATED_BRD}} |
+| Related ADRs | {{RELATED_ADRS}} |
+
+---
+
+## 1. Purpose
+
+{{PURPOSE}}
+
+<!-- One paragraph. What system / capability does this HLD describe?
+     What is it for, at the level a new engineer or a senior stakeholder
+     needs to understand? -->
+
+---
+
+## 2. Scope
+
+### 2.1 In-scope
+
+{{IN_SCOPE}}
+
+### 2.2 Out-of-scope
+
+{{OUT_OF_SCOPE}}
+
+### 2.3 Assumptions
+
+{{ASSUMPTIONS}}
+
+### 2.4 Constraints
+
+{{CONSTRAINTS}}
+
+<!-- Include stack-specific constraints from
+     resources/hld-templates/<stack>.md: uber-jar for AEM AMS, no app/code
+     for Commerce SaaS, no build step for EDS, action cold-start budgets
+     for App Builder, etc. -->
+
+---
+
+## 3. Stakeholders
+
+| Role | Name | Interest |
+|---|---|---|
+| Product owner | | Business outcomes, release readiness |
+| Tech lead | | Delivery feasibility, technical trade-offs |
+| Enterprise architect | | Portfolio fit, integration boundaries |
+| Security | | STRIDE posture, compliance |
+| DevOps / SRE | | Operability, observability, runbooks |
+| QA lead | | Testability, contract stability |
+
+{{ADDITIONAL_STAKEHOLDERS}}
+
+---
+
+## 4. System context (C4 Level 1)
+
+<!-- Mermaid C4 Context diagram. External systems + primary actors around
+     the system-under-design as a single box. Rendered from the c4 artifact
+     when --artifacts includes c4; embed here for a self-contained HLD. -->
+
+```mermaid
+{{C4_CONTEXT_DIAGRAM}}
+```
+
+**External systems in scope of context:**
+
+{{EXTERNAL_SYSTEMS_LIST}}
+
+---
+
+## 5. Capabilities (major features)
+
+{{CAPABILITIES}}
+
+<!-- Bulleted list. Each capability maps back to one or more BRs from the
+     related BRD. Keep it capability-centric, not implementation-centric. -->
+
+---
+
+## 6. Logical architecture (C4 Level 2 — Container)
+
+<!-- Mermaid C4 Container diagram. Show the deployable / runnable units
+     inside the system boundary + protocols between them + external
+     integrations. -->
+
+```mermaid
+{{C4_CONTAINER_DIAGRAM}}
+```
+
+### 6.1 Containers
+
+| Container | Type | Responsibility | Technology |
+|---|---|---|---|
+| {{CONTAINER_1}} | {{TYPE_1}} | {{RESP_1}} | {{TECH_1}} |
+| {{CONTAINER_2}} | {{TYPE_2}} | {{RESP_2}} | {{TECH_2}} |
+| {{CONTAINER_3}} | {{TYPE_3}} | {{RESP_3}} | {{TECH_3}} |
+
+<!-- Container type: web-app / API / worker / dispatcher / edge-worker /
+     database / cache / broker / etc. Technology comes from the stack
+     guide's typical choices. -->
+
+---
+
+## 7. Technology choices
+
+{{TECHNOLOGY_CHOICES}}
+
+<!-- Table one row per notable technology, referencing an ADR when the
+     choice was contested:
+
+| Concern | Choice | Rationale | ADR |
+|---|---|---|---|
+| Web framework | | | ADR-NNN |
+| Persistence | | | ADR-NNN |
+| Broker | | | ADR-NNN |
+| Cache | | | ADR-NNN |
+| Auth | | | ADR-NNN |
+| Observability | | | ADR-NNN |
+-->
+
+---
+
+## 8. Cross-cutting concerns
+
+### 8.1 Authentication and authorization
+
+{{AUTHN_AUTHZ}}
+
+### 8.2 Configuration management
+
+{{CONFIG_MGMT}}
+
+### 8.3 Secrets handling
+
+{{SECRETS}}
+
+### 8.4 Logging, metrics, traces
+
+{{OBSERVABILITY}}
+
+### 8.5 Feature flags
+
+{{FEATURE_FLAGS}}
+
+### 8.6 Caching strategy
+
+{{CACHING}}
+
+---
+
+## 9. Integration points
+
+| System | Direction | Protocol | Contract | SLA | Owner |
+|---|---|---|---|---|---|
+| {{INTEG_1}} | inbound \| outbound \| bi | REST \| GraphQL \| event \| SFTP \| DB | link to schema | latency / avail. | team |
+| {{INTEG_2}} | | | | | |
+| {{INTEG_3}} | | | | | |
+
+{{ADDITIONAL_INTEGRATIONS}}
+
+---
+
+## 10. Non-functional requirements
+
+### 10.1 Performance
+
+{{NFR_PERFORMANCE}}
+
+### 10.2 Availability
+
+{{NFR_AVAILABILITY}}
+
+### 10.3 Security
+
+{{NFR_SECURITY}}
+
+### 10.4 Scalability
+
+{{NFR_SCALABILITY}}
+
+### 10.5 Cost budgets
+
+{{NFR_COST}}
+
+### 10.6 Compliance
+
+{{NFR_COMPLIANCE}}
+
+---
+
+## 11. Risks and mitigations
+
+| Risk | Impact | Likelihood | Mitigation | Owner |
+|---|---|---|---|---|
+| {{RISK_1}} | H\|M\|L | H\|M\|L | | |
+| {{RISK_2}} | H\|M\|L | H\|M\|L | | |
+| {{RISK_3}} | H\|M\|L | H\|M\|L | | |
+
+{{ADDITIONAL_RISKS}}
+
+---
+
+## 12. Delivery approach
+
+### 12.1 Phasing
+
+{{PHASING}}
+
+### 12.2 Dependencies
+
+{{DEPENDENCIES}}
+
+### 12.3 Cutover / rollout
+
+{{CUTOVER}}
+
+### 12.4 Rollback
+
+{{ROLLBACK}}
+
+---
+
+## 13. Open questions
+
+{{OPEN_QUESTIONS}}
+
+<!-- Numbered. Each with an owner + target-resolution date so the SLA
+     gate can flag when they age out. -->
+
+---
+
+## 14. Sign-off
+
+| Role | Name | Signature | Date |
+|---|---|---|---|
+| Tech lead | | | |
+| Enterprise architect | | | |
+| Security | | | |
+| DevOps / SRE | | | |
+| Product owner | | | |
+
+---
+
+_Generated by BMAD DCA Architecture agent — {{GENERATED_AT}}_

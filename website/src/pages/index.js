@@ -17,6 +17,18 @@ function Feature({emoji, title, description}) {
 
 const FEATURES = [
   {
+    emoji: '📋',
+    title: 'Requirements',
+    description:
+      'Author BRDs, epics, INVEST user stories, and Gherkin AC from a product description.',
+  },
+  {
+    emoji: '🏛️',
+    title: 'Architecture',
+    description:
+      'Author ADRs, HLD/LLD, OpenAPI 3.1, STRIDE, C4 + sequence diagrams from a design question.',
+  },
+  {
     emoji: '🔍',
     title: 'Audit',
     description:
@@ -71,9 +83,9 @@ export default function Home() {
             </Link>
             <Link
               className="button button--outline button--lg dca-hero-cta-secondary"
-              to="/concepts/the-5-agents"
+              to="/concepts/the-agents"
             >
-              Explore the 5 Agents
+              Explore the Agents
             </Link>
           </div>
         </div>

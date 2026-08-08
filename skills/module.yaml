@@ -1,8 +1,8 @@
 code: dca
 name: "BMAD DEPT Code Agent"
 header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
-subheader: "Code audit, generation, impact analysis, sonar scan, and test coverage for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
-description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, and architecture design for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
 default_selected: true
 recommendedModules: [bmm]
 requiredModules: [core]
@@ -41,6 +41,20 @@ agents:
     title: Code Quality Scan Specialist
     icon: "🛡️"
     description: "LLM-driven SonarQube-style code quality analysis across all 8 stacks. Covers Bugs, Vulnerabilities, Security Hotspots, Code Smells, Duplications, and Complexity. Produces Reliability/Security/Maintainability ratings (A–E), a pass/fail Quality Gate, and a dedicated Vulnerabilities Excel sheet with color-coded severity rows and concrete recommended fixes."
+    team: software-development
+
+  - code: bmad-dept-code-requirements-agent
+    name: Requirements
+    title: Requirements Authoring Specialist
+    icon: "📋"
+    description: "Authors BRDs, user stories, and acceptance criteria from a natural-language product description. Parses existing BRDs and enriches. Emits Epic → Story → AC traceability across all 8 supported stacks."
+    team: software-development
+
+  - code: bmad-dept-code-architecture-agent
+    name: Architecture
+    title: Architecture Design Specialist
+    icon: "🏛️"
+    description: "Authors ADRs, HLD/LLD, API contracts (OpenAPI/GraphQL), C4 + sequence diagrams (Mermaid), STRIDE threat models, and data models from a natural-language design question. Parses existing designs and enriches. Grounded in per-stack Adobe/JVM idioms across all 8 supported stacks."
     team: software-development
 
 # Configuration variables
@@ -83,20 +97,34 @@ sonar_output:
   default: "{output_folder}/sonar-reports"
   result: "{project-root}/{value}"
 
+requirements_output:
+  prompt: "Where should requirements reports and BRDs be stored?"
+  default: "{output_folder}/requirements-reports"
+  result: "{project-root}/{value}"
+
+architecture_output:
+  prompt: "Where should architecture design reports and artifacts be stored?"
+  default: "{output_folder}/architecture-reports"
+  result: "{project-root}/{value}"
+
 directories:
   - "{audit_output}"
   - "{generation_output}"
   - "{impact_output}"
   - "{test_coverage_output}"
   - "{sonar_output}"
+  - "{requirements_output}"
+  - "{architecture_output}"
   - ".bmad"
 
 post-install-notes: |
-  BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage).
+  BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage · requirements · architecture).
 
   Quick usage:
     Ask: "audit my project", "generate a component", "analyze impact of these bugs",
-         "sonar scan my project", or "analyze test coverage" — the agent auto-detects the stack.
+         "sonar scan my project", "analyze test coverage", "author requirements /
+         write a BRD", or "design the architecture / author an ADR" — the agent
+         auto-detects the stack.
 
   Install dependencies (Node.js v20.12+):
     # the shared foundation (required by every agent) FIRST:

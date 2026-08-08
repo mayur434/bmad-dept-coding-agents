@@ -5,7 +5,7 @@ sidebar_position: 4
 description: Ten roles tune every agent's default mode, output flavor, and recommended follow-up — from EA (executive MD) to DevOps (SARIF).
 ---
 
-Every one of the five agents adapts its default mode, output shape, and recommended follow-ups to the **role** of the person driving the run. Role handling is a shared foundation (`skills/shared/role/`) consumed by every agent, and it is entirely opt-out (set `role: generic` to disable).
+Every one of the seven agents adapts its default mode, output shape, and recommended follow-ups to the **role** of the person driving the run. Role handling is a shared foundation (`skills/shared/role/`) consumed by every agent, and it is entirely opt-out (set `role: generic` to disable).
 
 ## Why roles
 

@@ -1,0 +1,11 @@
+module,skill,display-name,menu-code,description,action,args,phase,preceded-by,followed-by,required,output-location,outputs,example-prompts,prompt-template
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Requirements Author,RQ,Author BRD + user stories + AC (auto-detects stack).,author,,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Parse BRD,RB,Parse and enrich an existing BRD document (.docx/.md/.txt).,parse-brd,{brd_doc},anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author AEM,RA,Author requirements for an AEM (AEMaaCS/AMS) project.,author,--engine aem,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author Commerce PaaS,RM,Author requirements for an Adobe Commerce (Magento) PaaS project.,author,--engine commerce-paas,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author Commerce SaaS,RZ,Author requirements for an Adobe Commerce SaaS storefront project.,author,--engine commerce-saas,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author Sling,RN,Author requirements for an Apache Sling / Shaft project.,author,--engine sling,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author Spring,RP,Author requirements for a Spring Boot project.,author,--engine spring,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author App Builder,RS,Author requirements for an Adobe App Builder project.,author,--engine app-builder,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author EDS,RE,Author requirements for an Edge Delivery Services project.,author,--engine eds,anytime,,,false,{requirements_output},BRD|excel report,,
+BMAD DEPT Code Agent,bmad-dept-code-requirements-agent,Author EDS+Commerce,RD,Author requirements for an EDS + Commerce Hybrid project.,author,--engine eds-commerce,anytime,,,false,{requirements_output},BRD|excel report,,

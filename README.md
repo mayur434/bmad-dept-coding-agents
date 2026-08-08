@@ -5,13 +5,13 @@
 [![Module Version](https://img.shields.io/badge/module-v4.0.0-blueviolet)](.claude-plugin/marketplace.json)
 [![Docs](https://img.shields.io/badge/docs-Docusaurus-3ECC5F)](https://mayur434.github.io/bmad-dept-coding-agents)
 
-> A five-agent AI suite (module code `dca`) for Adobe platform and JVM SDLC — audit, sonar-scan, generate, analyse impact, and reach 100% test coverage across eight tech stacks with one standardized report shape.
+> A seven-agent AI suite (module code `dca`) for Adobe platform and JVM SDLC — author requirements + architecture, audit, sonar-scan, generate, analyse impact, and reach 100% test coverage across eight tech stacks with one standardized report shape.
 
 ---
 
 ## TL;DR
 
-- **What it is** — a single BMAD module (`dca`, v4.0.0) plugging five specialist AI coding agents into Claude Code (or any BMAD-compatible tool) via `npx bmad-method install`.
+- **What it is** — a single BMAD module (`dca`, v4.0.0) plugging seven specialist AI coding agents into Claude Code (or any BMAD-compatible tool) via `npx bmad-method install`.
 - **What it delivers** — Tier 1 deterministic TypeScript engines (tree-sitter AST + regex) + Tier 2 LLM knowledge packs, funnelled through one shared reporting foundation.
 - **What you get, every run** — a standardized `<agent>-<branch>-<timestamp>-agent-report.xlsx` + Markdown twin + `CHANGE-LOG.md` entry, with an optional working branch cut on demand.
 - **Who it's for** — Enterprise Architects, tech leads, and delivery engineers on Adobe Commerce (PaaS/SaaS), AEMaaCS/AMS, Adobe App Builder, Apache Sling/Shaft, Spring Boot, and Edge Delivery Services projects.
@@ -25,8 +25,8 @@
 Quick links:
 
 - **[Getting Started](https://mayur434.github.io/bmad-dept-coding-agents/getting-started/install)** — prerequisites, install, first-run walkthrough.
-- **[Concepts](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-5-agents)** — the 5 agents, the 8 stacks, standardized outputs, role adaptation.
-- **[Agents](https://mayur434.github.io/bmad-dept-coding-agents/agents/audit)** — per-agent usage guides.
+- **[Concepts](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-agents)** — the agents, the 8 stacks, standardized outputs, role adaptation, [requirements-authoring](https://mayur434.github.io/bmad-dept-coding-agents/concepts/requirements-authoring), [architecture-authoring](https://mayur434.github.io/bmad-dept-coding-agents/concepts/architecture-authoring).
+- **[Agents](https://mayur434.github.io/bmad-dept-coding-agents/agents/audit)** — per-agent usage guides: [Requirements](https://mayur434.github.io/bmad-dept-coding-agents/agents/requirements) · [Architecture](https://mayur434.github.io/bmad-dept-coding-agents/agents/architecture) · [Audit](https://mayur434.github.io/bmad-dept-coding-agents/agents/audit) · [Sonar Scan](https://mayur434.github.io/bmad-dept-coding-agents/agents/sonar-scan) · [Code Generation](https://mayur434.github.io/bmad-dept-coding-agents/agents/code-generation) · [Impact Analysis](https://mayur434.github.io/bmad-dept-coding-agents/agents/impact-analysis) · [Test Coverage](https://mayur434.github.io/bmad-dept-coding-agents/agents/test-coverage).
 - **[Workflows](https://mayur434.github.io/bmad-dept-coding-agents/workflows/chain-all)** — chain-all, CI integration, per-role recipes.
 - **[Reference](https://mayur434.github.io/bmad-dept-coding-agents/reference/cli-flags)** — CLI flags, config vars, rule packs, scoring model.
 - **[Prompt Catalog](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/audit)** — 480+ copy-paste prompts per agent.
@@ -40,17 +40,19 @@ Quick links:
 
 ## Coverage Matrix
 
-Every agent supports every stack — all 40 cells (5 × 8) delivered.
+Every agent supports every stack — all 56 cells (7 × 8) delivered.
 
 | Agent | Commerce PaaS | Commerce SaaS | AEM (aaCS + AMS) | Sling / Shaft | Spring Boot | App Builder | EDS | EDS + Commerce |
 |-------|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **Requirements** (BRD / stories / AC) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Architecture** (ADR / HLD / LLD / OpenAPI / STRIDE) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Audit** (Scanner + LLM) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Sonar Scan** (LLM Quality Gate) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Code Generation** (Scaffolders + MCP/LLM) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Impact Analysis** (Input-driven tracer) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 | **Test Coverage** (Scanner + LLM) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
 
-Details: [Concepts → The 5 Agents](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-5-agents) · [Concepts → The 8 Stacks](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-8-stacks) · [Reference → Rule Packs](https://mayur434.github.io/bmad-dept-coding-agents/reference/rule-packs/aem).
+Details: [Concepts → The Agents](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-agents) · [Concepts → The 8 Stacks](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-8-stacks) · [Reference → Rule Packs](https://mayur434.github.io/bmad-dept-coding-agents/reference/rule-packs/aem).
 
 ---
 
@@ -80,6 +82,8 @@ First-run auto-installs the ~80MB of Node deps behind a single Y/N prompt. Non-i
 Once installed, paste one of these into your AI coding tool's chat — the agent auto-detects the stack:
 
 ```text
+author BRD for a new checkout-address feature
+author ADR: Kafka vs SQS for orders event bus
 audit my project
 sonar scan my project
 generate a Sling Model for the Article component
@@ -113,7 +117,7 @@ Full mechanics + per-agent × per-role matrix: **[Concepts → Role Adaptation](
 
 ## Roadmap
 
-All 45 delivered coverage cells are ✅ complete. Open enhancements — Shaft KB finalize, XML-config AST scanning, Proofhub ColumnMap CLI flag, BRD source expansion — are tracked at **[Roadmap](https://mayur434.github.io/bmad-dept-coding-agents/roadmap)**.
+All 63 delivered coverage cells are ✅ complete (7 agents × 9 in-scope stack variants). Phase 2 (📋 Requirements + 🏛️ Architecture) landed; Phase 3 (Release + Operations) and Phase 4 (Code Review + Compliance) are planned — see **[Roadmap](https://mayur434.github.io/bmad-dept-coding-agents/roadmap)**.
 
 ---
 

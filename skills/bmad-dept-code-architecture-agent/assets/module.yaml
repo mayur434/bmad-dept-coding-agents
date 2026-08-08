@@ -1,0 +1,21 @@
+# NOTE: This is a per-agent minimal copy of the top-level ../../module.yaml.
+# The top-level skills/module.yaml is authoritative; keep this in sync if BMAD requires it.
+# It carries only the shared suite metadata + this agent's own registration.
+code: dca
+name: "BMAD DEPT Code Agent"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, and architecture design for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-architecture-agent
+    name: Architecture
+    title: Architecture Design Specialist
+    icon: "🏛️"
+    description: "Authors ADRs, HLD/LLD, API contracts (OpenAPI/GraphQL), C4 + sequence diagrams (Mermaid), STRIDE threat models, and data models from a natural-language design question. Parses existing designs and enriches. Grounded in per-stack Adobe/JVM idioms across all 8 supported stacks."
+    team: software-development
+
+architecture_output:
+  prompt: "Where should architecture design reports and artifacts be stored?"
+  default: "{output_folder}/architecture-reports"
+  result: "{project-root}/{value}"

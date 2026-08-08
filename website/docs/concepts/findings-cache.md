@@ -72,7 +72,7 @@ Every field except `meta` is required; malformed files are logged and skipped by
 
 Housekeeping is delegated to `pruneOldRuns(projectRoot, { keepPerAgent })`, which keeps the newest N runs per agent and deletes the rest.
 
-- **Default: 10 runs per agent** (so at most 50 files total across all five agents).
+- **Default: 10 runs per agent** (so at most 70 files total across all seven agents).
 - Called automatically by the shared output pipeline after each successful write.
 - Non-fatal — reports the number of removed files; failures print a stderr WARN.
 
@@ -132,5 +132,5 @@ Two different things:
 
 ## Next
 
-- [The 5 Agents](the-5-agents) — the cross-agent enrichments and their producer/consumer pairs.
+- [The Agents](the-agents) — the cross-agent enrichments and their producer/consumer pairs.
 - [Standardized Outputs](standardized-outputs) — the human-readable side of every run.

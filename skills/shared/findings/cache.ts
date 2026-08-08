@@ -23,7 +23,9 @@ export type CachedRunAgent =
   | "sonar-scan"
   | "generation"
   | "impact-analysis"
-  | "test-coverage";
+  | "test-coverage"
+  | "requirements"
+  | "architecture";
 
 const VALID_AGENTS: readonly CachedRunAgent[] = [
   "audit",
@@ -31,6 +33,8 @@ const VALID_AGENTS: readonly CachedRunAgent[] = [
   "generation",
   "impact-analysis",
   "test-coverage",
+  "requirements",
+  "architecture",
 ];
 
 export interface CachedRun {

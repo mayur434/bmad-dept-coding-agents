@@ -30,7 +30,7 @@ Flags accepted by every agent's `run.ts` dispatcher.
 | `--path <dir>` | A, S, G, I, T | dir | `.` | Project root the agent operates on. | Absolute or relative; agents resolve to absolute. |
 | `--engine <id>` | A, S, G, I, T | enum | auto | Force a stack. Values: `aem`, `commerce`, `commerce-paas`, `commerce-saas`, `sling`, `spring`, `app-builder`, `eds`, `eds-commerce`. | Skip auto-detection. See [Engines](../concepts/the-8-stacks). |
 | `--role <code>` | A, S, G, I, T | enum | resolved | Override the resolved DCA role for a single run. One of: `ea`, `tl`, `de`, `qa`, `devops`, `security`, `pm`, `ba`, `migration`, `content`, `generic`. | Per-run only; does NOT persist to `.bmad/role.yaml`. |
-| `--preflight` | A, S, G, I, T | bool | false | Print the preflight advisory (STATIC / HYBRID / LLM) and exit. | See [Preflight](../concepts/the-5-agents). |
+| `--preflight` | A, S, G, I, T | bool | false | Print the preflight advisory (STATIC / HYBRID / LLM) and exit. | See [Preflight](../concepts/the-agents). |
 | `--no-preflight` | A, S, G, I, T | bool | false | Suppress the preflight advisory that otherwise prints on every run. | Useful in CI where the advisory is noise. |
 | `--create-branch` | A, S, G, I, T | bool | false | Cut `dca/<agent>-<stack>-<timestamp>` before writing outputs. | Base branch cascade: `production` → `main` → `master` → `develop`. |
 | `--source-branch <name>` | A, S, G, I, T | string | auto | Base branch for `--create-branch`. | Overrides the auto cascade. |
