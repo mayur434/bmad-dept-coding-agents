@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DCA Demo — Run of Show</title>
+<style>
+  :root {
+    --paper: #F7F5F1;
+    --paper-raised: #FFFFFF;
+    --ink: #1C1B1F;
+    --ink-soft: #59564F;
+    --ink-faint: #8B8779;
+    --rule: #DDD7CC;
+    --rule-strong: #C7C0B2;
+    --accent: #4F46E5;
+    --accent-soft: #ECEBFB;
+    --accent-ink: #3730A3;
+    --cue: #C2410C;
+    --cue-soft: #FBEBE0;
+    --mono-bg: #17151D;
+    --mono-fg: #E9E6DF;
+    --mono-dim: #9C978C;
+    --shadow: 0 1px 2px rgba(28,27,31,.04), 0 6px 20px -8px rgba(28,27,31,.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #16151A;
+      --paper-raised: #1D1C22;
+      --ink: #F1EFE9;
+      --ink-soft: #B9B4A8;
+      --ink-faint: #7A7669;
+      --rule: #34323A;
+      --rule-strong: #45424C;
+      --accent: #9089F5;
+      --accent-soft: #26243F;
+      --accent-ink: #C7C2FA;
+      --cue: #FF9163;
+      --cue-soft: #362217;
+      --mono-bg: #0C0B10;
+      --mono-fg: #E9E6DF;
+      --mono-dim: #7A7669;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.5);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #16151A; --paper-raised: #1D1C22; --ink: #F1EFE9; --ink-soft: #B9B4A8;
+    --ink-faint: #7A7669; --rule: #34323A; --rule-strong: #45424C; --accent: #9089F5;
+    --accent-soft: #26243F; --accent-ink: #C7C2FA; --cue: #FF9163; --cue-soft: #362217;
+    --mono-bg: #0C0B10; --mono-fg: #E9E6DF; --mono-dim: #7A7669;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 24px -10px rgba(0,0,0,.5);
+  }
+  :root[data-theme="light"] {
+    --paper: #F7F5F1; --paper-raised: #FFFFFF; --ink: #1C1B1F; --ink-soft: #59564F;
+    --ink-faint: #8B8779; --rule: #DDD7CC; --rule-strong: #C7C0B2; --accent: #4F46E5;
+    --accent-soft: #ECEBFB; --accent-ink: #3730A3; --cue: #C2410C; --cue-soft: #FBEBE0;
+    --mono-bg: #17151D; --mono-fg: #E9E6DF; --mono-dim: #9C978C;
+    --shadow: 0 1px 2px rgba(28,27,31,.04), 0 6px 20px -8px rgba(28,27,31,.10);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "IBM Plex Sans", -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  .mono, code, .cmd, .timecode {
+    font-family: "IBM Plex Mono", ui-monospace, "SF Mono", "Cascadia Code", "Roboto Mono", monospace;
+    font-variant-numeric: tabular-nums;
+  }
+  a { color: var(--accent); }
+  h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 2.25rem 1.5rem 5rem;
+  }
+
+  /* ---- Masthead ---- */
+  .masthead {
+    display: flex;
+    flex-direction: column;
+    gap: .6rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 1.75rem;
+  }
+  .eyebrow {
+    font-size: .6875rem;
+    font-weight: 600;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: var(--cue);
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+  }
+  .eyebrow::before {
+    content: "";
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--cue);
+    box-shadow: 0 0 0 3px var(--cue-soft);
+  }
+  .masthead h1 {
+    font-size: clamp(1.6rem, 3.4vw, 2.15rem);
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .masthead .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.25rem;
+    color: var(--ink-soft);
+    font-size: .875rem;
+  }
+  .masthead .meta strong { color: var(--ink); font-weight: 600; }
+
+  /* ---- Grid: rail + main ---- */
+  .layout {
+    display: grid;
+    grid-template-columns: 210px 1fr;
+    gap: 2.25rem;
+    align-items: start;
+  }
+  @media (max-width: 880px) {
+    .layout { grid-template-columns: 1fr; }
+    .rail { position: static !important; order: -1; }
+  }
+
+  .rail {
+    position: sticky;
+    top: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-left: 2px solid var(--rule);
+  }
+  .rail-head {
+    font-size: .6875rem;
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding: 0 0 .6rem .9rem;
+  }
+  .rail a {
+    text-decoration: none;
+    color: var(--ink-soft);
+    padding: .4rem 0 .4rem .9rem;
+    margin-left: -2px;
+    border-left: 2px solid transparent;
+    font-size: .8125rem;
+    display: flex;
+    justify-content: space-between;
+    gap: .5rem;
+  }
+  .rail a:hover { color: var(--ink); border-left-color: var(--rule-strong); }
+  .rail a .t { color: var(--ink-faint); font-size: .75rem; }
+  .rail .total {
+    margin-top: .5rem;
+    padding: .6rem 0 0 .9rem;
+    border-top: 1px solid var(--rule);
+    font-size: .75rem;
+    color: var(--ink-faint);
+  }
+  @media (max-width: 880px) {
+    .rail { border-left: none; border-bottom: 2px solid var(--rule); padding-bottom: .75rem; }
+  }
+
+  main { min-width: 0; }
+
+  /* ---- Prep checklist ---- */
+  .prep {
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 1.25rem 1.4rem 1.4rem;
+    margin-bottom: 2rem;
+  }
+  .prep h2 {
+    font-size: .95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin-bottom: .85rem;
+  }
+  .prep h2::before { content: "☑"; color: var(--accent); }
+  .prep ul { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+  .prep li { display: flex; align-items: flex-start; gap: .6rem; font-size: .875rem; color: var(--ink-soft); }
+  .prep input[type=checkbox] {
+    appearance: none; width: 16px; height: 16px; margin-top: .15rem; flex: none;
+    border: 1.5px solid var(--rule-strong); border-radius: 4px; cursor: pointer; position: relative;
+  }
+  .prep input[type=checkbox]:checked { background: var(--accent); border-color: var(--accent); }
+  .prep input[type=checkbox]:checked::after {
+    content: ""; position: absolute; left: 4px; top: 1px; width: 4px; height: 8px;
+    border: solid white; border-width: 0 2px 2px 0; transform: rotate(45deg);
+  }
+  .prep li.done label { color: var(--ink-faint); text-decoration: line-through; }
+  .prep label { cursor: pointer; }
+  .prep code { background: var(--accent-soft); color: var(--accent-ink); padding: .05rem .35rem; border-radius: 4px; font-size: .8em; }
+
+  /* ---- Segment cards ---- */
+  .segment {
+    scroll-margin-top: 1rem;
+    padding: 1.6rem 0;
+    border-top: 1px solid var(--rule);
+  }
+  .segment:first-of-type { border-top: none; padding-top: 0; }
+
+  .seg-head {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+    flex-wrap: wrap;
+    margin-bottom: .3rem;
+  }
+  .seg-time {
+    font-size: .95rem;
+    font-weight: 600;
+    color: var(--cue);
+    white-space: nowrap;
+  }
+  .seg-title { font-size: 1.2rem; font-weight: 700; letter-spacing: -.005em; }
+  .seg-dur {
+    margin-left: auto;
+    font-size: .75rem;
+    color: var(--ink-faint);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    padding: .15rem .6rem;
+  }
+
+  .panel-label {
+    font-size: .6875rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin: 1rem 0 .4rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .panel-label.say { color: var(--accent-ink); }
+  .panel-label.do { color: var(--cue); }
+  .panel-label.browse { color: #0F766E; }
+  .panel-label.say::before { content: "\201C"; font-size: 1.1em; }
+  .panel-label.do::before { content: "▸"; }
+  .panel-label.browse::before { content: "◎"; }
+
+  .say-block {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: .8rem 1rem;
+    font-size: .9rem;
+    color: var(--ink);
+  }
+  .say-block + .say-block { margin-top: .5rem; }
+
+  .opener {
+    background: var(--cue-soft);
+    border-left: 4px solid var(--cue);
+    border-radius: 0 8px 8px 0;
+    padding: 1rem 1.1rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.55;
+  }
+  .opener-label {
+    font-size: .6875rem;
+    font-weight: 700;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--cue);
+    margin-bottom: .8rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .note {
+    font-size: .825rem;
+    color: var(--ink-soft);
+    margin-top: .5rem;
+    padding-left: 1rem;
+    border-left: 2px dotted var(--rule-strong);
+  }
+
+  .code-block {
+    position: relative;
+    background: var(--mono-bg);
+    border-radius: 8px;
+    border-left: 3px solid var(--cue);
+    overflow: hidden;
+  }
+  .code-block pre {
+    margin: 0;
+    padding: .9rem 3.2rem .9rem 1.1rem;
+    overflow-x: auto;
+    font-size: .8125rem;
+    line-height: 1.65;
+    color: var(--mono-fg);
+  }
+  .code-block .prompt { color: var(--cue); user-select: none; }
+  .code-block .ph { color: #fff; background: rgba(194,65,12,.35); padding: 0 .15rem; border-radius: 3px; }
+  .code-block .cm { color: var(--mono-dim); }
+  .copy-btn {
+    position: absolute;
+    top: .55rem; right: .55rem;
+    font-family: inherit;
+    font-size: .6875rem;
+    font-weight: 600;
+    letter-spacing: .03em;
+    color: var(--mono-dim);
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 5px;
+    padding: .3rem .55rem;
+    cursor: pointer;
+  }
+  .copy-btn:hover { color: var(--mono-fg); border-color: rgba(255,255,255,.25); }
+  .copy-btn.copied { color: #8FD4A8; border-color: #8FD4A8; }
+
+  /* ---- Trigger options: prompt vs CLI ---- */
+  .option-label {
+    font-size: .6875rem;
+    font-weight: 700;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: .9rem 0 .35rem;
+    display: flex;
+    align-items: center;
+    gap: .4rem;
+  }
+  .option-label .ico { font-size: .85em; }
+  .option-label:first-of-type { margin-top: .5rem; }
+
+  .prompt-block {
+    position: relative;
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: .8rem 3.2rem .8rem 1.1rem;
+    font-size: .9rem;
+    font-style: italic;
+    color: var(--ink);
+    line-height: 1.6;
+  }
+  .prompt-block .copy-btn {
+    color: var(--accent-ink);
+    background: var(--paper-raised);
+    border-color: var(--rule);
+  }
+  .prompt-block .copy-btn:hover { border-color: var(--accent); }
+  .prompt-block .copy-btn.copied { color: #1F8A4C; border-color: #1F8A4C; }
+
+  .equiv {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    margin: .5rem 0 .5rem 1rem;
+    font-size: .7rem;
+    color: var(--ink-faint);
+    letter-spacing: .02em;
+  }
+  .equiv::before {
+    content: "";
+    width: 14px; height: 1px;
+    background: var(--rule-strong);
+  }
+
+  .flags {
+    display: flex; flex-wrap: wrap; gap: .4rem; margin-top: .55rem;
+  }
+  .flag {
+    font-size: .7rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    color: var(--ink-soft);
+    padding: .15rem .5rem;
+    border-radius: 5px;
+  }
+  .flag b { color: var(--ink); }
+
+  .callout {
+    display: flex;
+    gap: .6rem;
+    background: var(--cue-soft);
+    border: 1px solid color-mix(in srgb, var(--cue) 35%, transparent);
+    border-radius: 8px;
+    padding: .7rem .9rem;
+    font-size: .825rem;
+    color: var(--ink);
+    margin-top: .8rem;
+  }
+  .callout .ic { color: var(--cue); font-weight: 700; }
+
+  /* ---- Doc-walkthrough stops ---- */
+  .walk-list {
+    display: flex;
+    flex-direction: column;
+    margin-top: .5rem;
+  }
+  .walk-stop {
+    display: flex;
+    gap: .8rem;
+    padding: .75rem 0;
+    border-top: 1px dotted var(--rule-strong);
+  }
+  .walk-stop:first-child { border-top: none; padding-top: .25rem; }
+  .walk-num {
+    flex: none;
+    width: 1.6rem; height: 1.6rem;
+    border-radius: 50%;
+    background: #CCFBF1;
+    color: #0F766E;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: .75rem;
+    font-family: "IBM Plex Mono", monospace;
+  }
+  :root[data-theme="dark"] .walk-num, @media (prefers-color-scheme: dark) { }
+  .walk-body { flex: 1; min-width: 0; }
+  .walk-url {
+    display: inline-flex;
+    align-items: center;
+    gap: .3rem;
+    font-family: "IBM Plex Mono", monospace;
+    font-size: .75rem;
+    color: #0F766E;
+    background: #CCFBF1;
+    padding: .2rem .55rem;
+    border-radius: 5px;
+    text-decoration: none;
+    margin-bottom: .4rem;
+    word-break: break-all;
+  }
+  .walk-url:hover { text-decoration: underline; }
+  .walk-say { font-size: .875rem; color: var(--ink); }
+  .walk-highlight {
+    font-size: .8rem; color: var(--ink-soft); margin-top: .35rem;
+    padding-left: .75rem; border-left: 2px dotted var(--rule-strong);
+  }
+
+  /* ---- Field notes ---- */
+  .fieldnotes {
+    margin-top: 2.5rem;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    border-radius: 10px;
+    box-shadow: var(--shadow);
+    padding: 1.4rem 1.5rem;
+  }
+  .fieldnotes h2 {
+    font-size: 1rem; font-weight: 700; margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .fieldnotes h2::before { content: "🗒"; }
+  .fn-item { display: grid; grid-template-columns: 1fr; gap: .15rem; padding: .65rem 0; border-top: 1px solid var(--rule); }
+  .fn-item:first-of-type { border-top: none; padding-top: 0; }
+  .fn-if { font-weight: 600; font-size: .875rem; color: var(--ink); }
+  .fn-then { font-size: .85rem; color: var(--ink-soft); }
+  .fn-if::before { content: "IF — "; color: var(--cue); font-weight: 700; }
+  .fn-then::before { content: "→ "; color: var(--accent); }
+
+  footer {
+    margin-top: 2.5rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--rule);
+    font-size: .8125rem;
+    color: var(--ink-faint);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: .5rem;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="masthead">
+    <div class="eyebrow">Run of Show · Live Recording</div>
+    <h1>BMAD DCA Demo — Docs walkthrough, then two live builds</h1>
+    <div class="meta">
+      <span><strong>Runtime</strong> ~13:30</span>
+      <span><strong>Format</strong> browser walkthrough → two terminal-driven demos</span>
+      <span><strong>Demo 1</strong> AEMaaCS Audit</span>
+      <span><strong>Demo 2</strong> BRD → Adobe Commerce code generation</span>
+    </div>
+  </div>
+
+  <div class="layout">
+    <nav class="rail">
+      <div class="rail-head">Segments</div>
+      <a href="#prep"><span>Before you record</span><span class="t"></span></a>
+      <a href="#seg-1"><span>1 · Cold open</span><span class="t mono">0:00</span></a>
+      <a href="#seg-2"><span>2 · Doc walkthrough</span><span class="t mono">0:20</span></a>
+      <a href="#seg-3"><span>3 · Demo 1 — AEMaaCS audit</span><span class="t mono">3:30</span></a>
+      <a href="#seg-4"><span>4 · Demo 2 — BRD → codegen</span><span class="t mono">7:00</span></a>
+      <a href="#seg-5"><span>5 · Close</span><span class="t mono">12:30</span></a>
+      <a href="#notes"><span>Field notes</span><span class="t"></span></a>
+      <div class="total">Total run time <strong class="mono">13:30</strong></div>
+    </nav>
+
+    <main>
+
+      <section class="prep" id="prep">
+        <h2>Before you hit record</h2>
+        <ul id="prep-list">
+          <li><input type="checkbox"><label>Swap <code>{{AEM_PATH}}</code> and <code>{{COMMERCE_PATH}}</code> below for your two real project paths</label></li>
+          <li><input type="checkbox"><label>Pre-warm deps <em>off camera</em> for both agents you'll touch: <code class="mono">bash .claude/skills/shared/bootstrap.sh audit --yes</code> and <code class="mono">bash .claude/skills/shared/bootstrap.sh generation --yes</code></label></li>
+          <li><input type="checkbox"><label>Have the sample BRD open in an editor tab: <code class="mono">docs/sample-brd-commerce-bulky-shipping-surcharge.md</code></label></li>
+          <li><input type="checkbox"><label>Open a browser tab on <a href="https://mayur434.github.io/bmad-dept-coding-agents" target="_blank" rel="noopener">the docs home page</a>, ready to click through Segment 2's stops in order</label></li>
+          <li><input type="checkbox"><label>Bump terminal font size + line spacing for recording legibility</label></li>
+          <li><input type="checkbox"><label>Close notifications, unrelated tabs and apps</label></li>
+          <li><input type="checkbox"><label>Decide per demo whether you'll drive it by <strong>chat prompt</strong> or <strong>raw CLI</strong> — both shown, pick live on camera</label></li>
+        </ul>
+      </section>
+
+      <!-- SEGMENT 1 -->
+      <section class="segment" id="seg-1">
+        <div class="seg-head">
+          <span class="seg-time timecode">0:00–0:20</span>
+          <h2 class="seg-title">Cold open — talk only</h2>
+          <span class="seg-dur">0:20</span>
+        </div>
+
+        <div class="opener-label">🎬 First words — roll camera</div>
+        <div class="opener">"Hey everyone — today I'm showing you an AI agent suite that covers the entire software development lifecycle. I'll start with a quick tour of the docs, then two live builds against real projects."</div>
+
+        <div class="panel-label do">Do</div>
+        <div class="note">No terminal yet — switch straight to the browser tab on the docs home page for Segment 2.</div>
+      </section>
+
+      <!-- SEGMENT 2 -->
+      <section class="segment" id="seg-2">
+        <div class="seg-head">
+          <span class="seg-time timecode">0:20–3:30</span>
+          <h2 class="seg-title">Doc walkthrough — browser, follows the site's own flow</h2>
+          <span class="seg-dur">3:10</span>
+        </div>
+
+        <div class="panel-label browse">Click path — in order, ~25–30s per stop</div>
+
+        <div class="walk-list">
+          <div class="walk-stop">
+            <div class="walk-num">1</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents" target="_blank" rel="noopener">/ (home)</a>
+              <div class="walk-say">"This is the DCA docs site — the source of truth for the whole suite. Eleven agents, one standardized report shape, eight Adobe and JVM stacks, requirements through governance. This runs on BMAD Method — an open-source, modular AI-agent framework you drop into whatever AI coding tool you already use."</div>
+            </div>
+          </div>
+          <div class="walk-stop">
+            <div class="walk-num">2</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-agents" target="_blank" rel="noopener">/concepts/the-agents</a>
+              <div class="walk-say">"Here's the full roster on one page — all eleven, each covering its own SDLC phase. Today I'm only touching two: Audit and Code Generation."</div>
+            </div>
+          </div>
+          <div class="walk-stop">
+            <div class="walk-num">3</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/standardized-outputs" target="_blank" rel="noopener">/concepts/standardized-outputs</a>
+              <div class="walk-say">"Every agent, every stack, the same output contract — an Excel workbook, a Markdown twin, a CHANGE-LOG entry. You'll see this exact shape in a few minutes."</div>
+            </div>
+          </div>
+          <div class="walk-stop">
+            <div class="walk-num">4</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/requirements-authoring" target="_blank" rel="noopener">/concepts/requirements-authoring</a>
+              <div class="walk-say">"This is what feeds Demo 2 — how DCA structures a BRD: business requirements, functional requirements, the numbering convention. I've already got a sample one ready that follows this exact shape."</div>
+            </div>
+          </div>
+          <div class="walk-stop">
+            <div class="walk-num">5</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/agents/audit" target="_blank" rel="noopener">/agents/audit</a>
+              <div class="walk-say">"Audit's page — two-tier: a deterministic scanner that costs zero tokens, plus an LLM pass for deeper semantic findings. That's Demo 1, against a live AEMaaCS project."</div>
+            </div>
+          </div>
+          <div class="walk-stop">
+            <div class="walk-num">6</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/agents/code-generation" target="_blank" rel="noopener">/agents/code-generation</a>
+              <div class="walk-say">"Code Generation — deterministic scaffolders for the common artifacts, plus an LLM path for real business logic. That LLM path is exactly what turns a BRD into working code — Demo 2."</div>
+            </div>
+          </div>
+          <div class="walk-stop">
+            <div class="walk-num">7</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/roadmap" target="_blank" rel="noopener">/roadmap</a>
+              <div class="walk-say">"Quick flash on the way out — every phase on this roadmap is shipped, not planned. Full SDLC coverage, delivered. Let's go build something."</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="note" style="margin-top:.9rem">Switch to the terminal now — Demo 1 starts immediately after stop 7.</div>
+      </section>
+
+      <!-- SEGMENT 3 — DEMO 1 -->
+      <section class="segment" id="seg-3">
+        <div class="seg-head">
+          <span class="seg-time timecode">3:30–7:00</span>
+          <h2 class="seg-title">Demo 1 — AEMaaCS Audit</h2>
+          <span class="seg-dur">3:30</span>
+        </div>
+
+        <div class="panel-label say">Say</div>
+        <div class="say-block">"First live run — a real AEMaaCS project, cold start, zero config."</div>
+
+        <div class="panel-label do">Do</div>
+
+        <div class="option-label"><span class="ico">💬</span>Option A — type into chat</div>
+        <div class="prompt-block">audit my project
+          <button class="copy-btn" data-copy="audit my project">copy</button>
+        </div>
+
+        <div class="equiv">resolves to the same run as</div>
+
+        <div class="option-label"><span class="ico">⌨</span>Option B — run in terminal</div>
+        <div class="code-block">
+<pre><span class="prompt">$</span> cd {{DCA}}/skills/bmad-dept-code-audit-agent/scripts
+<span class="prompt">$</span> npx ts-node run.ts --path <span class="ph">{{AEM_PATH}}</span> --engine aem --technical --no-preflight --yes-install</pre>
+          <button class="copy-btn" data-copy="cd {{DCA}}/skills/bmad-dept-code-audit-agent/scripts
+npx ts-node run.ts --path {{AEM_PATH}} --engine aem --technical --no-preflight --yes-install">copy</button>
+        </div>
+        <div class="flags">
+          <span class="flag"><b>--engine aem</b> AEMaaCS rule pack — auto-detects too, shown here for clarity</span>
+          <span class="flag"><b>--technical</b> skip guided intake</span>
+          <span class="flag"><b>--yes-install</b> no install confirmation</span>
+        </div>
+
+        <div class="say-block" style="margin-top:.9rem">"Two-tier under the hood — Tier 1 is a deterministic tree-sitter + regex scan across the whole repo, zero tokens. Tier 2 layers an LLM pass on top for the architectural and cross-file stuff a scanner can't catch alone."</div>
+        <div class="note">Open the resulting <code class="mono">.xlsx</code>. Walk: Run Info → Summary (15-column contract) → Severity Breakdown → Recommendations.</div>
+        <div class="say-block">"Same command shape works unmodified against Commerce, Spring Boot, Sling — eight stacks, one report shape. That consistency is the whole point of the shared foundation, which is exactly what Demo 2 builds on next."</div>
+      </section>
+
+      <!-- SEGMENT 4 — DEMO 2 -->
+      <section class="segment" id="seg-4">
+        <div class="seg-head">
+          <span class="seg-time timecode">7:00–12:30</span>
+          <h2 class="seg-title">Demo 2 — BRD → Adobe Commerce code generation</h2>
+          <span class="seg-dur">5:30</span>
+        </div>
+
+        <div class="panel-label say">Say</div>
+        <div class="say-block">"For code generation, I'm handing it a real business requirement, not a technical spec — this is a sample BRD I prepped, structured exactly the way DCA's own Requirements agent would author one."</div>
+
+        <div class="panel-label do">Do</div>
+        <div class="note">Flash the BRD on screen: <code class="mono">docs/sample-brd-commerce-bulky-shipping-surcharge.md</code> — a flat shipping surcharge for bulky SKUs. Point at <strong>FR-2</strong> (flat surcharge, once per order), <strong>FR-3</strong> (must be visible pre-payment), and <strong>§7.2</strong> (must be enforced server-side, not client-trusted).</div>
+        <div class="say-block">"No ticket, no separate tech design — I'll point the same chat at this file and ask it to build the feature."</div>
+
+        <div class="option-label"><span class="ico">💬</span>Option A — type into chat</div>
+        <div class="prompt-block">Using docs/sample-brd-commerce-bulky-shipping-surcharge.md, implement this Adobe Commerce customization in {{COMMERCE_PATH}}.
+          <button class="copy-btn" data-copy="Using docs/sample-brd-commerce-bulky-shipping-surcharge.md, implement this Adobe Commerce customization in {{COMMERCE_PATH}}.">copy</button>
+        </div>
+
+        <div class="equiv">the AI reads the BRD, then reaches for the scaffolder — approximately</div>
+
+        <div class="option-label"><span class="ico">⌨</span>Option B — what it runs under the hood</div>
+        <div class="code-block">
+<pre><span class="prompt">$</span> cd {{DCA}}/skills/bmad-dept-code-generation-agent/scripts
+<span class="prompt">$</span> npx ts-node run.ts --path <span class="ph">{{COMMERCE_PATH}}</span> \
+    --scaffold --engine commerce-paas --type plugin \
+    --name BulkyItemShippingSurcharge --technical --no-preflight --yes-install</pre>
+          <button class="copy-btn" data-copy="cd {{DCA}}/skills/bmad-dept-code-generation-agent/scripts
+npx ts-node run.ts --path {{COMMERCE_PATH}} --scaffold --engine commerce-paas --type plugin --name BulkyItemShippingSurcharge --technical --no-preflight --yes-install">copy</button>
+        </div>
+        <div class="flags">
+          <span class="flag"><b>--type plugin</b> the AI's call, from reading the BRD — not a fixed flag</span>
+          <span class="flag"><b>--name</b> derived from the feature name</span>
+        </div>
+        <div class="callout"><span class="ic">i</span><span>There's no <code class="mono">--brd</code> flag here — that's the point. The AI reads the requirements doc and decides this needs a <strong>Plugin</strong> on Commerce's totals pipeline, not a Controller or Observer, then scaffolds that skeleton and wires the DI. If it picks a different artifact shape live, that's fine — say so on camera, it's the interpretation step working, not a script.</span></div>
+
+        <div class="say-block" style="margin-top:.9rem">While it runs: "The scaffolder gives it the skeleton and the DI wiring — the LLM authoring pass is what fills in the actual surcharge math, the new <code class=\"mono\">is_bulky_item</code> product attribute, and the admin config field, straight from what the BRD asked for."</div>
+        <div class="note">Open the generated Plugin class + <code class="mono">di.xml</code> entry. Point out the surcharge is computed server-side during totals collection — the exact server-side enforcement §7.2 of the BRD called for.</div>
+        <div class="say-block">"Same standardized report shape you saw in Demo 1 — <code class=\"mono\">generation-reports/generation-*-agent-report.xlsx</code> — even though the two agents do completely different jobs."</div>
+      </section>
+
+      <!-- SEGMENT 5 -->
+      <section class="segment" id="seg-5">
+        <div class="seg-head">
+          <span class="seg-time timecode">12:30–13:30</span>
+          <h2 class="seg-title">Close</h2>
+          <span class="seg-dur">1:00</span>
+        </div>
+
+        <div class="panel-label say">Say</div>
+        <div class="say-block">"Requirements through Compliance — eleven agents, eight Adobe and JVM stacks, one standardized report shape. Today: an audit that costs zero tokens for its first pass, and a business requirement that became a working, server-enforced feature without a hand-off between docs, tickets, and code. Questions?"</div>
+      </section>
+
+      <section class="fieldnotes" id="notes">
+        <h2>Field notes — if it goes sideways</h2>
+        <div class="fn-item">
+          <div class="fn-if">The docs site is slow or unreachable on the day</div>
+          <div class="fn-then">Fall back to the local Markdown source under <code class="mono">website/docs/</code> in an editor split pane — same content, same click order, just not rendered.</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-if">The install prompt is slow or awkward on camera</div>
+          <div class="fn-then">You pre-warmed deps in the prep checklist for both audit and generation — this shouldn't happen. If it does anyway, use <code class="mono">--yes-install</code> and narrate over it instead of waiting in silence.</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-if">The AEMaaCS audit comes back with zero findings</div>
+          <div class="fn-then">Say it straight: "A clean report is still a report — this is exactly what a CI gate checks for on every merge." Don't scramble for a dirtier project mid-recording.</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-if">Generation picks a different artifact than the Plugin shown here (an Observer, a second Controller, etc.)</div>
+          <div class="fn-then">That's the demo working, not breaking — call it out: "See, it read the BRD differently than I guessed — that's interpretation, not a hardcoded flag." Walk whatever it actually produced.</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-if">Generation is taking too long live</div>
+          <div class="fn-then">Cut to a result generated minutes earlier: "I ran this moments ago — here's the output," then walk the generated files and report as planned.</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-if">No real Commerce/AEM project available on the day</div>
+          <div class="fn-then">Fallback: use the Generation agent to scaffold a minimal AEM component and a bare Commerce module first (as a 30-second bonus beat), then run both demos against those instead.</div>
+        </div>
+        <div class="fn-item">
+          <div class="fn-if">The chat prompt asks a clarifying question instead of running one-shot</div>
+          <div class="fn-then">Normal — one-shot resolution depends on the AI tool reading the agent's SKILL.md exactly. Answer the one question it asks (usually stack or diff scope) and it proceeds; or switch to Option B (CLI) for that beat without breaking stride.</div>
+        </div>
+      </section>
+
+      <footer>
+        <span>BMAD DCA v4.0.0 · module code <code class="mono">dca</code></span>
+        <span><a href="https://mayur434.github.io/bmad-dept-coding-agents" target="_blank" rel="noopener">mayur434.github.io/bmad-dept-coding-agents</a></span>
+      </footer>
+
+    </main>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('.copy-btn').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var text = btn.getAttribute('data-copy');
+      navigator.clipboard.writeText(text).then(function () {
+        var prev = btn.textContent;
+        btn.textContent = 'copied';
+        btn.classList.add('copied');
+        setTimeout(function () {
+          btn.textContent = prev;
+          btn.classList.remove('copied');
+        }, 1400);
+      });
+    });
+  });
+
+  document.querySelectorAll('#prep-list li').forEach(function (li) {
+    var cb = li.querySelector('input[type=checkbox]');
+    cb.addEventListener('change', function () {
+      li.classList.toggle('done', cb.checked);
+    });
+  });
+</script>
+</body>
+</html>
