@@ -25,7 +25,7 @@ export const SEVERITY_RANK: Record<Severity, number> = {
 };
 
 /** The five agents in the DCA suite. Used for report/branch/changelog naming. */
-export type AgentName = "audit" | "generation" | "impact" | "test-coverage" | "sonar-scan" | "requirements" | "architecture";
+export type AgentName = "audit" | "generation" | "impact" | "test-coverage" | "sonar-scan" | "requirements" | "architecture" | "release" | "operations";
 
 /** Where a finding came from — a deterministic scanner or the LLM tier. */
 export type FindingSource = "scanner" | "llm" | "hybrid";

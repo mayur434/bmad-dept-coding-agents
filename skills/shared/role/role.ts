@@ -24,7 +24,9 @@ export type AgentCode =
   | "impact-analysis"
   | "test-coverage"
   | "requirements"
-  | "architecture";
+  | "architecture"
+  | "release"
+  | "operations";
 
 export type OutputFlavor =
   | "executive"

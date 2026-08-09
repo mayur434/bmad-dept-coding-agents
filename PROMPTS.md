@@ -10,11 +10,15 @@
 
 | Agent | Docusaurus page |
 |-------|-----------------|
+| Requirements | [Reference → Prompts → Requirements](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/requirements) |
+| Architecture | [Reference → Prompts → Architecture](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/architecture) |
 | Audit | [Reference → Prompts → Audit](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/audit) |
 | Sonar Scan | [Reference → Prompts → Sonar Scan](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/sonar-scan) |
 | Code Generation | [Reference → Prompts → Code Generation](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/code-generation) |
 | Impact Analysis | [Reference → Prompts → Impact Analysis](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/impact-analysis) |
 | Test Coverage | [Reference → Prompts → Test Coverage](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/test-coverage) |
+| Release | [Reference → Prompts → Release](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/release) |
+| Operations | [Reference → Prompts → Operations](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/operations) |
 
 ## Chained / multi-agent prompts
 

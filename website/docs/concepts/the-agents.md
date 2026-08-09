@@ -2,7 +2,7 @@
 id: the-agents
 title: The Agents
 sidebar_position: 1
-description: Requirements, Architecture, Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage — one shared foundation, seven independent specialists across the SDLC.
+description: Requirements, Architecture, Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage, Release, Operations — one shared foundation, nine independent specialists across the SDLC.
 keywords:
   - agents
   - dca
@@ -13,12 +13,14 @@ keywords:
   - code generation
   - impact analysis
   - test coverage
+  - release
+  - operations
 ---
 
-Seven independent AI coding agents, each with a deterministic Tier 1 (TypeScript) and an LLM-driven Tier 2, all funneled through one shared `@bmad/dca-shared` foundation so reports, changelog entries, git ops, and preflight look identical across the fleet.
+Nine independent AI coding agents, each with a deterministic Tier 1 (TypeScript) and an LLM-driven Tier 2, all funneled through one shared `@bmad/dca-shared` foundation so reports, changelog entries, git ops, and preflight look identical across the fleet.
 
 :::note Agent count is live
-The DCA suite currently ships **7 agents** covering SDLC phases 1–8. Phase 3 (Release + Operations) and Phase 4 (Code Review + Compliance) are on the [roadmap](../roadmap). The count in this doc will grow as those agents land.
+The DCA suite currently ships **9 agents** covering SDLC phases 1–6. Phase 4 (Code Review + Compliance) is on the [roadmap](../roadmap). The count in this doc will grow as those agents land.
 :::
 
 ## At a glance
@@ -32,6 +34,8 @@ The DCA suite currently ships **7 agents** covering SDLC phases 1–8. Phase 3 (
 | **Code Generation** | ⚡ | 24 deterministic scaffolders across 8 stacks + LLM/MCP path for anything the scaffolders don't cover. Zero-config MCP auto-provisioning for AEM. | Bootstrapping new modules, standardizing team output, prototype scaffolding. | `--scaffold` · `--engine <stack>` · `--type <t>` · `--name <str>` · `--setup` | `generation-<hash>.json` |
 | **Impact Analysis** | 💥 | Input-driven reverse-dependency tracer over Proofhub bug CSV and/or BRD doc → impacted files + blast radius + risk score. | Sprint planning, release readiness, BRD-to-code traceability, regression scoping. | `--bugs <csv>` · `--brd <doc>` · `--engine <stack>` | `impact-analysis-<hash>.json` |
 | **Test Coverage** | 🧪 | Deterministic gap analysis + real line/branch coverage (JaCoCo / Istanbul / Clover / LCOV) + framework-aware LLM test generation. | Baseline snapshot, real coverage on CI, test-generation sprint, pre-release gate. | `--mode <analyze\|generate\|full>` · `--coverage-report <file>` · `--run-coverage` | `test-coverage-<hash>.json` |
+| **Release** | 🚀 | Authors CI/CD pipelines (6 platforms), release notes from git history, deploy plans, rollback plans, env-diffs, and multi-channel stakeholder announcements. | Release-day communications, pipeline bootstrap, rollout planning, env-drift audit, rollback drill prep. | `--pipeline <target>` · `--from-ref <ref>` · `--to-ref <ref>` · `--rollout <strategy>` · `--env <e>` · `--to-env <e>` · `--artifacts <list>` | `release-<hash>.json` |
+| **Operations** | 📊 | Authors runbooks, observability dashboards (7 platforms), alert rules, SLO/SLI + error-budget policies, on-call rotations, incident playbooks, and blameless postmortems. | Runbook-per-symptom authoring, dashboard-as-code, SLO baseline, incident kickoff, postmortem authoring. | `--observability <platform>` · `--incident <symptom>` · `--service <name>` · `--service-tier <tier>` · `--postmortem-severity <sev>` · `--artifacts <list>` | `operations-<hash>.json` |
 
 Each agent's full command surface lives in its `SKILL.md`; the flags above are the ones you'll type most often.
 
@@ -39,7 +43,7 @@ Each agent's full command surface lives in its `SKILL.md`; the flags above are t
 
 ```mermaid
 flowchart TD
-    subgraph Agents ["Seven DCA agents (independent)"]
+    subgraph Agents ["Nine DCA agents (independent)"]
         direction LR
         Req["📋 Requirements"]
         Arch["🏛️ Architecture"]
@@ -48,6 +52,8 @@ flowchart TD
         Gen["⚡ Code Generation"]
         Impact["💥 Impact Analysis"]
         Cov["🧪 Test Coverage"]
+        Release["🚀 Release"]
+        Ops["📊 Operations"]
     end
 
     subgraph Shared ["@bmad/dca-shared foundation"]
@@ -68,6 +74,8 @@ flowchart TD
     Gen --> Shared
     Impact --> Shared
     Cov --> Shared
+    Release --> Shared
+    Ops --> Shared
 
     Shared --> Outputs["📊 XLSX + MD twin + CHANGE-LOG entry"]
 ```
@@ -135,6 +143,18 @@ Modes: `analyze` (gap-only), `generate` (Tier 2), `full` (both).
 
 Full detail: **[Test Coverage agent](../agents/test-coverage)**.
 
+### 🚀 Release
+
+**Release-authoring specialist** for the Deploy/Release SDLC phase. Authors CI/CD pipelines for 6 platforms (Cloud Manager, GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps), release notes from git history (Conventional Commits / Keep-a-Changelog / narrative), deploy plans phased against a rollout strategy (canary / blue-green / rolling / feature-flag / bigbang), rollback playbooks, env-diffs, and multi-channel stakeholder announcements (email / Slack / Confluence / Twitter+LinkedIn). Grounded in per-stack Adobe/JVM deploy idioms.
+
+Full detail: **[Release agent](../agents/release)**.
+
+### 📊 Operations
+
+**Operations-authoring specialist** for the Ops / Monitoring SDLC phase. Authors runbooks per incident symptom, observability dashboards as code for 7 platforms (Datadog, New Relic, Grafana, Prometheus, Elastic, CloudWatch, Dynatrace), alert rules, SLO/SLI definitions with error-budget policies keyed to `--service-tier`, on-call rotation configs (PagerDuty-compatible), STRIDE-informed incident-response playbooks, and blameless postmortems.
+
+Full detail: **[Operations agent](../agents/operations)**.
+
 ## Cross-agent chaining
 
 Every successful agent run writes a `<agent>-<hash>.json` cache entry to `<projectRoot>/.bmad/cache/`. Downstream agents consume these silently for enrichment:
@@ -168,4 +188,4 @@ The `@bmad/dca-shared` subdirectories every agent depends on:
 
 - [The 8 Stacks](the-8-stacks)
 - [Standardized Outputs](standardized-outputs)
-- Individual agent deep-dives: [Requirements](../agents/requirements) · [Architecture](../agents/architecture) · [Audit](../agents/audit) · [Sonar Scan](../agents/sonar-scan) · [Code Generation](../agents/code-generation) · [Impact Analysis](../agents/impact-analysis) · [Test Coverage](../agents/test-coverage).
+- Individual agent deep-dives: [Requirements](../agents/requirements) · [Architecture](../agents/architecture) · [Audit](../agents/audit) · [Sonar Scan](../agents/sonar-scan) · [Code Generation](../agents/code-generation) · [Impact Analysis](../agents/impact-analysis) · [Test Coverage](../agents/test-coverage) · [Release](../agents/release) · [Operations](../agents/operations).

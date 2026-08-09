@@ -1,0 +1,64 @@
+[skill]
+name = "bmad-dept-code-operations-agent"
+description = "Operations & SRE Specialist. Authors runbooks, observability dashboards (Datadog, New Relic, Grafana, Prometheus, Elastic, CloudWatch, Dynatrace), alert rules, SLO/SLI definitions, on-call rotation configs, incident response playbooks, and blameless postmortems. Grounded in per-stack Adobe/JVM ops idioms across all 8 supported stacks."
+version = "1.0.0"
+
+[skill.tools]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.).
+required = ["*"]
+
+[skill.activation]
+keywords = [
+  "operations",
+  "ops",
+  "runbook",
+  "dashboard",
+  "alerts",
+  "slo",
+  "sli",
+  "oncall",
+  "observability",
+  "datadog",
+  "newrelic",
+  "grafana",
+  "prometheus",
+  "incident response",
+  "postmortem",
+  "sre",
+  "on-call rotation",
+  "alerting",
+  "monitoring",
+]
+
+[skill.scripts]
+dispatcher = "scripts/run.ts"
+package = "scripts/package.json"
+
+[skill.commands]
+# Author full ops artifacts (auto-detect observability + all artifacts)
+ops = "npx ts-node scripts/run.ts"
+# Focused authoring commands (one artifact at a time)
+runbook = "npx ts-node scripts/run.ts --artifacts runbook"
+dashboard = "npx ts-node scripts/run.ts --artifacts dashboard"
+alerts = "npx ts-node scripts/run.ts --artifacts alerts"
+slo = "npx ts-node scripts/run.ts --artifacts slo"
+oncall = "npx ts-node scripts/run.ts --artifacts oncall-rotation"
+playbook = "npx ts-node scripts/run.ts --artifacts playbook"
+postmortem = "npx ts-node scripts/run.ts --artifacts postmortem"
+# Per-stack ops commands (mirror architecture's design-<stack> pattern)
+ops-aem = "npx ts-node scripts/run.ts --engine aem"
+ops-commerce-paas = "npx ts-node scripts/run.ts --engine commerce-paas"
+ops-commerce = "npx ts-node scripts/run.ts --engine commerce-paas"
+ops-commerce-saas = "npx ts-node scripts/run.ts --engine commerce-saas"
+ops-sling = "npx ts-node scripts/run.ts --engine sling"
+ops-spring = "npx ts-node scripts/run.ts --engine spring"
+ops-app-builder = "npx ts-node scripts/run.ts --engine app-builder"
+ops-eds = "npx ts-node scripts/run.ts --engine eds"
+ops-eds-commerce = "npx ts-node scripts/run.ts --engine eds-commerce"
+# Utility
+list-engines = "npx ts-node scripts/run.ts --list-engines"

@@ -1,0 +1,61 @@
+[skill]
+name = "bmad-dept-code-release-agent"
+description = "Release & deployment specialist. Authors CI/CD pipelines (Cloud Manager, GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps), release notes from commit history, deploy plans, rollback plans, env-diff calculations, and stakeholder announcements. Grounded in per-stack Adobe/JVM deploy idioms across all 8 supported stacks."
+version = "1.0.0"
+
+[skill.tools]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.).
+required = ["*"]
+
+[skill.activation]
+keywords = [
+  "release",
+  "deploy",
+  "pipeline",
+  "cd",
+  "ci/cd",
+  "release notes",
+  "rollback",
+  "env diff",
+  "deployment plan",
+  "cloud manager",
+  "github actions",
+  "gitlab ci",
+  "changelog",
+  "cutover",
+  "canary",
+  "blue-green",
+  "rolling deploy",
+  "feature flag rollout",
+]
+
+[skill.scripts]
+dispatcher = "scripts/run.ts"
+package = "scripts/package.json"
+
+[skill.commands]
+# Author full release (auto-detect pipeline + all artifacts)
+release = "npx ts-node scripts/run.ts"
+# Focused authoring commands (one artifact at a time)
+release-notes = "npx ts-node scripts/run.ts --artifacts release-notes"
+deploy-plan = "npx ts-node scripts/run.ts --artifacts deploy-plan"
+rollback-plan = "npx ts-node scripts/run.ts --artifacts rollback-plan"
+env-diff = "npx ts-node scripts/run.ts --artifacts env-diff"
+pipeline = "npx ts-node scripts/run.ts --artifacts pipeline"
+# Per-stack release commands (mirror architecture's design-<stack> pattern)
+release-aem = "npx ts-node scripts/run.ts --engine aem"
+release-commerce-paas = "npx ts-node scripts/run.ts --engine commerce-paas"
+release-commerce = "npx ts-node scripts/run.ts --engine commerce-paas"
+release-commerce-saas = "npx ts-node scripts/run.ts --engine commerce-saas"
+release-sling = "npx ts-node scripts/run.ts --engine sling"
+release-spring = "npx ts-node scripts/run.ts --engine spring"
+release-app-builder = "npx ts-node scripts/run.ts --engine app-builder"
+release-eds = "npx ts-node scripts/run.ts --engine eds"
+release-eds-commerce = "npx ts-node scripts/run.ts --engine eds-commerce"
+# Utility
+list-engines = "npx ts-node scripts/run.ts --list-engines"

@@ -1,8 +1,8 @@
 code: dca
 name: "BMAD DEPT Code Agent"
 header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
-subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, and architecture design for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
-description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, architecture design, release authoring, and operations authoring for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture, release, operations) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
 default_selected: true
 recommendedModules: [bmm]
 requiredModules: [core]
@@ -57,6 +57,20 @@ agents:
     description: "Authors ADRs, HLD/LLD, API contracts (OpenAPI/GraphQL), C4 + sequence diagrams (Mermaid), STRIDE threat models, and data models from a natural-language design question. Parses existing designs and enriches. Grounded in per-stack Adobe/JVM idioms across all 8 supported stacks."
     team: software-development
 
+  - code: bmad-dept-code-release-agent
+    name: Release
+    title: Release & Deployment Specialist
+    icon: "🚀"
+    description: "Authors CI/CD pipelines (Cloud Manager, GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps), release notes from commit history, deploy plans, rollback plans, env-diff calculations, and stakeholder announcements. Grounded in per-stack Adobe/JVM deploy idioms across all 8 supported stacks."
+    team: software-development
+
+  - code: bmad-dept-code-operations-agent
+    name: Operations
+    title: Operations & SRE Specialist
+    icon: "📊"
+    description: "Authors runbooks, observability dashboards (Datadog, New Relic, Grafana, Prometheus, Elastic, CloudWatch, Dynatrace), alert rules, SLO/SLI definitions, on-call rotation configs, incident response playbooks, and blameless postmortems. Grounded in per-stack Adobe/JVM ops idioms across all 8 supported stacks."
+    team: software-development
+
 # Configuration variables
 audit_output:
   prompt: "Where should audit reports be stored?"
@@ -107,6 +121,16 @@ architecture_output:
   default: "{output_folder}/architecture-reports"
   result: "{project-root}/{value}"
 
+release_output:
+  prompt: "Where should release reports and artifacts be stored?"
+  default: "{output_folder}/release-reports"
+  result: "{project-root}/{value}"
+
+operations_output:
+  prompt: "Where should operations reports and artifacts be stored?"
+  default: "{output_folder}/operations-reports"
+  result: "{project-root}/{value}"
+
 directories:
   - "{audit_output}"
   - "{generation_output}"
@@ -115,15 +139,19 @@ directories:
   - "{sonar_output}"
   - "{requirements_output}"
   - "{architecture_output}"
+  - "{release_output}"
+  - "{operations_output}"
   - ".bmad"
 
 post-install-notes: |
-  BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage · requirements · architecture).
+  BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage · requirements · architecture · release · operations).
 
   Quick usage:
     Ask: "audit my project", "generate a component", "analyze impact of these bugs",
          "sonar scan my project", "analyze test coverage", "author requirements /
-         write a BRD", or "design the architecture / author an ADR" — the agent
+         write a BRD", "design the architecture / author an ADR",
+         "author the release / generate release notes", or
+         "author a runbook / build a dashboard / write a postmortem" — the agent
          auto-detects the stack.
 
   Install dependencies (Node.js v20.12+):

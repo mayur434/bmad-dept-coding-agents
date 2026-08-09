@@ -37,7 +37,9 @@ export type InstallAgentName =
   | "impact-analysis"
   | "test-coverage"
   | "requirements"
-  | "architecture";
+  | "architecture"
+  | "release"
+  | "operations";
 
 /** Canonical skill directory names, keyed by agent short-name. */
 const AGENT_DIRS: Record<InstallAgentName, string> = {
@@ -48,6 +50,8 @@ const AGENT_DIRS: Record<InstallAgentName, string> = {
   "test-coverage": "bmad-dept-code-test-coverage-agent",
   "requirements": "bmad-dept-code-requirements-agent",
   "architecture": "bmad-dept-code-architecture-agent",
+  "release": "bmad-dept-code-release-agent",
+  "operations": "bmad-dept-code-operations-agent",
 };
 
 export interface EnsureDepsOpts {

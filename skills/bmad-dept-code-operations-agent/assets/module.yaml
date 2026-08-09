@@ -1,0 +1,21 @@
+# NOTE: This is a per-agent minimal copy of the top-level ../../module.yaml.
+# The top-level skills/module.yaml is authoritative; keep this in sync if BMAD requires it.
+# It carries only the shared suite metadata + this agent's own registration.
+code: dca
+name: "BMAD DEPT Code Agent"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, architecture design, release authoring, and operations authoring for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture, release, operations) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-operations-agent
+    name: Operations
+    title: Operations & SRE Specialist
+    icon: "📊"
+    description: "Authors runbooks, observability dashboards (Datadog, New Relic, Grafana, Prometheus, Elastic, CloudWatch, Dynatrace), alert rules, SLO/SLI definitions, on-call rotation configs, incident response playbooks, and blameless postmortems. Grounded in per-stack Adobe/JVM ops idioms across all 8 supported stacks."
+    team: software-development
+
+operations_output:
+  prompt: "Where should operations reports and artifacts be stored?"
+  default: "{output_folder}/operations-reports"
+  result: "{project-root}/{value}"

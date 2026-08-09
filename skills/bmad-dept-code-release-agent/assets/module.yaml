@@ -1,0 +1,21 @@
+# NOTE: This is a per-agent minimal copy of the top-level ../../module.yaml.
+# The top-level skills/module.yaml is authoritative; keep this in sync if BMAD requires it.
+# It carries only the shared suite metadata + this agent's own registration.
+code: dca
+name: "BMAD DEPT Code Agent"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, architecture design, and release authoring for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture, release) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-release-agent
+    name: Release
+    title: Release & Deployment Specialist
+    icon: "🚀"
+    description: "Authors CI/CD pipelines (Cloud Manager, GitHub Actions, GitLab CI, CircleCI, Jenkins, Azure DevOps), release notes from commit history, deploy plans, rollback plans, env-diff calculations, and stakeholder announcements. Grounded in per-stack Adobe/JVM deploy idioms across all 8 supported stacks."
+    team: software-development
+
+release_output:
+  prompt: "Where should release reports and artifacts be stored?"
+  default: "{output_folder}/release-reports"
+  result: "{project-root}/{value}"

@@ -1,0 +1,125 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "name": "Deployments",
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "expr": "changes(deploy_timestamp{service=\"$service\", env=\"$env\"}[5m]) > 0",
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "titleFormat": "Deploy {{revision}}",
+        "enable": true
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 0,
+  "id": null,
+  "uid": "{{DASHBOARD_UID}}",
+  "title": "{{SERVICE}} — Golden Signals ({{ENV}})",
+  "tags": ["service:{{SERVICE}}", "stack:{{STACK}}", "generated-by:bmad-dca-operations"],
+  "timezone": "utc",
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "schemaVersion": 39,
+  "version": 1,
+  "templating": {
+    "list": [
+      {
+        "name": "DS_PROMETHEUS",
+        "type": "datasource",
+        "query": "prometheus",
+        "hide": 0,
+        "current": {"text": "Prometheus", "value": "prometheus"}
+      },
+      {
+        "name": "env",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "query": "label_values(up{service=\"$service\"}, env)",
+        "current": {"text": "prod", "value": "prod"}
+      },
+      {
+        "name": "service",
+        "type": "constant",
+        "current": {"text": "{{SERVICE}}", "value": "{{SERVICE}}"}
+      },
+      {
+        "name": "region",
+        "type": "query",
+        "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+        "query": "label_values(up{service=\"$service\", env=\"$env\"}, region)",
+        "current": {"text": "All", "value": "$__all"},
+        "includeAll": true
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Uptime — last 24h",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"expr": "avg_over_time(up{service=\"$service\", env=\"$env\"}[24h])"}],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "thresholds": {"steps": [{"color": "red", "value": 0}, {"color": "yellow", "value": 0.99}, {"color": "green", "value": 0.999}]}}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency p50 / p95 / p99",
+      "gridPos": {"h": 8, "w": 18, "x": 6, "y": 0},
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum(rate({{METRIC_LATENCY_BUCKET}}{service=\"$service\", env=\"$env\"}[5m])) by (le))", "legendFormat": "p50"},
+        {"expr": "histogram_quantile(0.95, sum(rate({{METRIC_LATENCY_BUCKET}}{service=\"$service\", env=\"$env\"}[5m])) by (le))", "legendFormat": "p95"},
+        {"expr": "histogram_quantile(0.99, sum(rate({{METRIC_LATENCY_BUCKET}}{service=\"$service\", env=\"$env\"}[5m])) by (le))", "legendFormat": "p99"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Error rate (%)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [
+        {"expr": "100 * sum(rate({{METRIC_REQUESTS}}{service=\"$service\", env=\"$env\", status=~\"5..\"}[5m])) / sum(rate({{METRIC_REQUESTS}}{service=\"$service\", env=\"$env\"}[5m]))"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "percent", "thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 1}, {"color": "red", "value": {{SLO_ERROR_RATE_PCT}}}]}}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Throughput (RPS)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"expr": "sum(rate({{METRIC_REQUESTS}}{service=\"$service\", env=\"$env\"}[5m]))"}]
+    },
+    {
+      "type": "timeseries",
+      "title": "{{SATURATION_LABEL}}",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"expr": "avg({{METRIC_SATURATION}}{service=\"$service\", env=\"$env\"})"}],
+      "fieldConfig": {"defaults": {"unit": "percent", "max": 100, "min": 0}}
+    },
+    {
+      "type": "logs",
+      "title": "Recent errors (log stream)",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "datasource": {"type": "loki", "uid": "${DS_LOKI}"},
+      "targets": [{"expr": "{service=\"$service\", env=\"$env\"} |= \"ERROR\""}]
+    },
+    {
+      "type": "table",
+      "title": "Top errors (last 1h)",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"expr": "topk(10, sum by (error_type) (increase({{METRIC_ERRORS}}{service=\"$service\", env=\"$env\"}[1h])))", "format": "table"}]
+    },
+    {
+      "type": "stat",
+      "title": "SLO burn — {{SLO_LABEL}}",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "datasource": {"type": "prometheus", "uid": "${DS_PROMETHEUS}"},
+      "targets": [{"expr": "slo:burn_rate:1h{service=\"$service\", env=\"$env\"}"}],
+      "fieldConfig": {"defaults": {"thresholds": {"steps": [{"color": "green", "value": 0}, {"color": "yellow", "value": 5}, {"color": "red", "value": 14.4}]}}}
+    }
+  ]
+}
