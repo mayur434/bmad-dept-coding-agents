@@ -14,7 +14,10 @@ const path = require('path');
 const { execSync } = require('child_process');
 const readline = require('readline');
 
-const VALID_AGENTS = ['audit', 'sonar-scan', 'generation', 'impact-analysis', 'test-coverage'];
+const VALID_AGENTS = [
+  'audit', 'sonar-scan', 'generation', 'impact-analysis', 'test-coverage',
+  'requirements', 'architecture', 'release', 'operations', 'code-review', 'compliance',
+];
 
 function die(code, msg) {
   if (msg) process.stderr.write(`[dca-bootstrap] ${msg}\n`);
@@ -30,7 +33,12 @@ if (mode && mode !== '--yes' && mode !== '--no') die(4, `error: unknown flag '${
 
 const sharedDir = __dirname;
 const skillsRoot = path.resolve(sharedDir, '..');
-const agentScriptsDir = path.join(skillsRoot, `bmad-dept-code-${agent}-agent`, 'scripts');
+// Directory naming follows bmad-dept-code-<agent>-agent for every agent EXCEPT
+// code-review, whose folder is bmad-dept-code-review-agent (the "code-" prefix
+// already supplies the first half of "code review" — doubling it would give
+// bmad-dept-code-code-review-agent, which does not exist).
+const agentDirName = agent === 'code-review' ? 'bmad-dept-code-review-agent' : `bmad-dept-code-${agent}-agent`;
+const agentScriptsDir = path.join(skillsRoot, agentDirName, 'scripts');
 
 if (!fs.existsSync(agentScriptsDir)) die(4, `error: agent scripts dir not found: ${agentScriptsDir}`);
 

@@ -10,9 +10,7 @@
     "list-frameworks": "npx ts-node run.ts --list-frameworks"
   },
   "dependencies": {
-    "@bmad/dca-shared": "file:../../shared",
-    "exceljs": "^4.4.0",
-    "fast-glob": "^3.3.0"
+    "@bmad/dca-shared": "file:../../shared"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

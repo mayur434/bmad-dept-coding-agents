@@ -10,10 +10,7 @@
     "list-engines": "npx ts-node run.ts --list-engines"
   },
   "dependencies": {
-    "@bmad/dca-shared": "file:../../shared",
-    "exceljs": "^4.4.0",
-    "fast-glob": "^3.3.0",
-    "mammoth": "^1.8.0"
+    "@bmad/dca-shared": "file:../../shared"
   },
   "devDependencies": {
     "typescript": "^5.4.0",

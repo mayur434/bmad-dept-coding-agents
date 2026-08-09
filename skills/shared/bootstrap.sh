@@ -11,7 +11,8 @@
 # Usage:
 #   bash skills/shared/bootstrap.sh <agent-name> [--yes|--no]
 #
-#   <agent-name>  one of: audit | sonar-scan | generation | impact-analysis | test-coverage
+#   <agent-name>  one of: audit | sonar-scan | generation | impact-analysis | test-coverage |
+#                 requirements | architecture | release | operations | code-review | compliance
 #   --yes         headless: skip prompt and install if anything is missing
 #   --no          headless: do NOT install; exit 2 if any deps are missing
 #   (no flag)     interactive: prompt (default Y) before installing
@@ -34,9 +35,9 @@ if [ -z "$AGENT" ]; then
 fi
 
 case "$AGENT" in
-  audit|sonar-scan|generation|impact-analysis|test-coverage) ;;
+  audit|sonar-scan|generation|impact-analysis|test-coverage|requirements|architecture|release|operations|code-review|compliance) ;;
   *)
-    echo "[dca-bootstrap] error: unknown agent '$AGENT'. Expected: audit | sonar-scan | generation | impact-analysis | test-coverage" 1>&2
+    echo "[dca-bootstrap] error: unknown agent '$AGENT'. Expected: audit | sonar-scan | generation | impact-analysis | test-coverage | requirements | architecture | release | operations | code-review | compliance" 1>&2
     exit 4
     ;;
 esac
@@ -55,7 +56,17 @@ esac
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SHARED_DIR="$SCRIPT_DIR"
 SKILLS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-AGENT_SCRIPTS_DIR="$SKILLS_ROOT/bmad-dept-code-${AGENT}-agent/scripts"
+
+# Directory naming follows bmad-dept-code-<agent>-agent for every agent EXCEPT
+# code-review, whose folder is bmad-dept-code-review-agent (the "code-" prefix
+# already supplies the first half of "code review" — doubling it would give
+# bmad-dept-code-code-review-agent, which does not exist).
+if [ "$AGENT" = "code-review" ]; then
+  AGENT_DIR_NAME="bmad-dept-code-review-agent"
+else
+  AGENT_DIR_NAME="bmad-dept-code-${AGENT}-agent"
+fi
+AGENT_SCRIPTS_DIR="$SKILLS_ROOT/$AGENT_DIR_NAME/scripts"
 
 SHARED_MISSING=0
 AGENT_MISSING=0
