@@ -27,7 +27,9 @@ export type CachedRunAgent =
   | "requirements"
   | "architecture"
   | "release"
-  | "operations";
+  | "operations"
+  | "code-review"
+  | "compliance";
 
 const VALID_AGENTS: readonly CachedRunAgent[] = [
   "audit",
@@ -39,6 +41,8 @@ const VALID_AGENTS: readonly CachedRunAgent[] = [
   "architecture",
   "release",
   "operations",
+  "code-review",
+  "compliance",
 ];
 
 export interface CachedRun {

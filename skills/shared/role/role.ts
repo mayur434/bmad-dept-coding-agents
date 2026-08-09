@@ -26,7 +26,9 @@ export type AgentCode =
   | "requirements"
   | "architecture"
   | "release"
-  | "operations";
+  | "operations"
+  | "code-review"
+  | "compliance";
 
 export type OutputFlavor =
   | "executive"

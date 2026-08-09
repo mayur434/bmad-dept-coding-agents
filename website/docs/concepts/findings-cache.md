@@ -72,7 +72,7 @@ Every field except `meta` is required; malformed files are logged and skipped by
 
 Housekeeping is delegated to `pruneOldRuns(projectRoot, { keepPerAgent })`, which keeps the newest N runs per agent and deletes the rest.
 
-- **Default: 10 runs per agent** (so at most 90 files total across all nine agents).
+- **Default: 10 runs per agent** (so at most 110 files total across all eleven agents).
 - Called automatically by the shared output pipeline after each successful write.
 - Non-fatal — reports the number of removed files; failures print a stderr WARN.
 

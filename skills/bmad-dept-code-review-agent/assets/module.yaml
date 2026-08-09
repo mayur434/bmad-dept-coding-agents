@@ -1,0 +1,21 @@
+# NOTE: This is a per-agent minimal copy of the top-level ../../module.yaml.
+# The top-level skills/module.yaml is authoritative; keep this in sync if BMAD requires it.
+# It carries only the shared suite metadata + this agent's own registration.
+code: dca
+name: "BMAD DEPT Code Agent"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, architecture design, release authoring, operations authoring, and pre-merge code review for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture, release, operations, code-review) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-review-agent
+    name: Code Review
+    title: Pre-Merge Code Review Specialist
+    icon: "📝"
+    description: "PR/diff-driven pre-merge code review — style-guide enforcement, breaking-change detection, dependency-change risk, design-pattern violations, and role-adapted merge checklists. Produces GitHub/GitLab-ready inline comments. Complements the Audit agent's post-hoc deep scan. Grounded in per-stack Adobe/JVM review idioms across all 8 supported stacks."
+    team: software-development
+
+code_review_output:
+  prompt: "Where should code review reports be stored?"
+  default: "{output_folder}/code-review-reports"
+  result: "{project-root}/{value}"

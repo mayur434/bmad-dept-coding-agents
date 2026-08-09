@@ -5,7 +5,7 @@ sidebar_position: 91
 description: Delivered features by phase, in-progress work, post-audit enhancements, explicitly-deferred items, and how to contribute.
 ---
 
-Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/IMPLEMENTATION-PLAN.md) §7 (phased roadmap) and the README's Roadmap Highlights section. All **81 delivered coverage cells** (9 agents × 9 in-scope stack variants) are ✅ complete — the items below are open enhancements, not blockers.
+Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-coding-agents/blob/main/IMPLEMENTATION-PLAN.md) §7 (phased roadmap) and the README's Roadmap Highlights section. All **99 delivered coverage cells** (11 agents × 9 in-scope stack variants) are ✅ complete — the items below are open enhancements, not blockers.
 
 ## SDLC-alignment phase status
 
@@ -13,8 +13,8 @@ Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-codin
 |-------|-------|--------|
 | Phase 1 — Enterprise foundations | Findings-gate (accepted/deferred/wontfix), SLA tracking (role × severity), one-shot granular-prompt UX | ✅ Delivered — commit `1772a46` |
 | Phase 2 — Requirements + Architecture agents | 📋 Requirements authoring specialist (BRD / stories / AC) + 🏛️ Architecture design specialist (ADR / HLD / LLD / OpenAPI / STRIDE / C4). Coverage matrix grows 5 → 7 agents. | ✅ Delivered — commit `3c9c802` |
-| Phase 3 — Release + Operations agents | 🚀 Release-authoring specialist (CI/CD pipelines, release notes, deploy + rollback plans, env-diffs, announcements) + 📊 Operations-authoring specialist (runbooks, dashboards, alerts, SLO/SLI, on-call, incident playbooks, postmortems). Coverage matrix grows 7 → 9 agents. | ✅ Delivered — this release |
-| Phase 4 — Code Review + Compliance agents | 👁️ Code Review agent (PR-scoped structural + role-aware review) + ⚖️ Compliance agent (accessibility, licensing, data-classification checks) | 🟡 Planned (~3 weeks) |
+| Phase 3 — Release + Operations agents | 🚀 Release-authoring specialist (CI/CD pipelines, release notes, deploy + rollback plans, env-diffs, announcements) + 📊 Operations-authoring specialist (runbooks, dashboards, alerts, SLO/SLI, on-call, incident playbooks, postmortems). Coverage matrix grows 7 → 9 agents. | ✅ Delivered — commit `4ceaff7` |
+| Phase 4 — Code Review + Compliance agents | 📝 Code Review agent (pre-merge PR/diff review — style-guide, breaking-change detection, dependency risk, design-pattern violations, merge checklists) + ⚖️ Compliance agent (maps findings from every other agent to CWE / OWASP / CIS / PCI-DSS / HIPAA / GDPR / SOX / ISO 27001). Coverage matrix grows 9 → 11 agents. | ✅ Delivered — this release |
 
 ### What Phase 2 shipped
 
@@ -31,6 +31,16 @@ Grounded in [IMPLEMENTATION-PLAN.md](https://github.com/mayur434/bmad-dept-codin
 - **Shared foundation** — closed unions extended to accept `"release"` and `"operations"` in `AgentName`, `InstallAgentName`, `AGENT_DIRS`, `CachedRunAgent`, `VALID_AGENTS`, `AgentCode`. Zero new npm dependencies.
 - **Module registration** — `skills/module.yaml`, `skills/module-help.csv` (+30 menu rows across the R-family + O-family), `skills/.env.example` (+2 token-budget rows), and 6 new Docusaurus pages (2 agent pages + 2 concept pages + 2 prompt-catalog pages).
 - **Docs** — coverage matrix in intro + README + MANUAL updated to 9 × 8; the-agents concept page updated with 9-agent Mermaid + at-a-glance table; IMPLEMENTATION-PLAN cell count 63 → 81; roadmap marks the phase delivered.
+
+### What Phase 4 shipped
+
+- **📝 Code Review agent** — new `bmad-dept-code-review-agent/` skill; pre-merge PR/diff review complementing Audit's post-hoc deep scan — style-guide enforcement, breaking-change detection with migration guidance, dependency-change risk (license + known-CVE + transitive-impact), design-pattern violation reports, and role-adapted merge checklists; produces GitHub/GitLab-ready inline comments (file:line-anchored, severity-tagged); new CLI flags `--pr`, `--diff`, `--from-ref`, `--to-ref`, `--style-guide`, `--review-depth`, `--comment-format`, `--fail-on-severity` (exit code 7); 8 per-stack review guides + 8 per-stack pattern-violation catalogs.
+- **⚖️ Compliance agent** — new `bmad-dept-code-compliance-agent/` skill; unique among the 11 agents in that it does not scan code itself — it maps findings already produced by other agents (via the shared findings cache) to 8 compliance frameworks: CWE, OWASP Top 10, CIS Controls, PCI-DSS, HIPAA, GDPR, SOX, ISO 27001; produces control-mapping reports, audit-trail exports, auditor cover letters, SLA-bound remediation plans, and sign-off attestations; new CLI flags `--framework` (aliased `--engine`), `--source-agent`, `--source-max-age-hours`, `--audit-trail`, `--attestation-signer`, `--remediation-sla`; 8 per-framework mapping guides + 8 per-stack applicability guides.
+- **Shared foundation** — closed unions extended to accept `"code-review"` and `"compliance"` in `AgentName`, `InstallAgentName`, `AGENT_DIRS`, `CachedRunAgent`, `VALID_AGENTS`, `AgentCode`. Zero new npm dependencies.
+- **Module registration** — `skills/module.yaml`, `skills/module-help.csv` (+30 menu rows across the P-family + G-family), `skills/.env.example` (+2 token-budget rows), and 6 new Docusaurus pages (2 agent pages + 2 concept pages + 2 prompt-catalog pages).
+- **Docs** — coverage matrix in intro + README + MANUAL updated to 11 × 8 (88 cells); the-agents concept page updated with the full 11-agent Mermaid + at-a-glance table; IMPLEMENTATION-PLAN cell count 81 → 99; roadmap marks all 4 phases delivered.
+
+**All 4 phases of the SDLC-coverage roadmap are complete.** The DCA suite now covers all 8 classic SDLC phases (Requirements, Architecture/Design, Pre-merge Review, Build/Test/Audit, Deploy/Release, Operate/Monitor, Maintenance, Governance/Compliance) across 11 specialized agents and 8 Adobe/JVM stacks. Future expansion is roadmap-driven by user need, not a fixed further phase.
 
 ## Delivered — by phase
 
@@ -81,7 +91,7 @@ Detects LLM + context window, sizes the project, recommends STATIC / LLM / HYBRI
 ## In progress 🟡
 
 - **Shaft KB finalize (Phase 7).** Extend Shaft rule / gen / test packs from the PPT KB across all agents; confirm exact Sling / Felix / Oak versions + build system + whether SAM and MDM ship as separate bundles. End-to-end verify identical A/B/C outputs on real Shaft projects.
-- **Registry-refresh spot-check.** The `module.yaml` agent-level description and remaining `SKILL.md` front-matter carry-over should be spot-checked so their prose matches the delivered 9-agent, 8-stack reality.
+- **Registry-refresh spot-check.** The `module.yaml` agent-level description and remaining `SKILL.md` front-matter carry-over should be spot-checked so their prose matches the delivered 11-agent, 8-stack reality.
 - **Depth enhancement — XML-config AST scanning.** `di.xml` / `.content.xml` / Spring XML now run through a shared AST rule pipeline for the 4 most common patterns; the remaining long-tail XML rules still fall back to regex.
 - **Proofhub ColumnMap CLI flag.** The parser auto-detects Proofhub CSV headers by keyword; a `ColumnMap` override exists in code but is not yet wired to a CLI flag — a real exported sample would let us tune the mapping.
 - **BRD source expansion.** Google Docs must currently be exported to `.docx` / `.txt` first (Docs API OAuth is out of scope). Confirmation from consumers that export is acceptable — or a lightweight OAuth path — would close this.

@@ -1,0 +1,60 @@
+[skill]
+name = "bmad-dept-code-compliance-agent"
+description = "Governance & Compliance Specialist. Maps findings from every DCA agent to compliance frameworks (CWE, OWASP Top 10, CIS Controls, PCI-DSS, HIPAA, GDPR, SOX, ISO 27001). Produces auditor-ready control-mapping reports, audit-trail exports, sign-off attestations, and remediation plans with SLA. Grounded in per-stack Adobe/JVM compliance applicability across all 8 supported stacks."
+version = "1.0.0"
+
+[skill.tools]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.).
+required = ["*"]
+
+[skill.activation]
+keywords = [
+  "compliance",
+  "governance",
+  "cwe",
+  "owasp",
+  "cis controls",
+  "pci",
+  "pci-dss",
+  "hipaa",
+  "gdpr",
+  "sox",
+  "iso27001",
+  "iso 27001",
+  "control mapping",
+  "audit trail",
+  "attestation",
+  "sign-off",
+  "remediation plan",
+  "auditor",
+]
+
+[skill.scripts]
+dispatcher = "scripts/run.ts"
+package = "scripts/package.json"
+
+[skill.commands]
+# Full compliance report (auto-detect frameworks + all artifacts)
+compliance = "npx ts-node scripts/run.ts"
+# Focused artifact commands
+control-mapping = "npx ts-node scripts/run.ts --artifacts control-mapping"
+audit-trail = "npx ts-node scripts/run.ts --artifacts audit-trail"
+cover-letter = "npx ts-node scripts/run.ts --artifacts cover-letter"
+remediation-plan = "npx ts-node scripts/run.ts --artifacts remediation-plan"
+attestation = "npx ts-node scripts/run.ts --artifacts attestation"
+# Per-framework compliance commands
+compliance-cwe = "npx ts-node scripts/run.ts --framework cwe"
+compliance-owasp = "npx ts-node scripts/run.ts --framework owasp"
+compliance-cis = "npx ts-node scripts/run.ts --framework cis"
+compliance-pci = "npx ts-node scripts/run.ts --framework pci"
+compliance-hipaa = "npx ts-node scripts/run.ts --framework hipaa"
+compliance-gdpr = "npx ts-node scripts/run.ts --framework gdpr"
+compliance-sox = "npx ts-node scripts/run.ts --framework sox"
+compliance-iso27001 = "npx ts-node scripts/run.ts --framework iso27001"
+# Utility
+list-frameworks = "npx ts-node scripts/run.ts --list-frameworks"

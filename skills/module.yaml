@@ -71,6 +71,20 @@ agents:
     description: "Authors runbooks, observability dashboards (Datadog, New Relic, Grafana, Prometheus, Elastic, CloudWatch, Dynatrace), alert rules, SLO/SLI definitions, on-call rotation configs, incident response playbooks, and blameless postmortems. Grounded in per-stack Adobe/JVM ops idioms across all 8 supported stacks."
     team: software-development
 
+  - code: bmad-dept-code-review-agent
+    name: Code Review
+    title: Pre-Merge Code Review Specialist
+    icon: "📝"
+    description: "PR/diff-driven pre-merge code review — style-guide enforcement, breaking-change detection, dependency-change risk, design-pattern violations, and role-adapted merge checklists. Produces GitHub/GitLab-ready inline comments. Complements the Audit agent's post-hoc deep scan. Grounded in per-stack Adobe/JVM review idioms across all 8 supported stacks."
+    team: software-development
+
+  - code: bmad-dept-code-compliance-agent
+    name: Compliance
+    title: Governance & Compliance Specialist
+    icon: "⚖️"
+    description: "Maps findings from every DCA agent to compliance frameworks (CWE, OWASP Top 10, CIS Controls, PCI-DSS, HIPAA, GDPR, SOX, ISO 27001). Produces auditor-ready control-mapping reports, audit-trail exports, sign-off attestations, and remediation plans with SLA. Grounded in per-stack Adobe/JVM compliance applicability across all 8 supported stacks."
+    team: software-development
+
 # Configuration variables
 audit_output:
   prompt: "Where should audit reports be stored?"
@@ -131,6 +145,16 @@ operations_output:
   default: "{output_folder}/operations-reports"
   result: "{project-root}/{value}"
 
+code_review_output:
+  prompt: "Where should code review reports be stored?"
+  default: "{output_folder}/code-review-reports"
+  result: "{project-root}/{value}"
+
+compliance_output:
+  prompt: "Where should compliance reports be stored?"
+  default: "{output_folder}/compliance-reports"
+  result: "{project-root}/{value}"
+
 directories:
   - "{audit_output}"
   - "{generation_output}"
@@ -141,18 +165,21 @@ directories:
   - "{architecture_output}"
   - "{release_output}"
   - "{operations_output}"
+  - "{code_review_output}"
+  - "{compliance_output}"
   - ".bmad"
 
 post-install-notes: |
-  BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage · requirements · architecture · release · operations).
+  BMAD DEPT Code Agent installed (audit · generation · impact · sonar-scan · test-coverage · requirements · architecture · release · operations · code-review · compliance).
 
   Quick usage:
     Ask: "audit my project", "generate a component", "analyze impact of these bugs",
          "sonar scan my project", "analyze test coverage", "author requirements /
          write a BRD", "design the architecture / author an ADR",
-         "author the release / generate release notes", or
-         "author a runbook / build a dashboard / write a postmortem" — the agent
-         auto-detects the stack.
+         "author the release / generate release notes",
+         "author a runbook / build a dashboard / write a postmortem", or
+         "review this PR / code review my changes / map findings to compliance
+         frameworks" — the agent auto-detects the stack.
 
   Install dependencies (Node.js v20.12+):
     # the shared foundation (required by every agent) FIRST:

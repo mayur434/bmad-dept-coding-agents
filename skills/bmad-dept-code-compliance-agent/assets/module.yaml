@@ -1,0 +1,25 @@
+# NOTE: This is a per-agent minimal copy of the top-level ../../module.yaml.
+# The top-level skills/module.yaml is authoritative; keep this in sync if BMAD requires it.
+# It carries only the shared suite metadata + this agent's own registration.
+#
+# PLACEHOLDER (Phase 4 scaffold): the authoritative Compliance agent block
+# already exists in skills/module.yaml (added by the foundation step). This
+# file will be filled in to mirror it once content lands in a later workstream.
+code: dca
+name: "BMAD DEPT Code Agent"
+header: "BMAD DEPT Code Agent: Multi-agent AI suite for Adobe + Java middleware"
+subheader: "Code audit, generation, impact analysis, sonar scan, test coverage, requirements authoring, architecture design, release authoring, operations authoring, code review, and compliance mapping for AEMaaCS/AMS, Commerce PaaS/SaaS, App Builder, Sling-12/Shaft, Spring Boot, and EDS"
+description: "Multi-agent AI suite (audit, generation, impact, sonar scan, test coverage, requirements, architecture, release, operations, code-review, compliance) for AEMaaCS/AMS, Adobe Commerce PaaS + SaaS, Adobe App Builder, Sling-12/Shaft, Spring Boot, EDS, and EDS+Commerce"
+
+agents:
+  - code: bmad-dept-code-compliance-agent
+    name: Compliance
+    title: Governance & Compliance Specialist
+    icon: "⚖️"
+    description: "Maps findings from every DCA agent to compliance frameworks (CWE, OWASP Top 10, CIS Controls, PCI-DSS, HIPAA, GDPR, SOX, ISO 27001). Produces auditor-ready control-mapping reports, audit-trail exports, sign-off attestations, and remediation plans with SLA. Grounded in per-stack Adobe/JVM compliance applicability across all 8 supported stacks."
+    team: software-development
+
+compliance_output:
+  prompt: "Where should compliance reports be stored?"
+  default: "{output_folder}/compliance-reports"
+  result: "{project-root}/{value}"

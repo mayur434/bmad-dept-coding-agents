@@ -16,12 +16,14 @@
 | Interactive vs technical CLI paths | [Concepts → Interactive vs Technical](https://mayur434.github.io/bmad-dept-coding-agents/concepts/interactive-vs-technical) |
 | Standardized outputs contract (XLSX + MD twin + CHANGE-LOG + branch cut) | [Concepts → Standardized Outputs](https://mayur434.github.io/bmad-dept-coding-agents/concepts/standardized-outputs) |
 | Role adaptation (10 roles, 5 output flavors, per-agent behavior) | [Concepts → Role Adaptation](https://mayur434.github.io/bmad-dept-coding-agents/concepts/role-adaptation) |
-| The agents (Requirements / Architecture / Audit / Sonar / Generation / Impact / Test Coverage / Release / Operations) | [Concepts → The Agents](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-agents) |
+| The agents (Requirements / Architecture / Audit / Sonar / Generation / Impact / Test Coverage / Release / Operations / Code Review / Compliance — 11 total) | [Concepts → The Agents](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-agents) |
 | The 8 stacks (engine IDs, aliases, auto-detection order) | [Concepts → The 8 Stacks](https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-8-stacks) |
 | Requirements authoring (BRD, epics, user stories, AC) | [Concepts → Requirements Authoring](https://mayur434.github.io/bmad-dept-coding-agents/concepts/requirements-authoring) |
 | Architecture authoring (ADR, HLD, LLD, OpenAPI, STRIDE) | [Concepts → Architecture Authoring](https://mayur434.github.io/bmad-dept-coding-agents/concepts/architecture-authoring) |
 | Release management (pipelines, notes, deploy plans, rollback, env-diff, announcements) | [Concepts → Release Management](https://mayur434.github.io/bmad-dept-coding-agents/concepts/release-management) |
 | Observability (runbooks, dashboards, alerts, SLOs, on-call, incident playbooks, postmortems) | [Concepts → Observability](https://mayur434.github.io/bmad-dept-coding-agents/concepts/observability) |
+| Pre-merge review (style guide, breaking changes, dependency risk, design patterns, checklists) | [Concepts → Pre-Merge Review](https://mayur434.github.io/bmad-dept-coding-agents/concepts/pre-merge-review) |
+| Compliance mapping (CWE, OWASP, CIS, PCI-DSS, HIPAA, GDPR, SOX, ISO 27001) | [Concepts → Compliance Mapping](https://mayur434.github.io/bmad-dept-coding-agents/concepts/compliance-mapping) |
 | Findings cache (cross-agent correlation) | [Concepts → Findings Cache](https://mayur434.github.io/bmad-dept-coding-agents/concepts/findings-cache) |
 | Findings gate (accepted/deferred/wontfix decisions) | [Concepts → Findings Gate](https://mayur434.github.io/bmad-dept-coding-agents/concepts/findings-gate) |
 | SLA tracking (role x severity, overdue detection) | [Concepts → SLA Tracking](https://mayur434.github.io/bmad-dept-coding-agents/concepts/sla-tracking) |
@@ -35,6 +37,8 @@
 | Per-agent usage guide (Test Coverage) | [Agents → Test Coverage](https://mayur434.github.io/bmad-dept-coding-agents/agents/test-coverage) |
 | Per-agent usage guide (Release) | [Agents → Release](https://mayur434.github.io/bmad-dept-coding-agents/agents/release) |
 | Per-agent usage guide (Operations) | [Agents → Operations](https://mayur434.github.io/bmad-dept-coding-agents/agents/operations) |
+| Per-agent usage guide (Code Review) | [Agents → Code Review](https://mayur434.github.io/bmad-dept-coding-agents/agents/code-review) |
+| Per-agent usage guide (Compliance) | [Agents → Compliance](https://mayur434.github.io/bmad-dept-coding-agents/agents/compliance) |
 | Multi-agent workflows (chain-all) | [Workflows → chain-all](https://mayur434.github.io/bmad-dept-coding-agents/workflows/chain-all) |
 | CI integration | [Workflows → CI Integration](https://mayur434.github.io/bmad-dept-coding-agents/workflows/ci-integration) |
 | Per-role recipes | [Workflows → Per-Role Recipes](https://mayur434.github.io/bmad-dept-coding-agents/workflows/per-role-recipes) |
@@ -70,6 +74,8 @@ cd .claude/skills/bmad-dept-code-requirements-agent/scripts    && npm install
 cd .claude/skills/bmad-dept-code-architecture-agent/scripts    && npm install
 cd .claude/skills/bmad-dept-code-release-agent/scripts         && npm install
 cd .claude/skills/bmad-dept-code-operations-agent/scripts      && npm install
+cd .claude/skills/bmad-dept-code-review-agent/scripts          && npm install
+cd .claude/skills/bmad-dept-code-compliance-agent/scripts      && npm install
 ```
 
 For non-Claude hosts, substitute `.claude/skills/` with your tool's install path (`.agents/skills/` for Cursor / Copilot / Codex / most tools; `.cline/skills/`, `.kiro/skills/`, `.junie/skills/`, `.zencoder/skills/`, etc. for tools that isolate). Full per-tool table: [Getting Started → Install](https://mayur434.github.io/bmad-dept-coding-agents/getting-started/install).

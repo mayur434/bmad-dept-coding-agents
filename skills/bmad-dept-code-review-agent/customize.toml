@@ -1,0 +1,54 @@
+[skill]
+name = "bmad-dept-code-review-agent"
+description = "Pre-Merge Code Review Specialist. Reviews a PR/diff range (or uncommitted working-tree changes, or the full repo) for style-guide violations, breaking API/schema/contract changes, dependency-change risk, and design-pattern violations, and produces a role-adapted merge checklist plus GitHub/GitLab/inline-markdown-ready review comments. Complements the Audit agent's post-hoc deep scan — this agent runs pre-merge. Grounded in per-stack Adobe/JVM review idioms across all 8 supported stacks."
+version = "1.0.0"
+
+[skill.tools]
+# Works with every AI coding tool BMAD Method supports (44+ IDs — Claude Code,
+# Cursor, GitHub Copilot, Codex, Cline, Windsurf, Gemini, Roo, Kilo, Amp, and
+# more). The plugin is tool-agnostic: SKILL.md is neutral prose, and the
+# bootstrap script resolves its own path via `dirname "$0"`, so it works
+# under whichever directory BMAD picks (.claude/skills, .agents/skills,
+# .cursor/skills, etc.).
+required = ["*"]
+
+[skill.activation]
+keywords = [
+  "code review",
+  "pr review",
+  "pull request review",
+  "merge request review",
+  "style guide",
+  "breaking change",
+  "dependency review",
+  "design pattern",
+  "pre-merge",
+  "review checklist",
+  "inline comments",
+]
+
+[skill.scripts]
+dispatcher = "scripts/run.ts"
+package = "scripts/package.json"
+
+[skill.commands]
+# Full pre-merge review (auto-detect diff scope + all artifacts)
+review = "npx ts-node scripts/run.ts"
+# Focused authoring commands (one artifact at a time)
+style-check = "npx ts-node scripts/run.ts --artifacts style-check"
+breaking-changes = "npx ts-node scripts/run.ts --artifacts breaking-changes"
+dependency-review = "npx ts-node scripts/run.ts --artifacts dependency-review"
+design-patterns = "npx ts-node scripts/run.ts --artifacts design-patterns"
+checklist = "npx ts-node scripts/run.ts --artifacts checklist"
+# Per-stack review commands (mirror architecture's design-<stack> pattern)
+review-aem = "npx ts-node scripts/run.ts --engine aem"
+review-commerce-paas = "npx ts-node scripts/run.ts --engine commerce-paas"
+review-commerce = "npx ts-node scripts/run.ts --engine commerce-paas"
+review-commerce-saas = "npx ts-node scripts/run.ts --engine commerce-saas"
+review-sling = "npx ts-node scripts/run.ts --engine sling"
+review-spring = "npx ts-node scripts/run.ts --engine spring"
+review-app-builder = "npx ts-node scripts/run.ts --engine app-builder"
+review-eds = "npx ts-node scripts/run.ts --engine eds"
+review-eds-commerce = "npx ts-node scripts/run.ts --engine eds-commerce"
+# Utility
+list-engines = "npx ts-node scripts/run.ts --list-engines"

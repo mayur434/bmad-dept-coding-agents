@@ -19,6 +19,8 @@
 | Test Coverage | [Reference → Prompts → Test Coverage](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/test-coverage) |
 | Release | [Reference → Prompts → Release](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/release) |
 | Operations | [Reference → Prompts → Operations](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/operations) |
+| Code Review | [Reference → Prompts → Code Review](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/code-review) |
+| Compliance | [Reference → Prompts → Compliance](https://mayur434.github.io/bmad-dept-coding-agents/reference/prompts/compliance) |
 
 ## Chained / multi-agent prompts
 

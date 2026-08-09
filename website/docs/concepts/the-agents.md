@@ -2,7 +2,7 @@
 id: the-agents
 title: The Agents
 sidebar_position: 1
-description: Requirements, Architecture, Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage, Release, Operations — one shared foundation, nine independent specialists across the SDLC.
+description: Requirements, Architecture, Audit, Sonar Scan, Code Generation, Impact Analysis, Test Coverage, Release, Operations, Code Review, Compliance — one shared foundation, eleven independent specialists across the full SDLC.
 keywords:
   - agents
   - dca
@@ -15,12 +15,14 @@ keywords:
   - test coverage
   - release
   - operations
+  - code review
+  - compliance
 ---
 
-Nine independent AI coding agents, each with a deterministic Tier 1 (TypeScript) and an LLM-driven Tier 2, all funneled through one shared `@bmad/dca-shared` foundation so reports, changelog entries, git ops, and preflight look identical across the fleet.
+Eleven independent AI coding agents, each with a deterministic Tier 1 (TypeScript) and an LLM-driven Tier 2, all funneled through one shared `@bmad/dca-shared` foundation so reports, changelog entries, git ops, and preflight look identical across the fleet.
 
-:::note Agent count is live
-The DCA suite currently ships **9 agents** covering SDLC phases 1–6. Phase 4 (Code Review + Compliance) is on the [roadmap](../roadmap). The count in this doc will grow as those agents land.
+:::note Full SDLC coverage — the roster is complete
+The DCA suite ships **11 agents**, covering all 8 classic SDLC phases end to end: Requirements → Architecture → Pre-merge Review → Build/Test/Audit → Deploy → Operate → Maintenance → Governance/Compliance. This is the full roster delivered by the 4-phase SDLC-coverage roadmap — see [Roadmap](../roadmap).
 :::
 
 ## At a glance
@@ -36,6 +38,8 @@ The DCA suite currently ships **9 agents** covering SDLC phases 1–6. Phase 4 (
 | **Test Coverage** | 🧪 | Deterministic gap analysis + real line/branch coverage (JaCoCo / Istanbul / Clover / LCOV) + framework-aware LLM test generation. | Baseline snapshot, real coverage on CI, test-generation sprint, pre-release gate. | `--mode <analyze\|generate\|full>` · `--coverage-report <file>` · `--run-coverage` | `test-coverage-<hash>.json` |
 | **Release** | 🚀 | Authors CI/CD pipelines (6 platforms), release notes from git history, deploy plans, rollback plans, env-diffs, and multi-channel stakeholder announcements. | Release-day communications, pipeline bootstrap, rollout planning, env-drift audit, rollback drill prep. | `--pipeline <target>` · `--from-ref <ref>` · `--to-ref <ref>` · `--rollout <strategy>` · `--env <e>` · `--to-env <e>` · `--artifacts <list>` | `release-<hash>.json` |
 | **Operations** | 📊 | Authors runbooks, observability dashboards (7 platforms), alert rules, SLO/SLI + error-budget policies, on-call rotations, incident playbooks, and blameless postmortems. | Runbook-per-symptom authoring, dashboard-as-code, SLO baseline, incident kickoff, postmortem authoring. | `--observability <platform>` · `--incident <symptom>` · `--service <name>` · `--service-tier <tier>` · `--postmortem-severity <sev>` · `--artifacts <list>` | `operations-<hash>.json` |
+| **Code Review** | 📝 | Pre-merge PR/diff review — style-guide enforcement, breaking-change detection, dependency-change risk, design-pattern violations, and role-adapted merge checklists. Produces GitHub/GitLab-ready inline comments. | Fast, diff-scoped review before merge; complements Audit's post-hoc deep scan. | `--pr <n>` · `--diff <file>` · `--from-ref <ref>` · `--to-ref <ref>` · `--style-guide <name>` · `--review-depth <d>` · `--comment-format <f>` · `--fail-on-severity <sev>` | `code-review-<hash>.json` |
+| **Compliance** | ⚖️ | Maps findings from every other DCA agent (via the shared findings cache) to 8 compliance frameworks (CWE, OWASP Top 10, CIS Controls, PCI-DSS, HIPAA, GDPR, SOX, ISO 27001). Produces control-mapping reports, audit-trail exports, attestations, and SLA remediation plans. | Auditor-ready reporting, control-gap analysis, remediation planning, sign-off attestations. | `--framework <fw>` · `--source-agent <agent>` · `--source-max-age-hours <n>` · `--audit-trail` · `--attestation-signer <name>` · `--remediation-sla` | `compliance-<hash>.json` |
 
 Each agent's full command surface lives in its `SKILL.md`; the flags above are the ones you'll type most often.
 
@@ -43,7 +47,7 @@ Each agent's full command surface lives in its `SKILL.md`; the flags above are t
 
 ```mermaid
 flowchart TD
-    subgraph Agents ["Nine DCA agents (independent)"]
+    subgraph Agents ["Eleven DCA agents (independent)"]
         direction LR
         Req["📋 Requirements"]
         Arch["🏛️ Architecture"]
@@ -54,6 +58,8 @@ flowchart TD
         Cov["🧪 Test Coverage"]
         Release["🚀 Release"]
         Ops["📊 Operations"]
+        CodeReview["📝 Code Review"]
+        Compliance["⚖️ Compliance"]
     end
 
     subgraph Shared ["@bmad/dca-shared foundation"]
@@ -76,6 +82,8 @@ flowchart TD
     Cov --> Shared
     Release --> Shared
     Ops --> Shared
+    CodeReview --> Shared
+    Compliance --> Shared
 
     Shared --> Outputs["📊 XLSX + MD twin + CHANGE-LOG entry"]
 ```
@@ -155,6 +163,22 @@ Full detail: **[Release agent](../agents/release)**.
 
 Full detail: **[Operations agent](../agents/operations)**.
 
+### 📝 Code Review
+
+**Pre-merge review specialist** for the deeper end of the Pre-merge Review SDLC phase, complementing [Audit](../agents/audit)'s post-hoc deep scan. Reviews a diff/PR **before it merges**: style-guide enforcement, breaking-change detection with migration guidance, dependency-change risk (license + known-CVE + transitive-impact), design-pattern violation reports, and role-adapted merge checklists. Produces GitHub/GitLab-ready inline comments (file:line-anchored, severity-tagged, with a suggested fix).
+
+Scoped by `--pr`, `--diff`, or `--from-ref` / `--to-ref`; `--fail-on-severity` exits non-zero (exit code 7) for CI gating.
+
+Full detail: **[Code Review agent](../agents/code-review)**.
+
+### ⚖️ Compliance
+
+**Governance & Compliance specialist** closing the final SDLC phase — Governance / Compliance. Unique among the 11 agents: it does not scan code itself. It reads findings that other agents already produced from the shared [Findings Cache](findings-cache) (`audit`, `sonar-scan`, `test-coverage`, `impact-analysis`, `code-review`) and maps them against 8 compliance-framework control catalogs: CWE, OWASP Top 10, CIS Controls, PCI-DSS, HIPAA, GDPR, SOX, ISO 27001.
+
+Produces a control-mapping report, an audit-trail export, an auditor cover letter, an SLA-bound remediation plan, and a sign-off attestation. Human legal/compliance review is required before any artifact goes to an auditor or regulator.
+
+Full detail: **[Compliance agent](../agents/compliance)**.
+
 ## Cross-agent chaining
 
 Every successful agent run writes a `<agent>-<hash>.json` cache entry to `<projectRoot>/.bmad/cache/`. Downstream agents consume these silently for enrichment:
@@ -162,6 +186,7 @@ Every successful agent run writes a `<agent>-<hash>.json` cache entry to `<proje
 - **Impact Analysis** — reads the latest Audit cache to boost priority for files with existing CRITICAL findings.
 - **Test Coverage** — reads the latest Audit cache to enrich coverage gaps with severity context.
 - **Sonar Scan** — reads the latest Audit cache to include delta context in the Quality Gate rationale.
+- **Compliance** — reads the latest cache from Audit, Sonar Scan, Test Coverage, Impact Analysis, and Code Review to build its control-mapping report.
 
 See [Findings Cache](findings-cache).
 
@@ -188,4 +213,4 @@ The `@bmad/dca-shared` subdirectories every agent depends on:
 
 - [The 8 Stacks](the-8-stacks)
 - [Standardized Outputs](standardized-outputs)
-- Individual agent deep-dives: [Requirements](../agents/requirements) · [Architecture](../agents/architecture) · [Audit](../agents/audit) · [Sonar Scan](../agents/sonar-scan) · [Code Generation](../agents/code-generation) · [Impact Analysis](../agents/impact-analysis) · [Test Coverage](../agents/test-coverage) · [Release](../agents/release) · [Operations](../agents/operations).
+- Individual agent deep-dives: [Requirements](../agents/requirements) · [Architecture](../agents/architecture) · [Audit](../agents/audit) · [Sonar Scan](../agents/sonar-scan) · [Code Generation](../agents/code-generation) · [Impact Analysis](../agents/impact-analysis) · [Test Coverage](../agents/test-coverage) · [Release](../agents/release) · [Operations](../agents/operations) · [Code Review](../agents/code-review) · [Compliance](../agents/compliance).
