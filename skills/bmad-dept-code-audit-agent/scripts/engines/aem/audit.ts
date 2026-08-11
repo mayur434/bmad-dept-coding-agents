@@ -156,7 +156,7 @@ async function main(): Promise<void> {
   }
 
   const projectName = args.name || projectCfg.name || path.basename(projectPath);
-  const outputDir = path.resolve(args.output || outputCfg.directory || 'output');
+  const outputDir = path.resolve(args.output || outputCfg.directory || path.join(projectPath, 'audit-reports'));
   let modules: string[] = [];
   const moduleFilter = args.module || scannerCfg.modules;
   if (typeof moduleFilter === 'string') {

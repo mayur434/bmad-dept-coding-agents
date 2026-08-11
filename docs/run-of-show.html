@@ -405,6 +405,19 @@
   }
   .callout .ic { color: var(--cue); font-weight: 700; }
 
+  /* ---- Doc-walkthrough category groups ---- */
+  .walk-category {
+    font-size: .6875rem;
+    font-weight: 700;
+    letter-spacing: .1em;
+    text-transform: uppercase;
+    color: #0F766E;
+    margin: 1.15rem 0 .3rem;
+    padding-bottom: .3rem;
+    border-bottom: 1px solid #99F0E4;
+  }
+  .walk-category:first-of-type { margin-top: .4rem; }
+
   /* ---- Doc-walkthrough stops ---- */
   .walk-list {
     display: flex;
@@ -492,7 +505,7 @@
     <div class="eyebrow">Run of Show · Live Recording</div>
     <h1>BMAD DCA Demo — Docs walkthrough, then two live builds</h1>
     <div class="meta">
-      <span><strong>Runtime</strong> ~13:30</span>
+      <span><strong>Runtime</strong> ~14:00</span>
       <span><strong>Format</strong> browser walkthrough → two terminal-driven demos</span>
       <span><strong>Demo 1</strong> AEMaaCS Audit</span>
       <span><strong>Demo 2</strong> BRD → Adobe Commerce code generation</span>
@@ -505,11 +518,11 @@
       <a href="#prep"><span>Before you record</span><span class="t"></span></a>
       <a href="#seg-1"><span>1 · Cold open</span><span class="t mono">0:00</span></a>
       <a href="#seg-2"><span>2 · Doc walkthrough</span><span class="t mono">0:20</span></a>
-      <a href="#seg-3"><span>3 · Demo 1 — AEMaaCS audit</span><span class="t mono">3:30</span></a>
-      <a href="#seg-4"><span>4 · Demo 2 — BRD → codegen</span><span class="t mono">7:00</span></a>
-      <a href="#seg-5"><span>5 · Close</span><span class="t mono">12:30</span></a>
+      <a href="#seg-3"><span>3 · Demo 1 — AEMaaCS audit</span><span class="t mono">3:50</span></a>
+      <a href="#seg-4"><span>4 · Demo 2 — BRD → codegen</span><span class="t mono">7:20</span></a>
+      <a href="#seg-5"><span>5 · Close</span><span class="t mono">12:50</span></a>
       <a href="#notes"><span>Field notes</span><span class="t"></span></a>
-      <div class="total">Total run time <strong class="mono">13:30</strong></div>
+      <div class="total">Total run time <strong class="mono">~14:00</strong></div>
     </nav>
 
     <main>
@@ -545,58 +558,96 @@
       <!-- SEGMENT 2 -->
       <section class="segment" id="seg-2">
         <div class="seg-head">
-          <span class="seg-time timecode">0:20–3:30</span>
-          <h2 class="seg-title">Doc walkthrough — browser, follows the site's own flow</h2>
-          <span class="seg-dur">3:10</span>
+          <span class="seg-time timecode">0:20–3:50</span>
+          <h2 class="seg-title">Doc walkthrough — the site's own sidebar, in order</h2>
+          <span class="seg-dur">3:30</span>
         </div>
 
-        <div class="panel-label browse">Click path — in order, ~25–30s per stop</div>
+        <div class="panel-label browse">Click path — follows Getting Started → Concepts → Agents → Workflows/Reference → Roadmap exactly as the sidebar orders them</div>
 
+        <div class="walk-category">Getting Started</div>
         <div class="walk-list">
           <div class="walk-stop">
             <div class="walk-num">1</div>
             <div class="walk-body">
-              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents" target="_blank" rel="noopener">/ (home)</a>
-              <div class="walk-say">"This is the DCA docs site — the source of truth for the whole suite. Eleven agents, one standardized report shape, eight Adobe and JVM stacks, requirements through governance. This runs on BMAD Method — an open-source, modular AI-agent framework you drop into whatever AI coding tool you already use."</div>
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/getting-started/prerequisites" target="_blank" rel="noopener">/getting-started/…</a>
+              <div class="walk-say">"Four pages, already done before we hit record: Prerequisites — Node 20-plus and one of forty-four supported AI coding tools, that's the whole list. Install — one <code class=\"mono\">npx bmad-method install</code> command per tool. First Run — three questions the very first time you activate any agent: install deps, pick a role, pick interactive or technical. Quick Start — a five-minute smoke test, one prompt per agent. I ran all four of these to get ready for today."</div>
             </div>
           </div>
+        </div>
+
+        <div class="walk-category">Concepts</div>
+        <div class="walk-list">
           <div class="walk-stop">
             <div class="walk-num">2</div>
             <div class="walk-body">
               <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-agents" target="_blank" rel="noopener">/concepts/the-agents</a>
-              <div class="walk-say">"Here's the full roster on one page — all eleven, each covering its own SDLC phase. Today I'm only touching two: Audit and Code Generation."</div>
+              <div class="walk-say">"The full roster, one page — all eleven, each covering its own SDLC phase. Today I'm only touching two: Audit and Code Generation."</div>
             </div>
           </div>
           <div class="walk-stop">
             <div class="walk-num">3</div>
             <div class="walk-body">
-              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/standardized-outputs" target="_blank" rel="noopener">/concepts/standardized-outputs</a>
-              <div class="walk-say">"Every agent, every stack, the same output contract — an Excel workbook, a Markdown twin, a CHANGE-LOG entry. You'll see this exact shape in a few minutes."</div>
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/the-8-stacks" target="_blank" rel="noopener">/concepts/the-8-stacks</a>
+              <div class="walk-say">"Eight engine IDs — AEM, both flavors of Commerce, Spring Boot, Sling, App Builder, EDS, EDS-plus-Commerce. Auto-detection reads your repo's own signal files and picks one. AEM and Commerce, today's two demos, are both in here."</div>
             </div>
           </div>
           <div class="walk-stop">
             <div class="walk-num">4</div>
             <div class="walk-body">
-              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/requirements-authoring" target="_blank" rel="noopener">/concepts/requirements-authoring</a>
-              <div class="walk-say">"This is what feeds Demo 2 — how DCA structures a BRD: business requirements, functional requirements, the numbering convention. I've already got a sample one ready that follows this exact shape."</div>
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/standardized-outputs" target="_blank" rel="noopener">/concepts/standardized-outputs</a>
+              <div class="walk-say">"Every agent, every stack, the same output contract — an Excel workbook, a Markdown twin, a CHANGE-LOG entry. You'll see this exact shape in both demos."</div>
             </div>
           </div>
           <div class="walk-stop">
             <div class="walk-num">5</div>
             <div class="walk-body">
-              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/agents/audit" target="_blank" rel="noopener">/agents/audit</a>
-              <div class="walk-say">"Audit's page — two-tier: a deterministic scanner that costs zero tokens, plus an LLM pass for deeper semantic findings. That's Demo 1, against a live AEMaaCS project."</div>
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/role-adaptation" target="_blank" rel="noopener">/concepts/role-adaptation</a>
+              <div class="walk-say">"Ten roles tune every agent's default mode, output shape, and next step — an Enterprise Architect gets an executive summary, DevOps gets a SARIF file for a CI gate. I'm running today as generic, on purpose, so you see the baseline before you see it adapt."</div>
             </div>
           </div>
           <div class="walk-stop">
             <div class="walk-num">6</div>
             <div class="walk-body">
-              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/agents/code-generation" target="_blank" rel="noopener">/agents/code-generation</a>
-              <div class="walk-say">"Code Generation — deterministic scaffolders for the common artifacts, plus an LLM path for real business logic. That LLM path is exactly what turns a BRD into working code — Demo 2."</div>
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/concepts/requirements-authoring" target="_blank" rel="noopener">/concepts/requirements-authoring</a>
+              <div class="walk-say">"This is what feeds Demo 2 — how DCA structures a BRD: business requirements, functional requirements, the numbering convention. I've already got a sample one ready that follows this exact shape."</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="walk-category">Agents</div>
+        <div class="walk-list">
+          <div class="walk-stop">
+            <div class="walk-num">7</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/agents/audit" target="_blank" rel="noopener">/agents/audit</a>
+              <div class="walk-say">"Audit's own page — two-tier: a deterministic scanner that costs zero tokens, plus an LLM pass for deeper semantic findings. That's Demo 1, against a live AEMaaCS project."</div>
             </div>
           </div>
           <div class="walk-stop">
-            <div class="walk-num">7</div>
+            <div class="walk-num">8</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/agents/code-generation" target="_blank" rel="noopener">/agents/code-generation</a>
+              <div class="walk-say">"Code Generation's own page — deterministic scaffolders for the common artifacts, plus an LLM path for real business logic. That LLM path is exactly what turns a BRD into working code — Demo 2."</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="walk-category">Workflows &amp; Reference</div>
+        <div class="walk-list">
+          <div class="walk-stop">
+            <div class="walk-num">9</div>
+            <div class="walk-body">
+              <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/workflows/chain-all" target="_blank" rel="noopener">/workflows/chain-all</a>
+              <div class="walk-say">"Two more worth knowing, not using today: Chain-all runs Audit through Impact Analysis in one command with a cross-agent roll-up. And the CLI Flags reference is every flag, every agent, one page — that's where Demo 1 and 2's flags both come from."</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="walk-category">Roadmap</div>
+        <div class="walk-list">
+          <div class="walk-stop">
+            <div class="walk-num">10</div>
             <div class="walk-body">
               <a class="walk-url" href="https://mayur434.github.io/bmad-dept-coding-agents/roadmap" target="_blank" rel="noopener">/roadmap</a>
               <div class="walk-say">"Quick flash on the way out — every phase on this roadmap is shipped, not planned. Full SDLC coverage, delivered. Let's go build something."</div>
@@ -604,13 +655,13 @@
           </div>
         </div>
 
-        <div class="note" style="margin-top:.9rem">Switch to the terminal now — Demo 1 starts immediately after stop 7.</div>
+        <div class="note" style="margin-top:.9rem">Switch to the terminal now — Demo 1 starts immediately after stop 10.</div>
       </section>
 
       <!-- SEGMENT 3 — DEMO 1 -->
       <section class="segment" id="seg-3">
         <div class="seg-head">
-          <span class="seg-time timecode">3:30–7:00</span>
+          <span class="seg-time timecode">3:50–7:20</span>
           <h2 class="seg-title">Demo 1 — AEMaaCS Audit</h2>
           <span class="seg-dur">3:30</span>
         </div>
@@ -648,7 +699,7 @@ npx ts-node run.ts --path {{AEM_PATH}} --engine aem --technical --no-preflight -
       <!-- SEGMENT 4 — DEMO 2 -->
       <section class="segment" id="seg-4">
         <div class="seg-head">
-          <span class="seg-time timecode">7:00–12:30</span>
+          <span class="seg-time timecode">7:20–12:50</span>
           <h2 class="seg-title">Demo 2 — BRD → Adobe Commerce code generation</h2>
           <span class="seg-dur">5:30</span>
         </div>
@@ -690,7 +741,7 @@ npx ts-node run.ts --path {{COMMERCE_PATH}} --scaffold --engine commerce-paas --
       <!-- SEGMENT 5 -->
       <section class="segment" id="seg-5">
         <div class="seg-head">
-          <span class="seg-time timecode">12:30–13:30</span>
+          <span class="seg-time timecode">12:50–13:50</span>
           <h2 class="seg-title">Close</h2>
           <span class="seg-dur">1:00</span>
         </div>

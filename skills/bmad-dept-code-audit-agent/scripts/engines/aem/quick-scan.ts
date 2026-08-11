@@ -128,7 +128,7 @@ async function main(): Promise<void> {
   }
 
   const projectName = args.name || path.basename(projectPath);
-  const outputDir = path.resolve(args.output || 'output');
+  const outputDir = path.resolve(args.output || path.join(projectPath, 'audit-reports'));
   const format = (args.format || 'both').toLowerCase();
   if (!['excel', 'md', 'both'].includes(format)) {
     console.error(`❌ Error: Invalid format "${format}". Valid: excel, md, both`);
